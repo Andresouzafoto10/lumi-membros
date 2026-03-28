@@ -1,25 +1,39 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { GraduationCap, ExternalLink, Menu, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  GraduationCap,
+  Users,
+  UsersRound,
+  Settings,
+  ExternalLink,
+  Menu,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { to: "/admin/cursos", label: "Cursos", icon: GraduationCap },
+  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/admin/cursos", label: "Cursos", icon: GraduationCap, exact: false },
+  { to: "/admin/turmas", label: "Turmas", icon: UsersRound, exact: false },
+  { to: "/admin/alunos", label: "Alunos", icon: Users, exact: false },
+  { to: "/admin/configuracoes", label: "Configurações", icon: Settings, exact: false },
 ];
 
 export function AdminLayout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isActive = (path: string) => location.pathname.startsWith(path);
+  const isActive = (path: string, exact: boolean) =>
+    exact ? location.pathname === path : location.pathname.startsWith(path);
 
   const navContent = (
     <>
       <div>
         <Link
-          to="/admin/cursos"
+          to="/admin"
           className="block px-6 py-5 text-lg font-bold text-primary"
           onClick={() => setMobileMenuOpen(false)}
         >
@@ -34,7 +48,7 @@ export function AdminLayout() {
               onClick={() => setMobileMenuOpen(false)}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive(link.to)
+                isActive(link.to, link.exact)
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground hover:bg-sidebar-accent/50"
               )}
@@ -46,14 +60,14 @@ export function AdminLayout() {
         </nav>
       </div>
 
-      <div className="px-3 pb-4">
+      <div className="px-3 pb-4 space-y-1">
         <Link
           to="/cursos"
           onClick={() => setMobileMenuOpen(false)}
           className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
         >
           <ExternalLink className="h-4 w-4" />
-          Area do Aluno
+          Área do Aluno
         </Link>
       </div>
     </>
@@ -68,7 +82,7 @@ export function AdminLayout() {
 
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4 lg:hidden">
-        <Link to="/admin/cursos" className="text-lg font-bold text-primary">
+        <Link to="/admin" className="text-lg font-bold text-primary">
           Lumi Admin
         </Link>
 

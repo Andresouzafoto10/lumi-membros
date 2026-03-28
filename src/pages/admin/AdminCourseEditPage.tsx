@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useCourses } from "@/hooks/useCourses";
 import type { CourseAccess } from "@/types/course";
 
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -183,6 +184,14 @@ export default function AdminCourseEditPage() {
   // ---------- Render ----------
   return (
     <div className="space-y-8">
+      <Breadcrumb
+        items={[
+          { label: "Admin", to: "/admin" },
+          { label: "Cursos", to: "/admin/cursos" },
+          { label: session?.title ?? "Sessão", to: session ? `/admin/cursos/sessoes/${session.id}` : undefined },
+          { label: course.title },
+        ]}
+      />
       {/* ====== Header ====== */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 flex-wrap">

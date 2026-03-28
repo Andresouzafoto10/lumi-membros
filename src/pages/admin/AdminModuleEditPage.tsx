@@ -11,12 +11,16 @@ import {
   Save,
   Video,
   FileText,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
+import { getLessonRatingCounts } from "@/hooks/useLessonRatings";
 import type { CourseLesson, CourseVideoType } from "@/types/course";
 
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -226,6 +230,14 @@ export default function AdminModuleEditPage() {
   // ---------- Render ----------
   return (
     <div className="space-y-8">
+      <Breadcrumb
+        items={[
+          { label: "Admin", to: "/admin" },
+          { label: "Cursos", to: "/admin/cursos" },
+          { label: course.title, to: `/admin/cursos/${courseId}/edit` },
+          { label: mod.title },
+        ]}
+      />
       {/* ====== Header ====== */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 flex-wrap">
@@ -317,6 +329,22 @@ export default function AdminModuleEditPage() {
                     </>
                   )}
                 </p>
+
+                {(() => {
+                  const counts = getLessonRatingCounts(lesson.id);
+                  return (counts.likes > 0 || counts.dislikes > 0) ? (
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <ThumbsUp className="h-3.5 w-3.5 text-primary" />
+                        {counts.likes}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <ThumbsDown className="h-3.5 w-3.5 text-destructive" />
+                        {counts.dislikes}
+                      </span>
+                    </div>
+                  ) : null;
+                })()}
 
                 <div className="flex flex-wrap items-center gap-1 pt-1">
                   <Button

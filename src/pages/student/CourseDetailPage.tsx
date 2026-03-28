@@ -1,17 +1,25 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import {
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
   BookOpen,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Card } from "@/components/ui/card";
 import { LessonPlayer } from "@/components/courses/LessonPlayer";
 import { CourseSidebar } from "@/components/courses/CourseSidebar";
+import { CourseProgressTopBar } from "@/components/courses/CourseProgressTopBar";
+import { LessonRating } from "@/components/courses/LessonRating";
+import { LessonNotes } from "@/components/courses/LessonNotes";
+import { cn } from "@/lib/utils";
 import { useCourses } from "@/hooks/useCourses";
+import { useLastWatched } from "@/hooks/useLastWatched";
+import { useLessonNotes } from "@/hooks/useLessonNotes";
 import type { CourseLesson } from "@/types/course";
 
 export default function CourseDetailPage() {
@@ -19,6 +27,7 @@ export default function CourseDetailPage() {
   const [searchParams] = useSearchParams();
   const { findCourse } = useCourses();
 
+  const { setLastWatched } = useLastWatched();
   const course = findCourse(courseId);
 
   // Flatten all active lessons in order
@@ -58,6 +67,12 @@ export default function CourseDetailPage() {
     return null;
   });
 
+  // Lesson notes
+  const { content: noteContent, saveNote } = useLessonNotes(courseId, activeLessonId);
+
+  // Mobile sidebar toggle
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // Open modules state
   const [openModules, setOpenModules] = useState<Record<string, boolean>>(
     () => {
@@ -79,32 +94,7 @@ export default function CourseDetailPage() {
     }
   }, [completedLessons, storageKey]);
 
-  const handleToggleModule = useCallback((moduleId: string) => {
-    setOpenModules((prev) => ({
-      ...prev,
-      [moduleId]: !prev[moduleId],
-    }));
-  }, []);
-
-  const handleSelectLesson = useCallback((lessonId: string) => {
-    setActiveLessonId(lessonId);
-  }, []);
-
-  const handleCompleteLesson = useCallback(() => {
-    if (!activeLessonId) return;
-    setCompletedLessons((prev) => ({
-      ...prev,
-      [activeLessonId]: true,
-    }));
-  }, [activeLessonId]);
-
-  const handleStartCourse = useCallback(() => {
-    if (allLessons.length > 0) {
-      setActiveLessonId(allLessons[0].id);
-    }
-  }, [allLessons]);
-
-  // Current lesson and navigation
+  // Current lesson and navigation — must be computed before callbacks that reference them
   const activeLesson: CourseLesson | undefined = allLessons.find(
     (l) => l.id === activeLessonId
   );
@@ -125,16 +115,72 @@ export default function CourseDetailPage() {
     return (count / allLessons.length) * 100;
   }, [allLessons, completedLessons]);
 
+  const handleToggleModule = useCallback((moduleId: string) => {
+    setOpenModules((prev) => ({
+      ...prev,
+      [moduleId]: !prev[moduleId],
+    }));
+  }, []);
+
+  const handleSelectLesson = useCallback(
+    (lessonId: string) => {
+      setActiveLessonId(lessonId);
+      if (course) {
+        const lesson = allLessons.find((l) => l.id === lessonId);
+        if (lesson) {
+          setLastWatched({
+            courseId: course.id,
+            courseTitle: course.title,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+          });
+        }
+      }
+    },
+    [course, allLessons, setLastWatched]
+  );
+
+  const handleCompleteLesson = useCallback(() => {
+    if (!activeLessonId) return;
+    const wasAlreadyCompleted = completedLessons[activeLessonId];
+    setCompletedLessons((prev) => ({
+      ...prev,
+      [activeLessonId]: true,
+    }));
+    if (!wasAlreadyCompleted) {
+      toast.success("Aula concluida!", {
+        description: nextLesson
+          ? "Avancando para a proxima aula..."
+          : "Parabens pelo progresso!",
+      });
+      if (nextLesson) {
+        setTimeout(() => handleSelectLesson(nextLesson.id), 1200);
+      }
+    }
+  }, [activeLessonId, completedLessons, nextLesson, handleSelectLesson]);
+
+  const handleStartCourse = useCallback(() => {
+    if (allLessons.length > 0 && course) {
+      setActiveLessonId(allLessons[0].id);
+      setLastWatched({
+        courseId: course.id,
+        courseTitle: course.title,
+        lessonId: allLessons[0].id,
+        lessonTitle: allLessons[0].title,
+      });
+    }
+  }, [allLessons, course, setLastWatched]);
+
   if (!course) {
     return (
       <div className="p-6 max-w-[1400px] mx-auto">
-        <Link
-          to="/cursos"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Cursos
-        </Link>
+        <Breadcrumb
+          items={[
+            { label: "Cursos", to: "/cursos" },
+            { label: "Nao encontrado" },
+          ]}
+          className="mb-6"
+        />
         <p className="text-muted-foreground">Curso nao encontrado.</p>
       </div>
     );
@@ -144,14 +190,42 @@ export default function CourseDetailPage() {
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
-      {/* Back link */}
-      <Link
-        to="/cursos"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Cursos
-      </Link>
+      <Helmet>
+        <title>{course ? `${course.title} | Lumi Membros` : "Curso | Lumi Membros"}</title>
+      </Helmet>
+
+      {/* Breadcrumb */}
+      <Breadcrumb
+        items={[
+          { label: "Cursos", to: "/cursos" },
+          { label: course.title },
+          ...(activeLesson ? [{ label: activeLesson.title }] : []),
+        ]}
+        className="mb-4"
+      />
+
+      {/* Progress bar */}
+      {hasContent && <CourseProgressTopBar percent={percentCompleted} className="mb-6" />}
+
+      {/* Mobile sidebar toggle */}
+      {hasContent && (
+        <div className="lg:hidden mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="w-full justify-between"
+          >
+            <span className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Conteudo do curso
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {Math.round(percentCompleted)}% concluido
+            </span>
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-8">
         {/* Left column */}
@@ -184,9 +258,9 @@ export default function CourseDetailPage() {
             <>
               <LessonPlayer lesson={activeLesson} />
 
-              {/* Navigation buttons */}
+              {/* Navigation buttons + rating */}
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   {prevLesson && (
                     <Button
                       variant="outline"
@@ -207,6 +281,9 @@ export default function CourseDetailPage() {
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                   )}
+
+                  <div className="hidden sm:block w-px h-6 bg-border mx-1" />
+                  <LessonRating lessonId={activeLesson.id} />
                 </div>
 
                 <Button
@@ -228,19 +305,28 @@ export default function CourseDetailPage() {
                   <p>{activeLesson.description}</p>
                 </div>
               )}
+
+              {/* Lesson notes */}
+              <LessonNotes content={noteContent} onChange={saveNote} />
             </>
           )}
         </div>
 
         {/* Right column - Sidebar */}
-        <div className="lg:sticky lg:top-6 lg:self-start">
+        <div className={cn(
+          "lg:sticky lg:top-6 lg:self-start",
+          sidebarOpen ? "block" : "hidden lg:block"
+        )}>
           <CourseSidebar
             course={course}
             activeLessonId={activeLessonId}
             completedLessons={completedLessons}
             openModules={openModules}
             onToggleModule={handleToggleModule}
-            onSelectLesson={handleSelectLesson}
+            onSelectLesson={(lessonId) => {
+              handleSelectLesson(lessonId);
+              setSidebarOpen(false);
+            }}
             percentCompleted={percentCompleted}
           />
         </div>

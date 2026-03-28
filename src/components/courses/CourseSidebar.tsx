@@ -72,16 +72,21 @@ export function CourseSidebar({
                     <span className="text-sm font-medium truncate">
                       {mod.title}
                     </span>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
-                        openModules[mod.id] && "rotate-180"
-                      )}
-                    />
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">
+                        {sortedLessons.filter((l) => completedLessons[l.id]).length}/{sortedLessons.length}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                          openModules[mod.id] && "rotate-180"
+                        )}
+                      />
+                    </span>
                   </Button>
                 </CollapsibleTrigger>
 
-                <CollapsibleContent>
+                <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
                   <div className="ml-1 space-y-0.5 py-1">
                     {sortedLessons.map((lesson) => {
                       const isCompleted = completedLessons[lesson.id] ?? false;
@@ -90,9 +95,10 @@ export function CourseSidebar({
                       return (
                         <button
                           key={lesson.id}
+                          id={`lesson-${lesson.id}`}
                           onClick={() => onSelectLesson(lesson.id)}
                           className={cn(
-                            "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
+                            "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent scroll-mt-4",
                             isActive && "bg-sidebar-accent"
                           )}
                         >
