@@ -31,8 +31,9 @@ Lumi Membros is a member-area / course platform for managing and consuming onlin
 
 Two route groups, each wrapped in its own layout:
 
-- **Student routes** (`StudentLayout`): `/cursos`, `/cursos/:courseId`, `/cursos/:courseId/aulas/:lessonId`
-- **Admin routes** (`AdminLayout` with sidebar): `/admin` (dashboard), `/admin/cursos`, `/admin/cursos/sessoes/:sessionId`, `/admin/cursos/:courseId/edit`, `/admin/cursos/:courseId/modulos/:moduleId`, `/admin/banners`, `/admin/secoes`, `/admin/turmas`, `/admin/turmas/:classId/edit`, `/admin/alunos`, `/admin/alunos/:studentId`, `/admin/configuracoes`, `/admin/configuracoes/perfis`
+- **Student routes** (`StudentLayout`): `/cursos`, `/cursos/:courseId`, `/cursos/:courseId/aulas/:lessonId`, `/meu-perfil`, `/perfil/:id`
+- **Community routes** (`CommunityLayout` nested in StudentLayout): `/comunidade` (redirect), `/comunidade/feed`, `/comunidade/:slug`
+- **Admin routes** (`AdminLayout` with sidebar): `/admin` (dashboard), `/admin/cursos`, `/admin/cursos/sessoes/:sessionId`, `/admin/cursos/:courseId/edit`, `/admin/cursos/:courseId/modulos/:moduleId`, `/admin/banners`, `/admin/secoes`, `/admin/turmas`, `/admin/turmas/:classId/edit`, `/admin/alunos`, `/admin/alunos/:studentId`, `/admin/comunidade`, `/admin/comunidade/:id/edit`, `/admin/comentarios`, `/admin/configuracoes`, `/admin/configuracoes/perfis`
 
 ### State Management
 
@@ -47,6 +48,14 @@ All state uses the **in-memory store + localStorage persistence** pattern via `u
 - **`useLessonRatings`** (`lumi-membros:lesson-ratings`) — thumbs up/down per lesson.
 - **`useLessonNotes`** (`lumi-membros:notes:{courseId}:{lessonId}`) — per-lesson notes with auto-save.
 - **`useSearchContext`** — React context (no localStorage) for header search state shared between StudentLayout and CoursesPage.
+- **`useCurrentUser`** (`lumi-membros:current-user`) — stores the currently "logged in" student ID. Seletor no header permite trocar de usuario para testar interacoes.
+- **`useProfiles`** (`lumi-membros:profiles`) — student profile CRUD (displayName, username, avatar, cover, bio, link, location), follow/unfollow.
+- **`useCommunities`** (`lumi-membros:communities`) — community CRUD, getCommunitiesForStudent (via enrollments -> classIds), pin/unpin post.
+- **`usePosts`** (`lumi-membros:posts`) — post CRUD, toggleLike, toggleSave, hashtag/mention auto-extraction, getFeedPosts (recent/popular/following), getTrendingHashtags, getTopPosts, approve/reject.
+- **`useComments`** (`lumi-membros:comments`) — comment CRUD with nested replies (1 level), toggleLikeComment.
+- **`useRestrictions`** (`lumi-membros:restrictions`) — restriction CRUD, isRestricted check, active restrictions list.
+- **`useNotifications`** (`lumi-membros:notifications`) — notifications per user, markAsRead, markAllAsRead, unreadCount.
+- **`useGamification`** (`lumi-membros:gamification`) — points and badges per student, 5 pre-defined badges (Primeiro Passo, Engajado, Popular, Maratonista, Veterano).
 
 Currently uses **mock data** seeded from `src/data/mock-*.ts` files. There is no backend API integration yet — `VITE_USE_MOCK_DATA=true` in `.env`.
 
@@ -59,11 +68,19 @@ Student (with Enrollment[])
 Class (with ContentScheduleRule[]) — links students to courses
 AccessProfile — permission set per role
 PlatformSettings — appearance, ratings, certificate config
+StudentProfile — avatar, cover, bio, username, followers/following
+Community — slug, classIds, settings (allowStudentPosts, requireApproval, allowImages), pinnedPostId
+CommunityPost — authorId, type (user/system), title, body, images, hashtags, mentions, likedBy, savedBy, status
+PostComment — nested replies (1 level), likedBy
+StudentRestriction — reason, duration, appliedBy
+AppNotification — type (like/comment/follow/mention/system), read state
+GamificationData — points, badges per student
+Badge — id, name, description, icon, condition (5 pre-defined)
 ```
 
-Key types are in `src/types/course.ts` (domain types), `src/types/admin.ts` (form data types that re-export domain types), and `src/types/student.ts` (Student, Enrollment, Class, ContentScheduleRule, AccessProfile, PlatformSettings, ThemeColors).
+Key types are in `src/types/course.ts` (domain types), `src/types/admin.ts` (form data types that re-export domain types), and `src/types/student.ts` (Student, Enrollment, Class, ContentScheduleRule, AccessProfile, PlatformSettings, ThemeColors, StudentProfile, Community, CommunityPost, PostComment, StudentRestriction, AppNotification, GamificationData, Badge).
 
-Mock data files: `src/data/mock-courses.ts`, `src/data/mock-students.ts`, `src/data/mock-classes.ts`, `src/data/mock-enrollments.ts`.
+Mock data files: `src/data/mock-courses.ts`, `src/data/mock-students.ts`, `src/data/mock-classes.ts`, `src/data/mock-enrollments.ts`, `src/data/mock-profiles.ts`, `src/data/mock-communities.ts`, `src/data/mock-posts.ts`, `src/data/mock-comments.ts`, `src/data/mock-notifications.ts`, `src/data/mock-restrictions.ts`, `src/data/mock-gamification.ts`.
 
 ### Path Alias
 
@@ -73,7 +90,8 @@ Mock data files: `src/data/mock-courses.ts`, `src/data/mock-students.ts`, `src/d
 
 - `src/components/ui/` — shadcn/ui primitives (button, card, dialog, input, select, tabs, table, breadcrumb, etc.). Use `cn()` from `src/lib/utils.ts` for conditional class merging.
 - `src/components/courses/` — domain components (CourseCard, CourseSidebar, LessonPlayer, ProgressRing, CourseBannersCarousel, ContinueWatching, CourseProgressTopBar, LessonRating, LessonNotes, EmptyState, SkeletonCourseCard, CourseSearch)
-- `src/components/layout/` — StudentLayout (includes header search input), AdminLayout (5 nav links: Dashboard, Cursos, Turmas, Alunos, Configurações), ThemeToggle
+- `src/components/community/` — PostCard (markdown rendering, image carousel, actions, system/pinned variants), PostComments (nested replies), CreatePostDialog (title, body, images, community select)
+- `src/components/layout/` — StudentLayout (header: search, user switcher, notification bell, community link), AdminLayout (7 nav links: Dashboard, Cursos, Turmas, Alunos, Comunidade, Moderacao, Configuracoes), CommunityLayout (sidebar: feed, communities, trending, top posts + drawer mobile), ThemeToggle, NotificationBell
 
 ### Theming
 
@@ -101,7 +119,26 @@ Brand color is **Lumi teal** (`#00C2CB`, HSL `183 100% 40%`) used as `--primary`
 - **Editar Turma** (`/admin/turmas/:classId/edit`) — nome, tipo matrícula, duração, seleção de curso; RuleEditor por módulo/aula com 8 tipos de regra (free, scheduled_date, days_after_enrollment, blocked, hidden, course_complete, module_complete, lesson_complete).
 - **Configurações** (`/admin/configuracoes`) — 4 tabs: Aparência (nome, logo, tema, color pickers), Avaliações (toggle global), Certificados (bg URL, texto com variáveis, preview), Perfis de Acesso (navega para `/admin/configuracoes/perfis`).
 - **Perfis de Acesso** (`/admin/configuracoes/perfis`) — 3 perfis de sistema read-only (Aluno, Moderador, Admin) + perfis personalizados CRUD com 5 permissões (courses, students, classes, settings, community).
+- **Comunidades** (`/admin/comunidade`) — cards com filtros (status, turma), ativar/desativar, excluir; `/nova/edit` cria nova comunidade.
+- **Editar Comunidade** (`/admin/comunidade/:id/edit`) — nome, slug (auto-gerado), descricao, capa, icone, turmas com acesso (add/remove), status, 3 switches (allowStudentPosts, requireApproval, allowImages).
+- **Vinculacao Turma-Comunidade** — na edicao de turma, secao "Comunidades vinculadas" mostra comunidades que referenciam a turma.
+- **Moderacao** (`/admin/comentarios`) — 2 abas: Posts (filtros status/comunidade/busca, acoes aprovar/excluir/restringir) + Restricoes ativas (lista com botao remover). Modal restringir com duracao + motivo.
+- **Restricoes no Perfil Admin** — secao "Restricoes" no AdminStudentProfilePage com restricao ativa + historico. Icone Ban na tabela de alunos.
+- **Posts do Aluno no Admin** — secao "Posts na comunidade" no AdminStudentProfilePage com ultimos 5 posts.
 - **Breadcrumbs**: todos os pages admin usam `<Breadcrumb>` de `src/components/ui/breadcrumb.tsx`.
+
+### Student Profile & Community Features
+
+- **Perfil do Aluno** (`/meu-perfil`) — capa + avatar com upload (base64), displayName, @username, bio (160 chars), link, localizacao, followers/following, pontos + badges de gamificacao, 3 abas (Publicacoes, Salvos, Sobre com cursos matriculados), dialog de edicao.
+- **Perfil Publico** (`/perfil/:id`) — mesma estrutura sem edicao, botao Seguir/Seguindo.
+- **Feed da Comunidade** (`/comunidade/feed`) — feed geral de todas as comunidades do aluno, filtros (Mais recente / Mais curtido / Seguindo), filtro por hashtag via `?tag=`, botao Publicar.
+- **Comunidade Especifica** (`/comunidade/:slug`) — feed isolado com header da comunidade, post fixado no topo, verificacao de acesso.
+- **PostCard** — avatar + nome + @username + badge gamificacao, data relativa, markdown (negrito, italico, links, #hashtags e @mencoes clicaveis), carrossel de imagens (ate 6), acoes (curtir, comentar, salvar, compartilhar, menu), variantes system (trofeu) e pinned (badge fixado).
+- **Comentarios** — expandiveis, respostas aninhadas (1 nivel), curtir, excluir/reportar, verificacao de restricao.
+- **Criar Publicacao** — dialog com titulo, body (markdown), upload imagens (base64), select comunidade, status pending/published conforme config.
+- **Notificacoes** — sino no header com badge de contagem, dropdown com lista, marcar como lido.
+- **Seletor de Usuario** — dropdown no header para trocar o aluno logado (testar interacoes).
+- **Gamificacao** — 5 badges pre-definidos, pontos mock por aluno, exibido no perfil e nos posts.
 
 ### CSS Theme Injection
 

@@ -2,10 +2,15 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import { StudentLayout } from "@/components/layout/StudentLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { CommunityLayout } from "@/components/layout/CommunityLayout";
 
 import CoursesPage from "@/pages/student/CoursesPage";
 import CourseDetailPage from "@/pages/student/CourseDetailPage";
 import LessonPage from "@/pages/student/LessonPage";
+import MyProfilePage from "@/pages/student/MyProfilePage";
+import PublicProfilePage from "@/pages/student/PublicProfilePage";
+import CommunityFeedPage from "@/pages/student/CommunityFeedPage";
+import CommunityPage from "@/pages/student/CommunityPage";
 
 import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
 import AdminCoursesPage from "@/pages/admin/AdminCoursesPage";
@@ -20,6 +25,9 @@ import AdminStudentsPage from "@/pages/admin/AdminStudentsPage";
 import AdminStudentProfilePage from "@/pages/admin/AdminStudentProfilePage";
 import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
 import AdminAccessProfilesPage from "@/pages/admin/AdminAccessProfilesPage";
+import AdminCommunitiesPage from "@/pages/admin/AdminCommunitiesPage";
+import AdminCommunityEditPage from "@/pages/admin/AdminCommunityEditPage";
+import AdminModerationPage from "@/pages/admin/AdminModerationPage";
 
 export default function App() {
   return (
@@ -35,6 +43,18 @@ export default function App() {
           path="/cursos/:courseId/aulas/:lessonId"
           element={<LessonPage />}
         />
+        <Route path="/meu-perfil" element={<MyProfilePage />} />
+        <Route path="/perfil/:id" element={<PublicProfilePage />} />
+
+        {/* Community routes (nested in CommunityLayout) */}
+        <Route element={<CommunityLayout />}>
+          <Route
+            path="/comunidade"
+            element={<Navigate to="/comunidade/feed" replace />}
+          />
+          <Route path="/comunidade/feed" element={<CommunityFeedPage />} />
+          <Route path="/comunidade/:slug" element={<CommunityPage />} />
+        </Route>
       </Route>
 
       {/* Admin routes */}
@@ -65,6 +85,12 @@ export default function App() {
           path="/admin/alunos/:studentId"
           element={<AdminStudentProfilePage />}
         />
+        <Route path="/admin/comunidade" element={<AdminCommunitiesPage />} />
+        <Route
+          path="/admin/comunidade/:id/edit"
+          element={<AdminCommunityEditPage />}
+        />
+        <Route path="/admin/comentarios" element={<AdminModerationPage />} />
         <Route path="/admin/configuracoes" element={<AdminSettingsPage />} />
         <Route
           path="/admin/configuracoes/perfis"

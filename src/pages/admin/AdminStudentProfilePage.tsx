@@ -11,6 +11,7 @@ import {
   UsersRound,
   RotateCcw,
   Ban,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -19,6 +20,10 @@ import { ptBR } from "date-fns/locale";
 import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
 import { useCourses } from "@/hooks/useCourses";
+import { useProfiles } from "@/hooks/useProfiles";
+import { usePosts } from "@/hooks/usePosts";
+import { useCommunities } from "@/hooks/useCommunities";
+import { useRestrictions } from "@/hooks/useRestrictions";
 import type { StudentStatus, StudentRole } from "@/types/student";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -112,6 +117,16 @@ export default function AdminStudentProfilePage() {
   const { students, enrollments, updateStudent, revokeEnrollment } = useStudents();
   const { findClass } = useClasses();
   const { findCourse } = useCourses();
+  const { findProfile } = useProfiles();
+  const { getPostsByAuthor } = usePosts();
+  const { findCommunity } = useCommunities();
+  const { isRestricted, getRestriction, getRestrictionsForStudent, removeRestriction } = useRestrictions();
+
+  const profile = findProfile(studentId);
+  const studentPosts = useMemo(
+    () => (studentId ? getPostsByAuthor(studentId).slice(0, 5) : []),
+    [getPostsByAuthor, studentId]
+  );
 
   const student = useMemo(
     () => (studentId ? students.find((s) => s.id === studentId) ?? null : null),
@@ -240,12 +255,29 @@ export default function AdminStudentProfilePage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-lg">
-            {student.name.charAt(0).toUpperCase()}
+          <div className="h-12 w-12 shrink-0 rounded-full overflow-hidden bg-primary/10">
+            {profile?.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={student.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-primary font-bold text-lg">
+                {student.name.charAt(0).toUpperCase()}
+              </div>
+            )}
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{student.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {profile?.displayName ?? student.name}
+            </h1>
             <div className="flex items-center gap-2 mt-0.5">
+              {profile && (
+                <span className="text-sm text-muted-foreground">
+                  @{profile.username}
+                </span>
+              )}
               <Badge variant={STATUS_VARIANTS[student.status]}>
                 {STATUS_LABELS[student.status]}
               </Badge>
@@ -330,6 +362,69 @@ export default function AdminStudentProfilePage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Restrictions */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Ban className="h-4 w-4 text-yellow-500" />
+                Restricoes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {studentId && isRestricted(studentId) ? (
+                (() => {
+                  const active = getRestriction(studentId);
+                  return active ? (
+                    <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="destructive" className="text-xs">Restrito</Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            removeRestriction(active.id);
+                            toast.success("Restricao removida.");
+                          }}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                      <p className="text-sm"><span className="font-medium">Motivo:</span> {active.reason}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Inicio: {format(parseISO(active.startsAt), "dd/MM/yyyy", { locale: ptBR })}
+                        {" · "}
+                        Fim: {active.endsAt ? format(parseISO(active.endsAt), "dd/MM/yyyy", { locale: ptBR }) : "Permanente"}
+                      </p>
+                    </div>
+                  ) : null;
+                })()
+              ) : (
+                <p className="text-sm text-muted-foreground">Sem restricao ativa.</p>
+              )}
+
+              {/* History */}
+              {studentId && (() => {
+                const history = getRestrictionsForStudent(studentId).filter(
+                  (r) => !r.active || (r.endsAt && new Date(r.endsAt) < new Date())
+                );
+                if (history.length === 0) return null;
+                return (
+                  <div className="pt-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Historico</p>
+                    <div className="space-y-1.5">
+                      {history.map((r) => (
+                        <div key={r.id} className="text-xs text-muted-foreground">
+                          {format(parseISO(r.startsAt), "dd/MM/yyyy", { locale: ptBR })} — {r.reason}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right column — enrollments + progress */}
@@ -400,6 +495,60 @@ export default function AdminStudentProfilePage() {
                             <Ban className="h-4 w-4 text-destructive" />
                           </Button>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Community posts */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MessageSquare className="h-4 w-4 text-primary" />
+                Posts na comunidade ({studentPosts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {studentPosts.length === 0 ? (
+                <p className="px-6 pb-4 text-sm text-muted-foreground">
+                  Nenhum post publicado.
+                </p>
+              ) : (
+                <div className="divide-y">
+                  {studentPosts.map((post) => (
+                    <div key={post.id} className="px-6 py-3">
+                      {post.title && (
+                        <p className="text-sm font-medium leading-snug">
+                          {post.title}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {post.body}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+                        <span>
+                          {findCommunity(post.communityId)?.name ??
+                            post.communityId}
+                        </span>
+                        <span>·</span>
+                        <span>
+                          {post.likesCount} curtida
+                          {post.likesCount !== 1 ? "s" : ""}
+                        </span>
+                        <span>·</span>
+                        <span>
+                          {post.commentsCount} comentario
+                          {post.commentsCount !== 1 ? "s" : ""}
+                        </span>
+                        <span>·</span>
+                        <span>
+                          {format(parseISO(post.createdAt), "dd/MM/yyyy", {
+                            locale: ptBR,
+                          })}
+                        </span>
                       </div>
                     </div>
                   ))}

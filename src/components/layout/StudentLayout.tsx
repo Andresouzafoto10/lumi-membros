@@ -1,8 +1,9 @@
 import { Outlet, Link } from "react-router-dom";
-import { Settings, Search, X } from "lucide-react";
+import { Settings, Search, X, MessageSquare, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { SearchProvider, useSearchContext } from "@/hooks/useSearchContext";
 
 function HeaderSearchInput() {
@@ -35,15 +36,30 @@ export function StudentLayout() {
     <SearchProvider>
       <div className="min-h-screen bg-background">
         <nav className="h-16 border-b px-6 flex items-center justify-between bg-background">
-          <Link to="/cursos" className="text-lg font-bold text-primary">
-            Lumi Membros
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/cursos" className="text-lg font-bold text-primary">
+              Lumi Membros
+            </Link>
+            <Link
+              to="/comunidade/feed"
+              className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Comunidade
+            </Link>
+          </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <HeaderSearchInput />
+            <NotificationBell />
+            <Link to="/meu-perfil">
+              <Button variant="ghost" size="icon">
+                <User className="h-4 w-4" />
+              </Button>
+            </Link>
             <ThemeToggle />
             <Link to="/admin/cursos">
-              <Button variant="ghost" className="gap-2">
+              <Button variant="ghost" className="gap-2 hidden sm:flex">
                 <Settings className="h-4 w-4" />
                 Admin
               </Button>

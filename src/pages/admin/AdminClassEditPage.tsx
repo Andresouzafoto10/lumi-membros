@@ -10,11 +10,13 @@ import {
   Search,
   X,
   Plus,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useClasses } from "@/hooks/useClasses";
 import { useCourses } from "@/hooks/useCourses";
+import { useCommunities } from "@/hooks/useCommunities";
 import type { ContentScheduleRule, EnrollmentType } from "@/types/student";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -302,6 +304,7 @@ export default function AdminClassEditPage() {
   const navigate = useNavigate();
   const { classes, createClass, updateClass, updateScheduleRule } = useClasses();
   const { allCourses, findCourse } = useCourses();
+  const { communities, getCommunitiesByClass } = useCommunities();
 
   const isNew = classId === "nova";
   const existingClass = useMemo(
@@ -691,6 +694,47 @@ export default function AdminClassEditPage() {
                 )}
               </div>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Communities linked to this class */}
+      {!isNew && existingClass && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              Comunidades vinculadas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const linked = getCommunitiesByClass(existingClass.id);
+              if (linked.length === 0) {
+                return (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma comunidade vinculada a esta turma.{" "}
+                    <a href="/admin/comunidade" className="text-primary hover:underline">
+                      Gerenciar comunidades
+                    </a>
+                  </p>
+                );
+              }
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {linked.map((c) => (
+                    <a
+                      key={c.id}
+                      href={`/admin/comunidade/${c.id}/edit`}
+                      className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 text-primary" />
+                      {c.name}
+                    </a>
+                  ))}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       )}

@@ -10,6 +10,7 @@ import {
   UserCheck,
   UserX,
   X,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -17,6 +18,7 @@ import { ptBR } from "date-fns/locale";
 
 import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
+import { useRestrictions } from "@/hooks/useRestrictions";
 import type { StudentRole, StudentStatus } from "@/types/student";
 
 import { Button } from "@/components/ui/button";
@@ -155,6 +157,7 @@ export default function AdminStudentsPage() {
   const { students, enrollments, createStudent, createStudentsBulk, updateStudent, deleteStudent } =
     useStudents();
   const { classes } = useClasses();
+  const { isRestricted } = useRestrictions();
 
   // Loading simulation — real data is immediate via localStorage, but we keep
   // a brief skeleton on first mount for UX consistency.
@@ -405,11 +408,16 @@ export default function AdminStudentsPage() {
               filtered.map((student) => (
                 <TableRow key={student.id}>
                   <TableCell>
-                    <div>
-                      <p className="font-medium leading-none">{student.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {student.email}
-                      </p>
+                    <div className="flex items-center gap-1.5">
+                      <div>
+                        <p className="font-medium leading-none">{student.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {student.email}
+                        </p>
+                      </div>
+                      {isRestricted(student.id) && (
+                        <Ban className="h-3.5 w-3.5 text-yellow-500 shrink-0" title="Aluno restrito" />
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">

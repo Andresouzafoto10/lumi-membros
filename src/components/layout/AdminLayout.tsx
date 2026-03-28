@@ -9,6 +9,8 @@ import {
   ExternalLink,
   Menu,
   X,
+  MessageSquare,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -19,6 +21,8 @@ const navLinks = [
   { to: "/admin/cursos", label: "Cursos", icon: GraduationCap, exact: false },
   { to: "/admin/turmas", label: "Turmas", icon: UsersRound, exact: false },
   { to: "/admin/alunos", label: "Alunos", icon: Users, exact: false },
+  { to: "/admin/comunidade", label: "Comunidade", icon: MessageSquare, exact: false },
+  { to: "/admin/comentarios", label: "Moderação", icon: Shield, exact: false },
   { to: "/admin/configuracoes", label: "Configurações", icon: Settings, exact: false },
 ];
 
