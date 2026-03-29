@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Ban,
   MessageSquare,
+  Award,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -24,6 +25,8 @@ import { useProfiles } from "@/hooks/useProfiles";
 import { usePosts } from "@/hooks/usePosts";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useRestrictions } from "@/hooks/useRestrictions";
+import { useCertificates } from "@/hooks/useCertificates";
+import { computeProgress, progressKey } from "@/lib/accessControl";
 import type { StudentStatus, StudentRole } from "@/types/student";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -99,14 +102,15 @@ const ENROLLMENT_STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelada",
 };
 
-// Deterministic "mock progress" seeded by student + course ids
-function mockProgress(studentId: string, courseId: string): number {
-  let hash = 0;
-  const str = studentId + courseId;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
-  }
-  return hash % 101; // 0–100
+// Real progress: reads from per-user localStorage key
+function realProgress(studentId: string, course: { id: string; modules: { isActive: boolean; lessons: { id: string; isActive: boolean }[] }[] }): { pct: number; watched: number; total: number } {
+  const totalLessonIds = course.modules
+    .filter((m) => m.isActive)
+    .flatMap((m) => m.lessons.filter((l) => l.isActive))
+    .map((l) => l.id);
+  const pct = computeProgress(studentId, course.id, totalLessonIds);
+  const watched = Math.round((pct / 100) * totalLessonIds.length);
+  return { pct, watched, total: totalLessonIds.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +125,12 @@ export default function AdminStudentProfilePage() {
   const { getPostsByAuthor } = usePosts();
   const { findCommunity } = useCommunities();
   const { isRestricted, getRestriction, getRestrictionsForStudent, removeRestriction } = useRestrictions();
+  const { getEarnedCertificates, getTemplateById } = useCertificates();
+
+  const studentCerts = useMemo(
+    () => (studentId ? getEarnedCertificates(studentId) : []),
+    [getEarnedCertificates, studentId]
+  );
 
   const profile = findProfile(studentId);
   const studentPosts = useMemo(
@@ -206,7 +216,11 @@ export default function AdminStudentProfilePage() {
 
   function handleResetProgress() {
     if (!resetTargetCourseId || !student) return;
-    // Mock — no real progress store per student yet
+    try {
+      localStorage.removeItem(progressKey(student.id, resetTargetCourseId));
+    } catch {
+      // ignore
+    }
     toast.success("Progresso do curso resetado.");
     setResetTargetCourseId(null);
   }
@@ -460,7 +474,7 @@ export default function AdminStudentProfilePage() {
                           {courses.length > 0 && (
                             <span className="text-xs text-muted-foreground">
                               · {courses.length === 1
-                                  ? courses[0]!.title
+                                  ? courses[0]?.title ?? "Curso"
                                   : `${courses.length} cursos`}
                             </span>
                           )}
@@ -557,6 +571,59 @@ export default function AdminStudentProfilePage() {
             </CardContent>
           </Card>
 
+          {/* Certificates */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Award className="h-4 w-4 text-yellow-500" />
+                Certificados ({studentCerts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {studentCerts.length === 0 ? (
+                <p className="px-6 pb-4 text-sm text-muted-foreground">
+                  Nenhum certificado emitido.
+                </p>
+              ) : (
+                <div className="divide-y">
+                  {studentCerts.map((cert) => {
+                    const certCourse = findCourse(cert.courseId);
+                    const tpl = getTemplateById(cert.templateId);
+                    return (
+                      <div key={cert.id} className="px-6 py-3">
+                        <p className="text-sm font-medium">
+                          {certCourse?.title ?? cert.courseId}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
+                          <span>
+                            Concluído em{" "}
+                            {format(parseISO(cert.earnedAt), "dd/MM/yyyy", {
+                              locale: ptBR,
+                            })}
+                          </span>
+                          {certCourse?.certificateConfig?.hoursLoad ? (
+                            <>
+                              <span>·</span>
+                              <span>
+                                {certCourse.certificateConfig.hoursLoad}h
+                              </span>
+                            </>
+                          ) : null}
+                          {tpl && (
+                            <>
+                              <span>·</span>
+                              <span>Modelo: {tpl.name}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Course progress */}
           <Card>
             <CardHeader className="pb-3">
@@ -573,19 +640,14 @@ export default function AdminStudentProfilePage() {
               ) : (
                 <div className="divide-y">
                   {allEnrolledCourses.map((course) => {
-                      const totalLessons = course.modules.reduce(
-                        (acc, m) => acc + m.lessons.length,
-                        0
-                      );
-                      const pct = mockProgress(student.id, course.id);
-                      const watched = Math.round((pct / 100) * totalLessons);
+                      const { pct, watched, total: totalLessons } = realProgress(student.id, course);
 
                       return (
                         <div key={course.id} className="px-6 py-4 space-y-2">
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">
-                                {course!.title}
+                                {course.title}
                               </p>
                               <p className="text-xs text-muted-foreground mt-0.5">
                                 {watched} de {totalLessons} aula
@@ -602,7 +664,7 @@ export default function AdminStudentProfilePage() {
                                 variant="ghost"
                                 title="Resetar progresso"
                                 onClick={() =>
-                                  setResetTargetCourseId(course!.id)
+                                  setResetTargetCourseId(course.id)
                                 }
                               >
                                 <RotateCcw className="h-4 w-4 text-muted-foreground" />

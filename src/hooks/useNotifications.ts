@@ -45,6 +45,34 @@ function getSnapshot() {
 }
 
 // ---------------------------------------------------------------------------
+// Direct state mutator — can be called from other stores (non-hook)
+// ---------------------------------------------------------------------------
+
+export function addNotification(data: {
+  type: AppNotification["type"];
+  recipientId: string;
+  actorId: string | null;
+  targetId: string;
+  targetType: AppNotification["targetType"];
+  message: string;
+}) {
+  const notification: AppNotification = {
+    id: crypto.randomUUID(),
+    type: data.type,
+    recipientId: data.recipientId,
+    actorId: data.actorId,
+    targetId: data.targetId,
+    targetType: data.targetType,
+    message: data.message,
+    read: false,
+    createdAt: new Date().toISOString(),
+  };
+  state = [notification, ...state];
+  persist();
+  listeners.forEach((fn) => fn());
+}
+
+// ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 

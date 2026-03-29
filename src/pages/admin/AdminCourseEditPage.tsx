@@ -10,11 +10,15 @@ import {
   Save,
   BookOpen,
   Upload,
+  Award,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
+import { useCertificates } from "@/hooks/useCertificates";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import type { CourseAccess } from "@/types/course";
+import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -75,6 +79,8 @@ export default function AdminCourseEditPage() {
     deleteModule,
     moveModule,
   } = useCourses();
+  const { templates } = useCertificates();
+  const { settings: platformSettings } = usePlatformSettings();
 
   const course = findCourse(courseId);
   const session = findSessionForCourse(courseId);
@@ -92,6 +98,23 @@ export default function AdminCourseEditPage() {
   );
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Certificate config
+  const [certTemplateId, setCertTemplateId] = useState<string>(
+    course?.certificateConfig?.templateId ?? ""
+  );
+  const [certThreshold, setCertThreshold] = useState(
+    course?.certificateConfig?.completionThreshold ?? 100
+  );
+  const [certHours, setCertHours] = useState(
+    course?.certificateConfig?.hoursLoad ?? 0
+  );
+  const [certRequirementType, setCertRequirementType] = useState<string>(
+    course?.certificateConfig?.requirementType ?? "completion"
+  );
+  const [certQuizThreshold, setCertQuizThreshold] = useState(
+    course?.certificateConfig?.quizThreshold ?? 70
+  );
 
   // Module dialog
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
@@ -130,8 +153,15 @@ export default function AdminCourseEditPage() {
       title: title.trim(),
       description: description.trim(),
       isActive,
-      bannerUrl: bannerPreview || course!.bannerUrl,
+      bannerUrl: bannerPreview || course?.bannerUrl || "",
       access,
+      certificateConfig: {
+        templateId: certTemplateId || null,
+        completionThreshold: certThreshold,
+        hoursLoad: certHours,
+        requirementType: certRequirementType as "completion" | "quiz" | "completion_and_quiz",
+        quizThreshold: certQuizThreshold,
+      },
     });
     toast.success("Curso salvo.");
     setTimeout(() => setSaving(false), 400);
@@ -333,6 +363,131 @@ export default function AdminCourseEditPage() {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Certificate config */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Award className="h-4 w-4 text-yellow-500" />
+                Certificado
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Modelo de certificado</Label>
+                <select
+                  value={certTemplateId}
+                  onChange={(e) => setCertTemplateId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">Nenhum (sem certificado)</option>
+                  {templates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Gerencie modelos em Configurações &gt; Certificados.
+                </p>
+              </div>
+
+              {certTemplateId && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">Tipo de requisito</Label>
+                    <div className="space-y-2">
+                      {[
+                        { value: "completion", label: "Conclusão de aulas" },
+                        { value: "quiz", label: "Aprovação nos quizzes" },
+                        { value: "completion_and_quiz", label: "Conclusão + Quizzes" },
+                      ].map((opt) => (
+                        <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="cert-req-type"
+                            value={opt.value}
+                            checked={certRequirementType === opt.value}
+                            onChange={(e) => setCertRequirementType(e.target.value)}
+                            className="accent-primary"
+                          />
+                          <span className="text-sm">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {(certRequirementType === "completion" || certRequirementType === "completion_and_quiz") && (
+                    <div className="space-y-1.5">
+                      <Label>Percentual de conclusão — {certThreshold}%</Label>
+                      <input
+                        type="range"
+                        min={50}
+                        max={100}
+                        value={certThreshold}
+                        onChange={(e) => setCertThreshold(Number(e.target.value))}
+                        className="w-full h-2 accent-primary"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        O aluno precisa concluir {certThreshold}% das aulas.
+                      </p>
+                    </div>
+                  )}
+
+                  {(certRequirementType === "quiz" || certRequirementType === "completion_and_quiz") && (
+                    <div className="space-y-1.5">
+                      <Label>Nota mínima média nos quizzes — {certQuizThreshold}%</Label>
+                      <input
+                        type="range"
+                        min={50}
+                        max={100}
+                        value={certQuizThreshold}
+                        onChange={(e) => setCertQuizThreshold(Number(e.target.value))}
+                        className="w-full h-2 accent-primary"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Média dos melhores scores do aluno nos quizzes.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cert-hours">Carga horária do curso (horas)</Label>
+                    <Input
+                      id="cert-hours"
+                      type="number"
+                      min={0}
+                      value={certHours}
+                      onChange={(e) => setCertHours(Number(e.target.value))}
+                      className="w-32"
+                    />
+                  </div>
+
+                  {(() => {
+                    const tpl = templates.find((t) => t.id === certTemplateId);
+                    if (!tpl) return null;
+                    return (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Preview do certificado</Label>
+                        <div className="rounded-lg border overflow-hidden max-w-md">
+                          <CertificateRenderer
+                            template={tpl}
+                            data={{
+                              studentName: "Ana Paula Ferreira",
+                              courseName: title || "Nome do curso",
+                              completionDate: "29 de março de 2026",
+                              courseHours: certHours,
+                              platformName: platformSettings.name || "Lumi Membros",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

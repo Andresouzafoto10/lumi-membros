@@ -2,13 +2,19 @@ import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLessonRatings } from "@/hooks/useLessonRatings";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 interface LessonRatingProps {
   lessonId: string;
 }
 
 export function LessonRating({ lessonId }: LessonRatingProps) {
+  const { settings } = usePlatformSettings();
   const { getRating, setRating } = useLessonRatings();
+
+  if (!settings.ratingsEnabled) {
+    return null;
+  }
   const current = getRating(lessonId);
 
   return (

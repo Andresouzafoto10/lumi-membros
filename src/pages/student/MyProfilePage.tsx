@@ -10,6 +10,7 @@ import {
   Bookmark,
   Info,
   GraduationCap,
+  Award,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -23,6 +24,9 @@ import { useCourses } from "@/hooks/useCourses";
 import { usePosts } from "@/hooks/usePosts";
 import { useGamification } from "@/hooks/useGamification";
 import { useCommunities } from "@/hooks/useCommunities";
+import { useCertificates } from "@/hooks/useCertificates";
+import { CertificateCard } from "@/components/certificates/CertificateCard";
+import { EmptyState } from "@/components/courses/EmptyState";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +96,12 @@ export default function MyProfilePage() {
   const { getPostsByAuthor, getSavedPosts } = usePosts();
   const { getPlayerData, getPlayerBadges } = useGamification();
   const { findCommunity } = useCommunities();
+  const { getEarnedCertificates } = useCertificates();
+
+  const earnedCerts = useMemo(
+    () => getEarnedCertificates(currentUserId),
+    [getEarnedCertificates, currentUserId]
+  );
 
   const profile = findProfile(currentUserId);
   const student = findStudent(currentUserId);
@@ -347,7 +357,7 @@ export default function MyProfilePage() {
       {/* Tabs */}
       <div className="mt-6 px-4 sm:px-5">
         <Tabs defaultValue="posts">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="posts" className="flex-1 gap-1.5">
               <FileText className="h-3.5 w-3.5" />
               Publicacoes
@@ -359,6 +369,10 @@ export default function MyProfilePage() {
             <TabsTrigger value="about" className="flex-1 gap-1.5">
               <Info className="h-3.5 w-3.5" />
               Sobre
+            </TabsTrigger>
+            <TabsTrigger value="certificates" className="flex-1 gap-1.5">
+              <Award className="h-3.5 w-3.5" />
+              Certificados
             </TabsTrigger>
           </TabsList>
 
@@ -502,6 +516,25 @@ export default function MyProfilePage() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          {/* Tab: Certificates */}
+          <TabsContent value="certificates">
+            {earnedCerts.length === 0 ? (
+              <div className="py-8">
+                <EmptyState
+                  icon={Award}
+                  title="Nenhum certificado ainda"
+                  description="Complete os cursos para ganhar seus certificados"
+                />
+              </div>
+            ) : (
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {earnedCerts.map((cert) => (
+                  <CertificateCard key={cert.id} certificate={cert} />
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

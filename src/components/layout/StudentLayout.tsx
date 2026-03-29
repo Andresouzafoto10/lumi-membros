@@ -6,6 +6,7 @@ import {
   Settings,
   Search,
   X,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,6 +113,7 @@ function MobileBottomNav() {
   const items = [
     { to: "/cursos", label: "Inicio", icon: Home, end: true },
     { to: "/comunidade", label: "Comunidade", icon: MessageSquare, end: false },
+    { to: "/meus-certificados", label: "Certificados", icon: Award, end: true },
   ];
 
   return (
@@ -157,6 +159,7 @@ export function StudentLayout() {
               <div className="hidden items-center gap-6 md:flex">
                 <HeaderNavLink to="/cursos" label="Inicio" />
                 <HeaderNavLink to="/comunidade" label="Comunidade" />
+                <HeaderNavLink to="/meus-certificados" label="Certificados" />
               </div>
             </div>
 

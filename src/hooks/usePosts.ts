@@ -1,6 +1,8 @@
 import { useCallback, useSyncExternalStore } from "react";
 import type { CommunityPost } from "@/types/student";
 import { mockPosts } from "@/data/mock-posts";
+import { addNotification } from "@/hooks/useNotifications";
+import { findProfileDirect, findProfileByUsernameDirect } from "@/hooks/useProfiles";
 
 // ---------------------------------------------------------------------------
 // In-memory store with localStorage persistence
@@ -62,6 +64,28 @@ function extractMentions(body: string): string[] {
   const matches = body.match(/@([\w.]+)/g);
   if (!matches) return [];
   return [...new Set(matches.map((m) => m.slice(1).toLowerCase()))];
+}
+
+// ---------------------------------------------------------------------------
+// Direct state accessor — can be called from other stores (non-hook)
+// ---------------------------------------------------------------------------
+
+export function findPostDirect(postId: string): CommunityPost | null {
+  return state.find((p) => p.id === postId) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Direct state mutator — called from useComments to keep commentsCount in sync
+// ---------------------------------------------------------------------------
+
+export function updatePostCommentCount(postId: string, delta: number) {
+  setState(
+    state.map((p) =>
+      p.id === postId
+        ? { ...p, commentsCount: Math.max(0, p.commentsCount + delta) }
+        : p
+    )
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -263,6 +287,26 @@ export function usePosts() {
         updatedAt: now,
       };
       setState([newPost, ...state]);
+
+      // Notify mentioned users
+      if (newPost.mentions.length > 0) {
+        const authorProfile = findProfileDirect(data.authorId);
+        const authorName = authorProfile?.displayName ?? "Alguém";
+        for (const username of newPost.mentions) {
+          const mentionedProfile = findProfileByUsernameDirect(username);
+          if (mentionedProfile && mentionedProfile.studentId !== data.authorId) {
+            addNotification({
+              type: "mention",
+              recipientId: mentionedProfile.studentId,
+              actorId: data.authorId,
+              targetId: newPost.id,
+              targetType: "post",
+              message: `${authorName} mencionou você em uma publicação`,
+            });
+          }
+        }
+      }
+
       return newPost.id;
     },
     []
@@ -307,6 +351,9 @@ export function usePosts() {
 
   const toggleLike = useCallback(
     (postId: string, studentId: string) => {
+      const post = state.find((p) => p.id === postId);
+      const alreadyLiked = post?.likedBy.includes(studentId) ?? false;
+
       setState(
         state.map((p) => {
           if (p.id !== postId) return p;
@@ -320,6 +367,20 @@ export function usePosts() {
           };
         })
       );
+
+      // Notify post author on like (not unlike, not self-like)
+      if (!alreadyLiked && post && post.authorId !== studentId) {
+        const actorProfile = findProfileDirect(studentId);
+        const actorName = actorProfile?.displayName ?? "Alguém";
+        addNotification({
+          type: "like",
+          recipientId: post.authorId,
+          actorId: studentId,
+          targetId: postId,
+          targetType: "post",
+          message: `${actorName} curtiu sua publicação`,
+        });
+      }
     },
     []
   );

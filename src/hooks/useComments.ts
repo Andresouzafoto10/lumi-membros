@@ -1,6 +1,9 @@
 import { useCallback, useSyncExternalStore } from "react";
 import type { PostComment } from "@/types/student";
 import { mockComments } from "@/data/mock-comments";
+import { updatePostCommentCount, findPostDirect } from "@/hooks/usePosts";
+import { addNotification } from "@/hooks/useNotifications";
+import { findProfileDirect } from "@/hooks/useProfiles";
 
 // ---------------------------------------------------------------------------
 // In-memory store with localStorage persistence
@@ -102,18 +105,64 @@ export function useComments() {
         createdAt: new Date().toISOString(),
       };
       setState([...state, newComment]);
+      updatePostCommentCount(data.postId, 1);
+
+      // Build notification
+      const actorProfile = findProfileDirect(data.authorId);
+      const actorName = actorProfile?.displayName ?? "Alguém";
+
+      // Notify post author about the comment (if not self)
+      const post = findPostDirect(data.postId);
+      if (post && post.authorId !== data.authorId) {
+        addNotification({
+          type: "comment",
+          recipientId: post.authorId,
+          actorId: data.authorId,
+          targetId: data.postId,
+          targetType: "post",
+          message: `${actorName} comentou na sua publicação`,
+        });
+      }
+
+      // If replying, also notify the parent comment author (if different from commenter and post author)
+      if (data.parentCommentId) {
+        const parentComment = state.find((c) => c.id === data.parentCommentId);
+        if (
+          parentComment &&
+          parentComment.authorId !== data.authorId &&
+          parentComment.authorId !== post?.authorId
+        ) {
+          addNotification({
+            type: "comment",
+            recipientId: parentComment.authorId,
+            actorId: data.authorId,
+            targetId: data.postId,
+            targetType: "comment",
+            message: `${actorName} respondeu ao seu comentário`,
+          });
+        }
+      }
+
       return newComment.id;
     },
     []
   );
 
   const deleteComment = useCallback((commentId: string) => {
-    // Also remove replies to this comment
-    setState(
-      state.filter(
-        (c) => c.id !== commentId && c.parentCommentId !== commentId
-      )
-    );
+    const target = state.find((c) => c.id === commentId);
+    if (target) {
+      // Count the comment itself plus any direct replies that will be cascade-deleted
+      const repliesCount = state.filter(
+        (c) => c.parentCommentId === commentId
+      ).length;
+      const totalRemoved = 1 + repliesCount;
+      setState(
+        state.filter(
+          (c) => c.id !== commentId && c.parentCommentId !== commentId
+        )
+      );
+      updatePostCommentCount(target.postId, -totalRemoved);
+    }
   }, []);
 
   const toggleLikeComment = useCallback(

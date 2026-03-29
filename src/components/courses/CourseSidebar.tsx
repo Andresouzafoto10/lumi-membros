@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Circle } from "lucide-react";
+import { Check, ChevronDown, Circle, Lock, Clock, EyeOff } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Collapsible,
@@ -8,6 +8,7 @@ import {
 import { ProgressRing } from "@/components/courses/ProgressRing";
 import { cn } from "@/lib/utils";
 import type { Course } from "@/types/course";
+import type { LessonAccessStatus } from "@/lib/accessControl";
 
 interface CourseSidebarProps {
   course: Course;
@@ -17,6 +18,7 @@ interface CourseSidebarProps {
   onToggleModule: (moduleId: string) => void;
   onSelectLesson: (lessonId: string) => void;
   percentCompleted: number;
+  lessonAccess?: Record<string, LessonAccessStatus>;
 }
 
 export function CourseSidebar({
@@ -27,6 +29,7 @@ export function CourseSidebar({
   onToggleModule,
   onSelectLesson,
   percentCompleted,
+  lessonAccess,
 }: CourseSidebarProps) {
   const sortedModules = [...course.modules]
     .filter((module) => module.isActive)
@@ -134,17 +137,45 @@ export function CourseSidebar({
                     {sortedLessons.map((lesson) => {
                       const isCompleted = completedLessons[lesson.id] ?? false;
                       const isActive = lesson.id === activeLessonId;
+                      const access = lessonAccess?.[lesson.id];
+                      const isBlocked = access && !access.allowed;
+                      const isHidden = isBlocked && !access.allowed && access.reason === "hidden";
+                      const isScheduled = isBlocked && !access.allowed && (access.reason === "scheduled_date" || access.reason === "days_after_enrollment");
+
+                      // Hide lessons with "hidden" rule
+                      if (isHidden) return null;
 
                       return (
                         <button
                           key={lesson.id}
                           id={`lesson-${lesson.id}`}
                           type="button"
-                          onClick={() => onSelectLesson(lesson.id)}
-                          className="group relative flex w-full items-start bg-transparent py-2 text-left outline-none scroll-mt-4"
+                          onClick={() => !isBlocked && onSelectLesson(lesson.id)}
+                          disabled={!!isBlocked}
+                          className={cn(
+                            "group relative flex w-full items-start bg-transparent py-2 text-left outline-none scroll-mt-4",
+                            isBlocked && "opacity-50 cursor-not-allowed"
+                          )}
+                          title={isBlocked && access ? (() => {
+                            switch (access.reason) {
+                              case "blocked": return "Conteúdo bloqueado";
+                              case "scheduled_date": return `Disponível em ${access.detail ? new Date(access.detail).toLocaleDateString("pt-BR") : "breve"}`;
+                              case "days_after_enrollment": return `Liberado em ${access.detail ? new Date(access.detail).toLocaleDateString("pt-BR") : "breve"}`;
+                              case "course_complete": return "Complete o curso de pré-requisito";
+                              case "module_complete": return "Complete o módulo anterior";
+                              case "lesson_complete": return "Complete a aula anterior";
+                              default: return "Conteúdo indisponível";
+                            }
+                          })() : undefined}
                         >
                           <span className="absolute -left-[29px] top-[14px] flex h-4 w-4 items-center justify-center">
-                            {isCompleted ? (
+                            {isBlocked ? (
+                              isScheduled ? (
+                                <Clock className="h-3.5 w-3.5 text-yellow-500/70" />
+                              ) : (
+                                <Lock className="h-3.5 w-3.5 text-muted-foreground/45" />
+                              )
+                            ) : isCompleted ? (
                               <Check
                                 className="h-3.5 w-3.5 text-emerald-500"
                                 strokeWidth={3}
@@ -159,10 +190,12 @@ export function CourseSidebar({
                           <span
                             className={cn(
                               "text-[0.92rem] font-semibold leading-7 tracking-[-0.012em] transition-colors",
-                              isActive
-                                ? "text-primary"
-                                : "text-foreground/78 group-hover:text-foreground",
-                              isCompleted && !isActive && "text-foreground/66"
+                              isBlocked
+                                ? "text-muted-foreground/50"
+                                : isActive
+                                  ? "text-primary"
+                                  : "text-foreground/78 group-hover:text-foreground",
+                              isCompleted && !isActive && !isBlocked && "text-foreground/66"
                             )}
                           >
                             {lesson.title}

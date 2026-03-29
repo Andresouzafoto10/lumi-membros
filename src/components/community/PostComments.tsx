@@ -267,7 +267,7 @@ export function PostComments({ postId }: { postId: string }) {
         <div className="space-y-3">
           {rootComments.map((comment) => {
             const replies = getReplies(comment.id);
-            const isTop = hasMostLiked && comment.id === mostLikedId.id;
+            const isTop = !!(hasMostLiked && comment.id === mostLikedId.id);
             return (
               <div key={comment.id} className="space-y-2">
                 <CommentItem

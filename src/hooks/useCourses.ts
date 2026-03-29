@@ -239,7 +239,7 @@ export function useCourses() {
       patch: Partial<
         Pick<
           Course,
-          "title" | "description" | "isActive" | "bannerUrl" | "access"
+          "title" | "description" | "isActive" | "bannerUrl" | "access" | "certificateConfig"
         >
       >
     ) => {
@@ -469,6 +469,9 @@ export function useCourses() {
         materials?: CourseLesson["materials"];
         links?: CourseLesson["links"];
         files?: CourseLesson["files"];
+        quiz?: CourseLesson["quiz"];
+        quizPassingScore?: CourseLesson["quizPassingScore"];
+        quizRequiredToAdvance?: CourseLesson["quizRequiredToAdvance"];
       }
     ) => {
       setState({
@@ -492,6 +495,9 @@ export function useCourses() {
                   materials: data.materials,
                   links: data.links,
                   files: data.files,
+                  quiz: data.quiz,
+                  quizPassingScore: data.quizPassingScore,
+                  quizRequiredToAdvance: data.quizRequiredToAdvance,
                 };
                 return { ...m, lessons: [...m.lessons, lesson] };
               }),

@@ -416,7 +416,7 @@ export default function AdminStudentsPage() {
                         </p>
                       </div>
                       {isRestricted(student.id) && (
-                        <Ban className="h-3.5 w-3.5 text-yellow-500 shrink-0" title="Aluno restrito" />
+                        <Ban className="h-3.5 w-3.5 text-yellow-500 shrink-0" aria-label="Aluno restrito" />
                       )}
                     </div>
                   </TableCell>

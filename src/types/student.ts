@@ -248,3 +248,61 @@ export type CommunitySidebarItem = {
   visible: boolean;
   salesPageUrl: string;
 };
+
+// ---------------------------------------------------------------------------
+// Certificates
+// ---------------------------------------------------------------------------
+
+export type CertificateBlockType =
+  | "platform_name"
+  | "student_name"
+  | "course_name"
+  | "completion_date"
+  | "course_hours"
+  | "custom_text"
+  | "certificate_title";
+
+export type CertificateBlock = {
+  id: string;
+  type: CertificateBlockType;
+  content?: string;
+  fontSize: number;
+  fontWeight: "normal" | "bold";
+  color: string;
+  textAlign: "left" | "center" | "right";
+  top: number;
+  left: number;
+  width: number;
+};
+
+export type CertificateTemplate = {
+  id: string;
+  name: string;
+  backgroundUrl: string;
+  blocks: CertificateBlock[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EarnedCertificate = {
+  id: string;
+  studentId: string;
+  courseId: string;
+  templateId: string;
+  earnedAt: string;
+  downloadedAt?: string;
+};
+
+// ---------------------------------------------------------------------------
+// Quiz Attempts
+// ---------------------------------------------------------------------------
+
+export type QuizAttempt = {
+  id: string;
+  studentId: string;
+  lessonId: string;
+  answers: Record<string, string>;
+  score: number;
+  passed: boolean;
+  attemptedAt: string;
+};

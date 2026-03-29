@@ -53,6 +53,43 @@ export const mockCourses: Course[] = [
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
               "Auto, Prioridade de Abertura, Prioridade de Velocidade e Manual — quando usar cada um.",
+            quiz: [
+              {
+                id: "q1-1-3-a",
+                type: "multiple_choice",
+                question: "Qual modo de disparo dá controle total sobre abertura e velocidade?",
+                options: [
+                  { id: "q1a", text: "Auto" },
+                  { id: "q1b", text: "Prioridade de Abertura" },
+                  { id: "q1c", text: "Manual" },
+                  { id: "q1d", text: "Prioridade de Velocidade" },
+                ],
+                correctOptionId: "q1c",
+              },
+              {
+                id: "q1-1-3-b",
+                type: "multiple_choice",
+                question: "No modo Prioridade de Abertura, o que o fotógrafo controla?",
+                options: [
+                  { id: "q2a", text: "Velocidade do obturador" },
+                  { id: "q2b", text: "Abertura do diafragma" },
+                  { id: "q2c", text: "ISO automático" },
+                ],
+                correctOptionId: "q2b",
+              },
+              {
+                id: "q1-1-3-c",
+                type: "true_false",
+                question: "O modo Auto é recomendado para situações de iluminação complexa.",
+                options: [
+                  { id: "q3a", text: "Verdadeiro" },
+                  { id: "q3b", text: "Falso" },
+                ],
+                correctOptionId: "q3b",
+              },
+            ],
+            quizPassingScore: 70,
+            quizRequiredToAdvance: true,
           },
         ],
       },
@@ -94,6 +131,30 @@ export const mockCourses: Course[] = [
             files: [
               { name: "checklist-composicao.pdf", sizeLabel: "245 KB" },
             ],
+            quiz: [
+              {
+                id: "q2-2-3-a",
+                type: "true_false",
+                question: "A regra dos terços divide a imagem em 9 partes iguais.",
+                options: [
+                  { id: "q4a", text: "Verdadeiro" },
+                  { id: "q4b", text: "Falso" },
+                ],
+                correctOptionId: "q4a",
+              },
+              {
+                id: "q2-2-3-b",
+                type: "true_false",
+                question: "Linhas guia devem sempre ser horizontais para ter efeito.",
+                options: [
+                  { id: "q5a", text: "Verdadeiro" },
+                  { id: "q5b", text: "Falso" },
+                ],
+                correctOptionId: "q5b",
+              },
+            ],
+            quizPassingScore: 70,
+            quizRequiredToAdvance: false,
           },
         ],
       },

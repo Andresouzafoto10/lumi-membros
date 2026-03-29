@@ -16,46 +16,53 @@ import { ContinueWatching } from "@/components/courses/ContinueWatching";
 import { useCourses } from "@/hooks/useCourses";
 import { useLastWatched } from "@/hooks/useLastWatched";
 import { useSearchContext } from "@/hooks/useSearchContext";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useStudents } from "@/hooks/useStudents";
+import { useClasses } from "@/hooks/useClasses";
+import { isStudentEnrolled, computeProgress } from "@/lib/accessControl";
 
 export default function CoursesPage() {
   const { sessions, activeBanners } = useCourses();
   const { lastWatched } = useLastWatched();
   const { searchQuery, setSearchQuery } = useSearchContext();
+  const { currentUserId } = useCurrentUser();
+  const { enrollments } = useStudents();
+  const { classes } = useClasses();
 
   const [selectedSessionId, setSelectedSessionId] = useState("all");
 
-  // Read progress from localStorage for each course
+  // Set of course IDs the current student is enrolled in
+  const enrolledCourseIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const session of sessions) {
+      for (const course of session.courses) {
+        if (isStudentEnrolled(currentUserId, course.id, enrollments, classes)) {
+          ids.add(course.id);
+        }
+      }
+    }
+    return ids;
+  }, [sessions, currentUserId, enrollments, classes]);
+
+  // Read progress from localStorage for each course (per-user)
   const courseProgress = useMemo(() => {
     const progress: Record<string, number> = {};
     const allCourses = sessions.flatMap((s) => s.courses);
 
     for (const course of allCourses) {
-      try {
-        const raw = localStorage.getItem(
-          `lumi-membros:progress:${course.id}`
-        );
-        if (raw) {
-          const completed: Record<string, boolean> = JSON.parse(raw);
-          const totalLessons = course.modules
-            .filter((m) => m.isActive)
-            .flatMap((m) => m.lessons.filter((l) => l.isActive));
-          const completedCount = totalLessons.filter(
-            (l) => completed[l.id]
-          ).length;
-          progress[course.id] =
-            totalLessons.length > 0
-              ? (completedCount / totalLessons.length) * 100
-              : 0;
-        } else {
-          progress[course.id] = 0;
-        }
-      } catch {
-        progress[course.id] = 0;
-      }
+      const totalLessonIds = course.modules
+        .filter((m) => m.isActive)
+        .flatMap((m) => m.lessons.filter((l) => l.isActive))
+        .map((l) => l.id);
+      progress[course.id] = computeProgress(
+        currentUserId,
+        course.id,
+        totalLessonIds
+      );
     }
 
     return progress;
-  }, [sessions]);
+  }, [sessions, currentUserId]);
 
   const activeSessions = useMemo(() => {
     let filtered = sessions.filter(
@@ -167,7 +174,7 @@ export default function CoursesPage() {
       {/* Sessions with courses */}
       {activeSessions.map((session) => {
         const activeCourses = session.courses
-          .filter((c) => c.isActive)
+          .filter((c) => c.isActive && enrolledCourseIds.has(c.id))
           .sort((a, b) => a.order - b.order);
 
         if (activeCourses.length === 0) return null;

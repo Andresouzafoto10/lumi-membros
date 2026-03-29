@@ -22,6 +22,21 @@ export type CourseLessonMaterial =
       contentType?: string;
     };
 
+export type QuizQuestionType = "multiple_choice" | "true_false";
+
+export type QuizOption = {
+  id: string;
+  text: string;
+};
+
+export type QuizQuestion = {
+  id: string;
+  type: QuizQuestionType;
+  question: string;
+  options: QuizOption[];
+  correctOptionId: string;
+};
+
 export type CourseLesson = {
   id: string;
   title: string;
@@ -33,6 +48,9 @@ export type CourseLesson = {
   materials?: CourseLessonMaterial[];
   links?: CourseLessonLink[];
   files?: CourseLessonFile[];
+  quiz?: QuizQuestion[];
+  quizPassingScore?: number;
+  quizRequiredToAdvance?: boolean;
 };
 
 export type CourseModule = {
@@ -48,6 +66,19 @@ export type CourseAccess =
   | { mode: "plans"; plans: string[] }
   | { mode: "admin" };
 
+export type CertificateRequirementType =
+  | "completion"
+  | "quiz"
+  | "completion_and_quiz";
+
+export type CertificateConfig = {
+  templateId: string | null;
+  completionThreshold: number;
+  hoursLoad: number;
+  requirementType: CertificateRequirementType;
+  quizThreshold: number;
+};
+
 export type Course = {
   id: string;
   title: string;
@@ -57,6 +88,7 @@ export type Course = {
   isActive: boolean;
   access: CourseAccess;
   modules: CourseModule[];
+  certificateConfig?: CertificateConfig;
 };
 
 export type CourseSession = {

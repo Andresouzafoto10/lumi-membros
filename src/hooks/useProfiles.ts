@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import type { StudentProfile } from "@/types/student";
 import { mockProfiles } from "@/data/mock-profiles";
+import { addNotification } from "@/hooks/useNotifications";
 
 // ---------------------------------------------------------------------------
 // In-memory store with localStorage persistence
@@ -42,6 +43,18 @@ function subscribe(listener: () => void) {
 
 function getSnapshot() {
   return state;
+}
+
+// ---------------------------------------------------------------------------
+// Direct state accessors — can be called from other stores (non-hook)
+// ---------------------------------------------------------------------------
+
+export function findProfileDirect(studentId: string): StudentProfile | null {
+  return state.find((p) => p.studentId === studentId) ?? null;
+}
+
+export function findProfileByUsernameDirect(username: string): StudentProfile | null {
+  return state.find((p) => p.username === username) ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +112,20 @@ export function useProfiles() {
           return p;
         })
       );
+
+      // Notify the followed user (never self)
+      if (myStudentId !== targetStudentId) {
+        const actorProfile = findProfileDirect(myStudentId);
+        const actorName = actorProfile?.displayName ?? "Alguém";
+        addNotification({
+          type: "follow",
+          recipientId: targetStudentId,
+          actorId: myStudentId,
+          targetId: myStudentId,
+          targetType: "profile",
+          message: `${actorName} começou a seguir você`,
+        });
+      }
     },
     []
   );

@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, Save, Eye, Award, Star, ShieldCheck } from "lucide-react";
+import { Settings, Save, Eye, Award, Star, ShieldCheck, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
-import type { ThemeColors } from "@/types/student";
+import { useCertificates } from "@/hooks/useCertificates";
+import type { ThemeColors, CertificateTemplate } from "@/types/student";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CertificateTemplateDialog } from "@/components/admin/CertificateTemplateDialog";
+import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
 
 // ---------------------------------------------------------------------------
 // hex -> HSL utilities (for CSS variable injection)
@@ -139,51 +151,6 @@ function ThemePreview({ colors, label }: { colors: ThemeColors; label: string })
   );
 }
 
-// ---------------------------------------------------------------------------
-// Certificate preview
-// ---------------------------------------------------------------------------
-function CertPreview({
-  backgroundUrl,
-  text,
-  platformName,
-}: {
-  backgroundUrl: string;
-  text: string;
-  platformName: string;
-}) {
-  const rendered = text
-    .replace("{{nome}}", "Ana Paula Ferreira")
-    .replace("{{curso}}", "Fotografia para Iniciantes")
-    .replace("{{horas}}", "20");
-
-  return (
-    <div
-      className="relative w-full rounded-lg border overflow-hidden"
-      style={{ aspectRatio: "16/9" }}
-    >
-      {backgroundUrl ? (
-        <img
-          src={backgroundUrl}
-          alt="Fundo do certificado"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
-      )}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center bg-black/10">
-        <p className="text-xs uppercase tracking-widest text-white/80 drop-shadow">
-          {platformName}
-        </p>
-        <h2 className="text-2xl font-bold text-white drop-shadow">
-          Certificado de Conclusão
-        </h2>
-        <p className="text-sm text-white/90 max-w-md leading-relaxed drop-shadow">
-          {rendered}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Page
@@ -198,8 +165,12 @@ export default function AdminSettingsPage() {
   const [darkColors, setDarkColors] = useState<ThemeColors>({ ...settings.theme.dark });
   const [lightColors, setLightColors] = useState<ThemeColors>({ ...settings.theme.light });
   const [ratingsEnabled, setRatingsEnabled] = useState(settings.ratingsEnabled);
-  const [certBg, setCertBg] = useState(settings.certificateBackgroundUrl);
-  const [certText, setCertText] = useState(settings.certificateDefaultText);
+
+  // Certificates
+  const { templates, createTemplate, updateTemplate, deleteTemplate } = useCertificates();
+  const [tplDialogOpen, setTplDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<CertificateTemplate | null>(null);
+  const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
 
   // Apply saved theme on first load
   useEffect(() => {
@@ -222,12 +193,24 @@ export default function AdminSettingsPage() {
     );
   }
 
-  function handleSaveCertificate() {
-    updateSettings({
-      certificateBackgroundUrl: certBg,
-      certificateDefaultText: certText,
-    });
-    toast.success("Configurações de certificado salvas.");
+  function handleSaveTemplate(
+    data: Omit<CertificateTemplate, "id" | "createdAt" | "updatedAt">
+  ) {
+    if (editingTemplate) {
+      updateTemplate(editingTemplate.id, data);
+      toast.success("Modelo atualizado.");
+    } else {
+      createTemplate(data);
+      toast.success("Modelo criado.");
+    }
+    setEditingTemplate(null);
+  }
+
+  function handleDeleteTemplate() {
+    if (!deleteTemplateId) return;
+    deleteTemplate(deleteTemplateId);
+    toast.success("Modelo removido.");
+    setDeleteTemplateId(null);
   }
 
   // ---------------------------------------------------------------------------
@@ -449,69 +432,113 @@ export default function AdminSettingsPage() {
         </TabsContent>
 
         {/* ======================== CERTIFICADOS ========================= */}
-        <TabsContent value="certificados">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">
-                Configuração de certificados
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-1.5">
-                <Label htmlFor="cert-bg">URL da imagem de fundo</Label>
-                <Input
-                  id="cert-bg"
-                  value={certBg}
-                  onChange={(e) => setCertBg(e.target.value)}
-                  placeholder="https://..."
-                />
-                <p className="text-xs text-muted-foreground">
-                  Recomendado: 1920×1080px.
-                </p>
-              </div>
+        <TabsContent value="certificados" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold">Modelos de Certificado</h2>
+              <p className="text-sm text-muted-foreground">
+                Crie e gerencie os modelos reutilizáveis de certificado.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingTemplate(null);
+                setTplDialogOpen(true);
+              }}
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Novo modelo
+            </Button>
+          </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="cert-text">Texto padrão do certificado</Label>
-                <Textarea
-                  id="cert-text"
-                  rows={4}
-                  value={certText}
-                  onChange={(e) => setCertText(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Variáveis:{" "}
-                  <code className="rounded bg-muted px-1 py-0.5 font-mono">
-                    {"{{nome}}"}
-                  </code>{" "}
-                  <code className="rounded bg-muted px-1 py-0.5 font-mono">
-                    {"{{curso}}"}
-                  </code>{" "}
-                  <code className="rounded bg-muted px-1 py-0.5 font-mono">
-                    {"{{horas}}"}
-                  </code>
+          {templates.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Award className="mx-auto h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhum modelo criado. Clique em "Novo modelo" para começar.
                 </p>
-              </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {templates.map((tpl) => (
+                <Card key={tpl.id} className="overflow-hidden border-border/50 hover:border-border transition-all">
+                  <div className="rounded-t-lg overflow-hidden border-b">
+                    <CertificateRenderer
+                      template={tpl}
+                      data={{
+                        studentName: "Ana Paula Ferreira",
+                        courseName: "Fotografia para Iniciantes",
+                        completionDate: "29 de março de 2026",
+                        courseHours: 20,
+                        platformName: settings.name || "Lumi Membros",
+                      }}
+                    />
+                  </div>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm">{tpl.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {tpl.blocks.length} bloco{tpl.blocks.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setEditingTemplate(tpl);
+                            setTplDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => setDeleteTemplateId(tpl.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Preview</p>
-                <CertPreview
-                  backgroundUrl={certBg}
-                  text={certText}
-                  platformName={name}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Variáveis substituídas por valores de exemplo.
-                </p>
-              </div>
+          <CertificateTemplateDialog
+            open={tplDialogOpen}
+            onOpenChange={setTplDialogOpen}
+            template={editingTemplate}
+            onSave={handleSaveTemplate}
+          />
 
-              <div className="flex justify-end">
-                <Button onClick={handleSaveCertificate}>
-                  <Save className="mr-1.5 h-4 w-4" />
-                  Salvar certificado
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <AlertDialog
+            open={!!deleteTemplateId}
+            onOpenChange={(open) => { if (!open) setDeleteTemplateId(null); }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remover modelo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  O modelo será removido permanentemente. Cursos que usam este modelo ficarão sem certificado.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteTemplate}>
+                  Remover
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
       </Tabs>
     </div>

@@ -13,12 +13,13 @@ import {
   FileText,
   ThumbsUp,
   ThumbsDown,
+  ClipboardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
 import { getLessonRatingCounts } from "@/hooks/useLessonRatings";
-import type { CourseLesson, CourseVideoType } from "@/types/course";
+import type { CourseLesson, CourseVideoType, QuizQuestion } from "@/types/course";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -60,10 +61,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 type LessonFormState = {
   title: string;
   isActive: boolean;
-  mode: "video" | "text";
+  mode: "video" | "text" | "quiz" | "video_quiz";
   videoType: CourseVideoType;
   videoUrl: string;
   description: string;
+  quiz: QuizQuestion[];
+  quizPassingScore: number;
+  quizRequiredToAdvance: boolean;
 };
 
 const emptyLessonForm: LessonFormState = {
@@ -73,19 +77,28 @@ const emptyLessonForm: LessonFormState = {
   videoType: "youtube",
   videoUrl: "",
   description: "",
+  quiz: [],
+  quizPassingScore: 70,
+  quizRequiredToAdvance: false,
 };
 
 function lessonToForm(lesson: CourseLesson): LessonFormState {
-  const isText =
-    lesson.videoType === "none" ||
-    (!lesson.videoUrl && lesson.videoType === "none");
+  const hasQuiz = lesson.quiz && lesson.quiz.length > 0;
+  const isText = lesson.videoType === "none";
+  let mode: LessonFormState["mode"] = "video";
+  if (isText && hasQuiz) mode = "quiz";
+  else if (isText && !hasQuiz) mode = "text";
+  else if (!isText && hasQuiz) mode = "video_quiz";
   return {
     title: lesson.title,
     isActive: lesson.isActive,
-    mode: isText ? "text" : "video",
+    mode,
     videoType: lesson.videoType === "none" ? "youtube" : lesson.videoType,
     videoUrl: lesson.videoUrl ?? "",
     description: lesson.description,
+    quiz: lesson.quiz ?? [],
+    quizPassingScore: lesson.quizPassingScore ?? 70,
+    quizRequiredToAdvance: lesson.quizRequiredToAdvance ?? false,
   };
 }
 
@@ -100,6 +113,10 @@ function videoTypeLabel(vt: CourseVideoType): string {
     case "none":
       return "Sem video";
   }
+}
+
+function generateId() {
+  return Math.random().toString(36).slice(2, 10);
 }
 
 // ---------------------------------------------------------------------------
@@ -189,11 +206,13 @@ export default function AdminModuleEditPage() {
       toast.error("Informe o titulo da aula.");
       return;
     }
-
-    const videoType: CourseVideoType =
-      lessonForm.mode === "text" ? "none" : lessonForm.videoType;
-    const videoUrl =
-      lessonForm.mode === "text" ? null : lessonForm.videoUrl.trim() || null;
+    const isQuizMode = lessonForm.mode === "quiz" || lessonForm.mode === "video_quiz";
+    const isVideoMode = lessonForm.mode === "video" || lessonForm.mode === "video_quiz";
+    const videoType: CourseVideoType = isVideoMode ? lessonForm.videoType : "none";
+    const videoUrl = isVideoMode ? lessonForm.videoUrl.trim() || null : null;
+    const quiz = isQuizMode ? lessonForm.quiz : undefined;
+    const quizPassingScore = isQuizMode ? lessonForm.quizPassingScore : undefined;
+    const quizRequiredToAdvance = isQuizMode ? lessonForm.quizRequiredToAdvance : undefined;
 
     if (editingLessonId) {
       updateLesson(courseId!, moduleId!, editingLessonId, {
@@ -202,6 +221,9 @@ export default function AdminModuleEditPage() {
         videoType,
         videoUrl,
         description: lessonForm.description.trim(),
+        quiz,
+        quizPassingScore,
+        quizRequiredToAdvance,
       });
       toast.success("Aula atualizada.");
     } else {
@@ -211,6 +233,9 @@ export default function AdminModuleEditPage() {
         videoType,
         videoUrl,
         description: lessonForm.description.trim(),
+        quiz,
+        quizPassingScore,
+        quizRequiredToAdvance,
       });
       toast.success("Aula criada.");
     }
@@ -225,6 +250,101 @@ export default function AdminModuleEditPage() {
   function handleDeleteLesson(lessonId: string) {
     deleteLesson(courseId!, moduleId!, lessonId);
     toast.success("Aula removida.");
+  }
+
+  // ---------- Quiz helpers ----------
+  function addQuestion() {
+    const newQuestion: QuizQuestion = {
+      id: generateId(),
+      type: "multiple_choice",
+      question: "",
+      options: [
+        { id: generateId(), text: "" },
+        { id: generateId(), text: "" },
+      ],
+      correctOptionId: "",
+    };
+    updateLessonField("quiz", [...lessonForm.quiz, newQuestion]);
+  }
+
+  function removeQuestion(questionId: string) {
+    updateLessonField(
+      "quiz",
+      lessonForm.quiz.filter((q) => q.id !== questionId)
+    );
+  }
+
+  function updateQuestion(questionId: string, patch: Partial<QuizQuestion>) {
+    updateLessonField(
+      "quiz",
+      lessonForm.quiz.map((q) => (q.id === questionId ? { ...q, ...patch } : q))
+    );
+  }
+
+  function changeQuestionType(questionId: string, type: QuizQuestion["type"]) {
+    const trueFalseOptions = [
+      { id: generateId(), text: "Verdadeiro" },
+      { id: generateId(), text: "Falso" },
+    ];
+    const multiChoiceOptions = [
+      { id: generateId(), text: "" },
+      { id: generateId(), text: "" },
+    ];
+    updateLessonField(
+      "quiz",
+      lessonForm.quiz.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              type,
+              options: type === "true_false" ? trueFalseOptions : multiChoiceOptions,
+              correctOptionId: "",
+            }
+          : q
+      )
+    );
+  }
+
+  function addOption(questionId: string) {
+    updateLessonField(
+      "quiz",
+      lessonForm.quiz.map((q) => {
+        if (q.id !== questionId) return q;
+        if (q.options.length >= 5) return q;
+        return { ...q, options: [...q.options, { id: generateId(), text: "" }] };
+      })
+    );
+  }
+
+  function removeOption(questionId: string, optionId: string) {
+    updateLessonField(
+      "quiz",
+      lessonForm.quiz.map((q) => {
+        if (q.id !== questionId) return q;
+        if (q.options.length <= 2) return q;
+        const newOptions = q.options.filter((o) => o.id !== optionId);
+        return {
+          ...q,
+          options: newOptions,
+          correctOptionId: q.correctOptionId === optionId ? "" : q.correctOptionId,
+        };
+      })
+    );
+  }
+
+  function updateOptionText(questionId: string, optionId: string, text: string) {
+    updateLessonField(
+      "quiz",
+      lessonForm.quiz.map((q) => {
+        if (q.id !== questionId) return q;
+        return {
+          ...q,
+          options: q.options.map((o) =>
+            o.id === optionId ? { ...o, text } : o
+          ),
+        };
+      })
+    );
   }
 
   // ---------- Render ----------
@@ -327,6 +447,12 @@ export default function AdminModuleEditPage() {
                       <FileText className="h-3.5 w-3.5" />
                       Somente texto
                     </>
+                  )}
+                  {lesson.quiz && lesson.quiz.length > 0 && (
+                    <span className="ml-2 flex items-center gap-1">
+                      <ClipboardCheck className="h-3.5 w-3.5 text-primary" />
+                      {lesson.quiz.length} {lesson.quiz.length === 1 ? "pergunta" : "perguntas"}
+                    </span>
                   )}
                 </p>
 
@@ -451,29 +577,43 @@ export default function AdminModuleEditPage() {
               <RadioGroup
                 value={lessonForm.mode}
                 onValueChange={(v) =>
-                  updateLessonField("mode", v as "video" | "text")
+                  updateLessonField("mode", v as LessonFormState["mode"])
                 }
-                className="flex gap-4"
+                className="flex flex-wrap gap-4"
               >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="video" id="mode-video" />
-                  <Label htmlFor="mode-video" className="flex items-center gap-1">
+                  <Label htmlFor="mode-video" className="flex items-center gap-1 cursor-pointer">
                     <Video className="h-4 w-4" />
                     Video
                   </Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="text" id="mode-text" />
-                  <Label htmlFor="mode-text" className="flex items-center gap-1">
+                  <Label htmlFor="mode-text" className="flex items-center gap-1 cursor-pointer">
                     <FileText className="h-4 w-4" />
                     Texto
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="quiz" id="mode-quiz" />
+                  <Label htmlFor="mode-quiz" className="flex items-center gap-1 cursor-pointer">
+                    <ClipboardCheck className="h-4 w-4" />
+                    Quiz
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="video_quiz" id="mode-video_quiz" />
+                  <Label htmlFor="mode-video_quiz" className="flex items-center gap-1 cursor-pointer">
+                    <ClipboardCheck className="h-4 w-4" />
+                    Video + Quiz
                   </Label>
                 </div>
               </RadioGroup>
             </div>
 
             {/* Video fields */}
-            {lessonForm.mode === "video" && (
+            {(lessonForm.mode === "video" || lessonForm.mode === "video_quiz") && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Tipo de video</Label>
@@ -519,6 +659,190 @@ export default function AdminModuleEditPage() {
                 }
               />
             </div>
+
+            {/* Quiz editor */}
+            {(lessonForm.mode === "quiz" || lessonForm.mode === "video_quiz") && (
+              <div className="space-y-4 rounded-lg border border-border/60 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <ClipboardCheck className="h-4 w-4 text-primary" />
+                    Perguntas do Quiz
+                  </h3>
+                  <Button size="sm" variant="outline" onClick={addQuestion}>
+                    <Plus className="mr-1 h-4 w-4" />
+                    Adicionar pergunta
+                  </Button>
+                </div>
+
+                {lessonForm.quiz.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhuma pergunta adicionada. Clique em "Adicionar pergunta" para comecar.
+                  </p>
+                )}
+
+                <div className="space-y-4">
+                  {lessonForm.quiz.map((question, qIndex) => (
+                    <div
+                      key={question.id}
+                      className="rounded-md border border-border/50 p-4 space-y-3 bg-muted/20"
+                    >
+                      {/* Question header */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-muted-foreground">
+                          Pergunta {qIndex + 1}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => removeQuestion(question.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+
+                      {/* Question type selector */}
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Tipo</Label>
+                        <Select
+                          value={question.type}
+                          onValueChange={(v) =>
+                            changeQuestionType(question.id, v as QuizQuestion["type"])
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="multiple_choice">Multipla escolha</SelectItem>
+                            <SelectItem value="true_false">Verdadeiro / Falso</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Question text */}
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Enunciado</Label>
+                        <Input
+                          placeholder="Digite a pergunta..."
+                          value={question.question}
+                          onChange={(e) =>
+                            updateQuestion(question.id, { question: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      {/* Options */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">
+                          Opcoes — selecione a correta
+                        </Label>
+                        <div className="space-y-2">
+                          {question.options.map((option) => (
+                            <div key={option.id} className="flex items-center gap-2">
+                              {/* Radio to mark correct */}
+                              <input
+                                type="radio"
+                                name={`correct-${question.id}`}
+                                checked={question.correctOptionId === option.id}
+                                onChange={() =>
+                                  updateQuestion(question.id, { correctOptionId: option.id })
+                                }
+                                className="h-4 w-4 accent-primary shrink-0"
+                              />
+                              {question.type === "true_false" ? (
+                                /* Fixed labels for true/false */
+                                <span className="text-sm flex-1 py-1 px-2 rounded border border-border/40 bg-background">
+                                  {option.text}
+                                </span>
+                              ) : (
+                                /* Editable option text for multiple_choice */
+                                <Input
+                                  className="h-8 text-sm flex-1"
+                                  placeholder={`Opcao ${question.options.indexOf(option) + 1}...`}
+                                  value={option.text}
+                                  onChange={(e) =>
+                                    updateOptionText(question.id, option.id, e.target.value)
+                                  }
+                                />
+                              )}
+                              {/* Remove option button (multiple_choice only, min 2) */}
+                              {question.type === "multiple_choice" && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 shrink-0"
+                                  disabled={question.options.length <= 2}
+                                  onClick={() => removeOption(question.id, option.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Add option (multiple_choice only, max 5) */}
+                        {question.type === "multiple_choice" && question.options.length < 5 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() => addOption(question.id)}
+                          >
+                            <Plus className="mr-1 h-3 w-3" />
+                            Adicionar opcao
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Quiz settings */}
+                <div className="space-y-3 pt-2 border-t border-border/40">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="passing-score" className="text-sm">
+                        Nota minima para aprovacao
+                      </Label>
+                      <span className="text-sm font-semibold text-primary">
+                        {lessonForm.quizPassingScore}%
+                      </span>
+                    </div>
+                    <input
+                      id="passing-score"
+                      type="range"
+                      min={50}
+                      max={100}
+                      step={5}
+                      value={lessonForm.quizPassingScore}
+                      onChange={(e) =>
+                        updateLessonField("quizPassingScore", Number(e.target.value))
+                      }
+                      className="w-full accent-primary"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>50%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="quiz-required"
+                      checked={lessonForm.quizRequiredToAdvance}
+                      onCheckedChange={(v) =>
+                        updateLessonField("quizRequiredToAdvance", v)
+                      }
+                    />
+                    <Label htmlFor="quiz-required" className="text-sm cursor-pointer">
+                      Obrigatorio para avancar
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2">
