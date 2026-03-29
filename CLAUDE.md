@@ -98,7 +98,7 @@ Mock data files: `src/data/mock-courses.ts`, `src/data/mock-students.ts`, `src/d
 
 ### Theming
 
-Brand color is **Lumi teal** (`#00C2CB`, HSL `183 100% 40%`) used as `--primary`. Custom `lumi` color scale (50–900) available in Tailwind config. Dark mode is the default theme. Font: Plus Jakarta Sans.
+Brand color is **Lumi teal** (`#00C2CB`, HSL `183 100% 40%`) used as `--primary`. Custom `lumi` color scale (50–900) available in Tailwind config. Dark mode is the default theme. Font: Plus Jakarta Sans. The community area (`/comunidade/*`) forces dark mode via `className="dark"` on the CommunityLayout wrapper, independent of the global theme toggle.
 
 ### Student UX Features (Phase 1 — Quick Wins)
 

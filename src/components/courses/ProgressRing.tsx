@@ -5,6 +5,7 @@ interface ProgressRingProps {
   size?: number;
   strokeWidth?: number;
   className?: string;
+  showLabel?: boolean;
 }
 
 export function ProgressRing({
@@ -12,6 +13,7 @@ export function ProgressRing({
   size = 56,
   strokeWidth = 6,
   className,
+  showLabel = true,
 }: ProgressRingProps) {
   const clamped = Math.min(100, Math.max(0, percent));
   const radius = (size - strokeWidth) / 2;
@@ -51,16 +53,18 @@ export function ProgressRing({
         strokeDashoffset={offset}
         strokeLinecap="round"
       />
-      <text
-        x="50%"
-        y="50%"
-        textAnchor="middle"
-        dominantBaseline="central"
-        className="rotate-90 origin-center fill-primary text-xs font-bold"
-        style={{ fontSize: size * 0.24 }}
-      >
-        {Math.round(clamped)}%
-      </text>
+      {showLabel ? (
+        <text
+          x="50%"
+          y="50%"
+          textAnchor="middle"
+          dominantBaseline="central"
+          className="rotate-90 origin-center fill-primary text-xs font-bold"
+          style={{ fontSize: size * 0.24 }}
+        >
+          {Math.round(clamped)}%
+        </text>
+      ) : null}
     </svg>
   );
 }

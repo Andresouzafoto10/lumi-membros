@@ -192,6 +192,28 @@ export function usePosts() {
     [posts]
   );
 
+  const getTopHashtags = useCallback(
+    (communityIds: string[], limit = 5) => {
+      const counts: Record<string, number> = {};
+
+      for (const p of posts) {
+        if (p.status !== "published" || !communityIds.includes(p.communityId)) {
+          continue;
+        }
+
+        for (const tag of p.hashtags) {
+          counts[tag] = (counts[tag] ?? 0) + 1;
+        }
+      }
+
+      return Object.entries(counts)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, limit)
+        .map(([tag, count]) => ({ tag, count }));
+    },
+    [posts]
+  );
+
   const getTopPosts = useCallback(
     (communityIds: string[], limit = 3) => {
       const now = new Date();
@@ -331,6 +353,7 @@ export function usePosts() {
     getPendingPosts,
     getAllPostsForModeration,
     getTrendingHashtags,
+    getTopHashtags,
     getTopPosts,
     createPost,
     updatePost,

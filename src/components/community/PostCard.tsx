@@ -271,7 +271,11 @@ export function PostCard({
   // System post — special card
   if (post.type === "system") {
     return (
-      <div className="relative border-b border-border/20 pb-4">
+      <div
+        id={post.id}
+        data-post-id={post.id}
+        className="relative scroll-mt-24 border-b border-border/20 pb-4 lg:scroll-mt-6"
+      >
         <div className="px-1 py-3">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center shrink-0">
@@ -296,8 +300,10 @@ export function PostCard({
 
   return (
     <div
+      id={post.id}
+      data-post-id={post.id}
       className={cn(
-        "relative border-b border-border/20 transition-colors duration-200",
+        "relative scroll-mt-24 border-b border-border/20 transition-colors duration-200 lg:scroll-mt-6",
         isPinned && "bg-primary/[0.03] border-b-primary/20"
       )}
     >

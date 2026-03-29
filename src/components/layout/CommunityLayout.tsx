@@ -6,7 +6,6 @@ import {
   Heart,
   Menu,
   X,
-  MessageCircle,
   TrendingUp,
   Flame,
   Lock,
@@ -27,13 +26,12 @@ export function CommunityLayout() {
   const location = useLocation();
   const { currentUserId } = useCurrentUser();
   const { getCommunitiesForStudent, activeCommunities } = useCommunities();
-  const { getTrendingHashtags, getTopPosts, getPostsByCommunity } = usePosts();
+  const { getTopHashtags, getTopPosts, getPostsByCommunity } = usePosts();
   const { findProfile } = useProfiles();
   const { items: sidebarItems } = useSidebarConfig();
   const { getLastSeen, markSeen } = useCommunityLastSeen();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [trendingPeriod, setTrendingPeriod] = useState<"week" | "month">("week");
 
   const myCommunities = useMemo(
     () => getCommunitiesForStudent(currentUserId),
@@ -47,9 +45,9 @@ export function CommunityLayout() {
     [myCommunities]
   );
 
-  const trending = useMemo(
-    () => getTrendingHashtags(communityIds, 5),
-    [getTrendingHashtags, communityIds]
+  const topHashtags = useMemo(
+    () => getTopHashtags(communityIds, 5),
+    [getTopHashtags, communityIds]
   );
 
   const topPosts = useMemo(
@@ -145,10 +143,10 @@ export function CommunityLayout() {
           to="/comunidade/feed"
           onClick={() => setMobileOpen(false)}
           className={cn(
-            "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+            "relative flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium transition-all duration-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-transparent before:transition-colors",
             isFeed
-              ? "bg-primary/10 text-primary shadow-sm"
-              : "text-sidebar-foreground hover:bg-sidebar-accent/60"
+              ? "border-border/60 bg-muted/70 text-foreground shadow-sm before:bg-primary"
+              : "text-muted-foreground hover:border-border/40 hover:bg-muted/55 hover:text-foreground hover:before:bg-primary/35"
           )}
         >
           <LayoutGrid className="h-4 w-4" />
@@ -176,7 +174,7 @@ export function CommunityLayout() {
                   <button
                     key={item.id}
                     onClick={() => handleLockedClick(item)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm w-full text-left text-muted-foreground/50 hover:bg-sidebar-accent/30 transition-all duration-200 cursor-pointer"
+                    className="relative flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm text-muted-foreground/55 transition-all duration-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-transparent before:transition-colors hover:border-border/30 hover:bg-muted/45 hover:text-foreground/80 hover:before:bg-border"
                     title="Você não tem acesso a esta comunidade"
                   >
                     <span className="text-base shrink-0 grayscale opacity-50">{item.emoji}</span>
@@ -192,10 +190,10 @@ export function CommunityLayout() {
                   to={`/comunidade/${item.community.slug}`}
                   onClick={() => setMobileOpen(false)}
                   className={cn(
-                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                    "relative flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-all duration-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-transparent before:transition-colors",
                     active
-                      ? "bg-primary/10 text-primary font-medium border-l-2 border-primary -ml-[2px] pl-[14px]"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/60 font-normal"
+                      ? "border-border/60 bg-muted/70 text-foreground shadow-sm before:bg-primary"
+                      : "font-normal text-muted-foreground hover:border-border/40 hover:bg-muted/55 hover:text-foreground hover:before:bg-primary/35"
                   )}
                 >
                   <span className="text-base shrink-0">{item.emoji}</span>
@@ -217,51 +215,89 @@ export function CommunityLayout() {
   // ── Right sidebar content ──
   const rightSidebar = (
     <div className="flex flex-col h-full p-4 space-y-5">
-      {/* Trending hashtags */}
-      {trending.length > 0 && (
+      {/* Top posts */}
+      {topPosts.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3">
+            <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-[0.15em] flex items-center gap-1.5">
+              <Flame className="h-3 w-3" />
+              Mais curtidos do mês
+            </p>
+          </div>
+          <div className="space-y-2.5">
+            {topPosts.map((post, index) => {
+              const author = findProfile(post.authorId);
+              const community = activeCommunities.find((item) => item.id === post.communityId);
+              const href = community
+                ? `/comunidade/${community.slug}#${post.id}`
+                : `/comunidade/feed#${post.id}`;
+
+              return (
+                <Link
+                  key={post.id}
+                  to={href}
+                  onClick={() => setMobileOpen(false)}
+                  className="group/top flex items-start gap-2.5 rounded-xl border border-border/30 bg-card/35 px-3 py-2.5 text-sm transition-all duration-200 hover:border-primary/30 hover:bg-muted/40"
+                >
+                  <span className="mt-0.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
+                    {index + 1}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-[12px] font-semibold leading-5 text-foreground/90 transition-colors group-hover/top:text-foreground">
+                      {post.title || post.body.slice(0, 72)}
+                    </p>
+
+                    <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/75">
+                      <div className="h-5 w-5 rounded-full overflow-hidden bg-muted shrink-0 ring-1 ring-border/20">
+                        {author?.avatarUrl ? (
+                          <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-[8px] font-bold">
+                            {(author?.displayName ?? "?").charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <span className="truncate">{author?.displayName ?? "Anônimo"}</span>
+                    </div>
+
+                    {community && (
+                      <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/55">
+                        {community.name}
+                      </p>
+                    )}
+                  </div>
+
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-500">
+                    <Heart className="h-3 w-3 fill-current" />
+                    <span className="tabular-nums">{post.likesCount}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Top hashtags */}
+      {topHashtags.length > 0 && (
+        <div>
+          <div className="border-t border-border/20 pt-4 mb-3">
             <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-[0.15em] flex items-center gap-1.5">
               <TrendingUp className="h-3 w-3" />
-              em Alta
+              Hashtags mais usadas
             </p>
-            <div className="flex items-center gap-0.5 rounded-full bg-muted/50 p-0.5">
-              <button
-                onClick={() => setTrendingPeriod("week")}
-                className={cn(
-                  "px-2.5 py-0.5 rounded-full text-[10px] font-medium transition-all",
-                  trendingPeriod === "week"
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Semana
-              </button>
-              <button
-                onClick={() => setTrendingPeriod("month")}
-                className={cn(
-                  "px-2.5 py-0.5 rounded-full text-[10px] font-medium transition-all",
-                  trendingPeriod === "month"
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Mês
-              </button>
-            </div>
           </div>
-          <div className="space-y-1">
-            {trending.map(({ tag, count }) => (
+          <div className="flex flex-wrap gap-2">
+            {topHashtags.map(({ tag, count }) => (
               <Link
                 key={tag}
                 to={`/comunidade/feed?tag=${tag}`}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-primary/5 transition-colors group/tag"
+                className="group/tag inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/35 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:border-primary/30 hover:bg-primary/8 hover:text-primary"
               >
-                <span className="flex items-center gap-1.5">
-                  <Hash className="h-3.5 w-3.5 text-primary/60" />
-                  <span className="text-primary font-medium group-hover/tag:brightness-125">{tag}</span>
-                </span>
-                <span className="text-[10px] text-muted-foreground/60 bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium tabular-nums">
+                <Hash className="h-3.5 w-3.5" />
+                <span>#{tag}</span>
+                <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-foreground/70 transition-colors group-hover/tag:text-primary">
                   {count}
                 </span>
               </Link>
@@ -269,57 +305,13 @@ export function CommunityLayout() {
           </div>
         </div>
       )}
-
-      {/* Top posts */}
-      {topPosts.length > 0 && (
-        <div>
-          <div className="border-t border-border/20 pt-4 mb-3">
-            <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-[0.15em] flex items-center gap-1.5">
-              <Flame className="h-3 w-3" />
-              Mais curtidos do mês
-            </p>
-          </div>
-          <div className="space-y-2">
-            {topPosts.map((post) => {
-              const author = findProfile(post.authorId);
-              return (
-                <div
-                  key={post.id}
-                  className="rounded-lg px-3 py-2.5 text-sm hover:bg-muted/30 transition-colors cursor-pointer border border-border/10 hover:border-border/30 group/top"
-                >
-                  <p className="line-clamp-2 font-medium text-[13px] leading-snug group-hover/top:text-foreground transition-colors">
-                    {post.title || post.body.slice(0, 80)}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground/60 mt-2">
-                    {/* Mini avatar */}
-                    <div className="h-5 w-5 rounded-full overflow-hidden bg-muted shrink-0 ring-1 ring-border/20">
-                      {author?.avatarUrl ? (
-                        <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-[8px] font-bold">
-                          {(author?.displayName ?? "?").charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <span className="truncate">{author?.displayName ?? "Anônimo"}</span>
-                    <span className="ml-auto flex items-center gap-1 text-red-500/70 shrink-0">
-                      <Heart className="h-3 w-3 fill-current" />
-                      <span className="tabular-nums font-medium">{post.likesCount}</span>
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 
   return (
-    <div className="dark flex h-[calc(100vh-4rem)] overflow-hidden bg-background text-foreground">
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background text-foreground">
       {/* Desktop LEFT sidebar */}
-      <aside className="hidden lg:flex w-[260px] shrink-0 border-r border-border/30 bg-sidebar flex-col overflow-y-auto">
+      <aside className="hidden lg:flex w-[260px] shrink-0 border-r border-border/40 bg-background flex-col overflow-y-auto">
         {leftSidebar}
       </aside>
 
@@ -343,7 +335,7 @@ export function CommunityLayout() {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="absolute left-0 top-0 h-full w-[260px] bg-sidebar animate-slide-in overflow-y-auto">
+          <div className="absolute left-0 top-0 h-full w-[260px] bg-background animate-slide-in overflow-y-auto">
             {leftSidebar}
           </div>
         </div>
@@ -355,7 +347,7 @@ export function CommunityLayout() {
       </main>
 
       {/* Desktop RIGHT sidebar */}
-      <aside className="hidden xl:flex w-[280px] shrink-0 border-l border-border/30 bg-sidebar/50 flex-col overflow-y-auto">
+      <aside className="hidden xl:flex w-[260px] shrink-0 border-l border-border/40 bg-background flex-col overflow-y-auto">
         {rightSidebar}
       </aside>
     </div>

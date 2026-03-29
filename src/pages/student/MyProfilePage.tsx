@@ -197,14 +197,14 @@ export default function MyProfilePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto pb-12">
-      <div className="px-4 pt-4">
+    <div className="mx-auto max-w-3xl pb-20 sm:pb-12">
+      <div className="px-4 pt-4 sm:px-5">
         <Breadcrumb items={[{ label: "Cursos", to: "/cursos" }, { label: "Meu Perfil" }]} />
       </div>
 
       {/* Cover */}
-      <div className="relative mt-4">
-        <div className="h-40 sm:h-52 rounded-xl overflow-hidden bg-muted">
+      <div className="relative mt-4 px-4 sm:px-5">
+        <div className="h-32 overflow-hidden rounded-[1.25rem] bg-muted sm:h-52 sm:rounded-xl">
           {profile.coverUrl ? (
             <img
               src={profile.coverUrl}
@@ -234,10 +234,10 @@ export default function MyProfilePage() {
       </div>
 
       {/* Avatar + Info */}
-      <div className="px-4 -mt-12 sm:-mt-14 relative z-10">
-        <div className="flex items-end gap-4">
+      <div className="relative z-10 -mt-10 px-4 sm:-mt-14 sm:px-5">
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end">
           <div className="relative">
-            <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 border-background overflow-hidden bg-muted shadow-lg ring-2 ring-primary/20">
+            <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-background bg-muted shadow-lg ring-2 ring-primary/20 sm:h-28 sm:w-28">
               {profile.avatarUrl ? (
                 <img
                   src={profile.avatarUrl}
@@ -267,9 +267,11 @@ export default function MyProfilePage() {
             />
           </div>
 
-          <div className="flex-1 min-w-0 pb-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold truncate">{profile.displayName}</h1>
+          <div className="min-w-0 flex-1 pb-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold leading-tight tracking-[-0.02em] sm:truncate">
+                {profile.displayName}
+              </h1>
               {playerBadges.length > 0 && (
                 <Badge variant="outline" className="text-xs shrink-0">
                   {playerBadges[playerBadges.length - 1].name}
@@ -279,7 +281,12 @@ export default function MyProfilePage() {
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
           </div>
 
-          <Button size="sm" variant="outline" onClick={openEditDialog} className="shrink-0 active:scale-95 transition-all">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={openEditDialog}
+            className="w-full shrink-0 active:scale-95 transition-all sm:w-auto"
+          >
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Editar perfil
           </Button>
@@ -287,13 +294,15 @@ export default function MyProfilePage() {
 
         {/* Bio */}
         {profile.bio && (
-          <p className="mt-3 text-sm leading-relaxed">{profile.bio}</p>
+          <p className="mt-4 text-sm leading-7 sm:mt-3 sm:leading-relaxed">
+            {profile.bio}
+          </p>
         )}
 
         {/* Meta row */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+        <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:mt-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
           {profile.location && (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 text-primary/50" />
               {profile.location}
             </span>
@@ -317,19 +326,18 @@ export default function MyProfilePage() {
         </div>
 
         {/* Followers / Following */}
-        <div className="mt-3 flex gap-4 text-sm">
-          <Link to="#" className="hover:underline">
+        <div className="mt-5 grid grid-cols-3 gap-2 text-center sm:mt-3 sm:flex sm:gap-4 sm:text-left">
+          <Link to="#" className="rounded-2xl border border-border/70 px-3 py-3 hover:underline sm:rounded-none sm:border-0 sm:px-0 sm:py-0">
             <span className="font-bold text-foreground">{profile.following.length}</span>{" "}
-            <span className="text-muted-foreground">seguindo</span>
+            <span className="text-muted-foreground sm:inline">seguindo</span>
           </Link>
-          <Link to="#" className="hover:underline">
+          <Link to="#" className="rounded-2xl border border-border/70 px-3 py-3 hover:underline sm:rounded-none sm:border-0 sm:px-0 sm:py-0">
             <span className="font-bold text-foreground">{profile.followers.length}</span>{" "}
             <span className="text-muted-foreground">
               seguidor{profile.followers.length !== 1 ? "es" : ""}
             </span>
           </Link>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-sm">
+          <span className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-3 text-sm sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
             <span className="font-bold text-primary">{playerData.points}</span>{" "}
             <span className="text-muted-foreground">pontos</span>
           </span>
@@ -337,9 +345,9 @@ export default function MyProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="px-4 mt-6">
+      <div className="mt-6 px-4 sm:px-5">
         <Tabs defaultValue="posts">
-          <TabsList className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="posts" className="flex-1 gap-1.5">
               <FileText className="h-3.5 w-3.5" />
               Publicacoes
@@ -361,7 +369,7 @@ export default function MyProfilePage() {
                 Voce ainda nao publicou nada.
               </p>
             ) : (
-              <div className="space-y-3 mt-3">
+              <div className="mt-3 space-y-3">
                 {myPosts.map((post) => (
                   <MiniPostCard
                     key={post.id}
@@ -384,7 +392,7 @@ export default function MyProfilePage() {
                 Nenhum post salvo ainda.
               </p>
             ) : (
-              <div className="space-y-3 mt-3">
+              <div className="mt-3 space-y-3">
                 {savedPosts.map((post) => (
                   <MiniPostCard
                     key={post.id}
@@ -402,7 +410,7 @@ export default function MyProfilePage() {
 
           {/* Tab: About */}
           <TabsContent value="about">
-            <div className="space-y-6 mt-3">
+            <div className="mt-3 space-y-6">
               {/* Bio */}
               {profile.bio && (
                 <div>

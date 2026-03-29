@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useParams } from "react-router-dom";
 import { MessageSquare, PenSquare, Plus, Users } from "lucide-react";
 
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -19,6 +19,7 @@ import { CreatePostDialog } from "@/components/community/CreatePostDialog";
 import { cn } from "@/lib/utils";
 
 export default function CommunityPage() {
+  const location = useLocation();
   const { slug } = useParams<{ slug: string }>();
   const { currentUserId } = useCurrentUser();
   const { findBySlug, getCommunitiesForStudent } = useCommunities();
@@ -77,6 +78,26 @@ export default function CommunityPage() {
       return next;
     });
   }
+
+  useEffect(() => {
+    if (!location.hash) return;
+
+    const anchorId = decodeURIComponent(location.hash.slice(1));
+
+    const scrollToPost = () => {
+      const element = document.getElementById(anchorId);
+      if (!element) return;
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    const frameId = window.requestAnimationFrame(scrollToPost);
+    const timeoutId = window.setTimeout(scrollToPost, 180);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [location.hash, regularPosts.length, pinnedPost?.id]);
 
   if (!community) {
     return (

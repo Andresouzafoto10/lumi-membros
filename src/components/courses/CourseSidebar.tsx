@@ -1,7 +1,4 @@
-import { CheckCircle2, ChevronDown, Circle } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Check, ChevronDown, Circle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Collapsible,
@@ -16,7 +13,7 @@ interface CourseSidebarProps {
   course: Course;
   activeLessonId: string | null;
   completedLessons: Record<string, boolean>;
-  openModules: Record<string, boolean>;
+  openModuleId: string | null;
   onToggleModule: (moduleId: string) => void;
   onSelectLesson: (lessonId: string) => void;
   percentCompleted: number;
@@ -26,75 +23,114 @@ export function CourseSidebar({
   course,
   activeLessonId,
   completedLessons,
-  openModules,
+  openModuleId,
   onToggleModule,
   onSelectLesson,
   percentCompleted,
 }: CourseSidebarProps) {
   const sortedModules = [...course.modules]
-    .filter((m) => m.isActive)
+    .filter((module) => module.isActive)
     .sort((a, b) => a.order - b.order);
 
+  const totalLessons = sortedModules.reduce(
+    (count, module) =>
+      count + module.lessons.filter((lesson) => lesson.isActive).length,
+    0
+  );
+
+  const completedLessonsCount = sortedModules.reduce(
+    (count, module) =>
+      count +
+      module.lessons.filter(
+        (lesson) => lesson.isActive && completedLessons[lesson.id]
+      ).length,
+    0
+  );
+
   return (
-    <Card className="p-4 border border-border/50 shadow-md">
-      {/* Progress header */}
-      <div className="flex items-center gap-3">
-        <ProgressRing percent={percentCompleted} />
+    <div className="px-1 lg:px-0">
+      <div className="mb-7 flex items-start gap-3.5">
+        <div className="pt-0.5">
+          <ProgressRing
+            percent={percentCompleted}
+            size={28}
+            strokeWidth={4}
+            showLabel={false}
+          />
+        </div>
+
         <div className="min-w-0">
-          <p className="text-sm font-semibold">Progresso do curso</p>
-          <p className="text-xs text-muted-foreground">
-            {Math.round(percentCompleted)}% concluido
+          <p className="text-[0.98rem] font-semibold leading-5 tracking-[-0.012em] text-foreground">
+            Progresso do curso
+          </p>
+          <p className="mt-1 text-[0.82rem] font-medium text-muted-foreground">
+            {completedLessonsCount} de {totalLessons} aulas concluidas
           </p>
         </div>
       </div>
 
-      <Separator className="my-4" />
-
-      {/* Module list */}
-      <ScrollArea className="max-h-[60vh]">
-        <div className="space-y-1 pr-3">
-          {sortedModules.map((mod) => {
-            const sortedLessons = [...mod.lessons]
-              .filter((l) => l.isActive)
+      <ScrollArea className="max-h-[calc(100vh-11rem)] pr-2">
+        <div className="space-y-5 pr-2">
+          {sortedModules.map((module) => {
+            const sortedLessons = [...module.lessons]
+              .filter((lesson) => lesson.isActive)
               .sort((a, b) => a.order - b.order);
-            const completedCount = sortedLessons.filter((l) => completedLessons[l.id]).length;
-            const allComplete = completedCount === sortedLessons.length && sortedLessons.length > 0;
+            const completedCount = sortedLessons.filter(
+              (lesson) => completedLessons[lesson.id]
+            ).length;
+            const allComplete =
+              sortedLessons.length > 0 && completedCount === sortedLessons.length;
+            const isOpen = openModuleId === module.id;
 
             return (
               <Collapsible
-                key={mod.id}
-                open={openModules[mod.id] ?? false}
-                onOpenChange={() => onToggleModule(mod.id)}
+                key={module.id}
+                open={isOpen}
+                onOpenChange={() => onToggleModule(module.id)}
               >
-                <CollapsibleTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between gap-2 text-left h-auto py-2.5 px-3 hover:bg-muted/60"
+                <div className="relative pl-10">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute left-0 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-[2.5px] transition-colors duration-200",
+                      allComplete
+                        ? "border-emerald-500/90 text-emerald-500"
+                        : isOpen
+                          ? "border-primary/80 text-primary"
+                          : "border-muted-foreground/35 text-muted-foreground/40"
+                    )}
                   >
-                    <span className="text-sm font-semibold truncate">
-                      {mod.title}
-                    </span>
-                    <span className="flex items-center gap-2 shrink-0">
-                      <span className={cn(
-                        "text-[11px] font-medium px-1.5 py-0.5 rounded-full",
-                        allComplete
-                          ? "bg-green-500/10 text-green-500"
-                          : "bg-muted text-muted-foreground"
-                      )}>
-                        {completedCount}/{sortedLessons.length}
+                    {allComplete ? (
+                      <Check className="h-3 w-3" strokeWidth={3} />
+                    ) : null}
+                  </span>
+
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex w-full items-start justify-between gap-3 bg-transparent py-0 text-left outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-[0.98rem] font-semibold leading-7 tracking-[-0.015em] text-foreground">
+                          {module.title}
+                        </span>
+                        <span className="mt-0.5 block text-[0.8rem] font-medium text-muted-foreground">
+                          {completedCount} de {sortedLessons.length} aulas
+                        </span>
                       </span>
+
                       <ChevronDown
                         className={cn(
-                          "h-4 w-4 text-muted-foreground transition-transform duration-300",
-                          openModules[mod.id] && "rotate-180"
+                          "mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300",
+                          isOpen && "rotate-180"
                         )}
                       />
-                    </span>
-                  </Button>
-                </CollapsibleTrigger>
+                    </button>
+                  </CollapsibleTrigger>
+                </div>
 
-                <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
-                  <div className="ml-1 space-y-0.5 py-1">
+                <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                  <div className="relative ml-[11px] mt-3 border-l border-border/65 pb-1 pl-7">
                     {sortedLessons.map((lesson) => {
                       const isCompleted = completedLessons[lesson.id] ?? false;
                       const isActive = lesson.id === activeLessonId;
@@ -103,19 +139,34 @@ export function CourseSidebar({
                         <button
                           key={lesson.id}
                           id={`lesson-${lesson.id}`}
+                          type="button"
                           onClick={() => onSelectLesson(lesson.id)}
-                          className={cn(
-                            "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-all duration-200 hover:bg-muted/50 scroll-mt-4",
-                            isActive && "bg-primary/8 border-l-2 border-primary text-foreground font-medium",
-                            !isActive && isCompleted && "text-muted-foreground"
-                          )}
+                          className="group relative flex w-full items-start bg-transparent py-2 text-left outline-none scroll-mt-4"
                         >
-                          {isCompleted ? (
-                            <CheckCircle2 className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-green-500")} />
-                          ) : (
-                            <Circle className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground/60")} />
-                          )}
-                          <span className="truncate">{lesson.title}</span>
+                          <span className="absolute -left-[29px] top-[14px] flex h-4 w-4 items-center justify-center">
+                            {isCompleted ? (
+                              <Check
+                                className="h-3.5 w-3.5 text-emerald-500"
+                                strokeWidth={3}
+                              />
+                            ) : isActive ? (
+                              <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 text-muted-foreground/45" />
+                            )}
+                          </span>
+
+                          <span
+                            className={cn(
+                              "text-[0.92rem] font-semibold leading-7 tracking-[-0.012em] transition-colors",
+                              isActive
+                                ? "text-primary"
+                                : "text-foreground/78 group-hover:text-foreground",
+                              isCompleted && !isActive && "text-foreground/66"
+                            )}
+                          >
+                            {lesson.title}
+                          </span>
                         </button>
                       );
                     })}
@@ -126,6 +177,6 @@ export function CourseSidebar({
           })}
         </div>
       </ScrollArea>
-    </Card>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
-import { Plus, PenSquare, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { Plus, PenSquare } from "lucide-react";
 
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCommunities } from "@/hooks/useCommunities";
@@ -24,6 +24,7 @@ import { CreatePostDialog } from "@/components/community/CreatePostDialog";
 import { cn } from "@/lib/utils";
 
 export default function CommunityFeedPage() {
+  const location = useLocation();
   const { currentUserId } = useCurrentUser();
   const { getCommunitiesForStudent } = useCommunities();
   const { getFeedPosts, getPostsByHashtag } = usePosts();
@@ -66,6 +67,26 @@ export default function CommunityFeedPage() {
       return next;
     });
   }
+
+  useEffect(() => {
+    if (!location.hash) return;
+
+    const anchorId = decodeURIComponent(location.hash.slice(1));
+
+    const scrollToPost = () => {
+      const element = document.getElementById(anchorId);
+      if (!element) return;
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    const frameId = window.requestAnimationFrame(scrollToPost);
+    const timeoutId = window.setTimeout(scrollToPost, 180);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [location.hash, feedPosts.length]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
