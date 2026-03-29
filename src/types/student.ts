@@ -239,3 +239,12 @@ export type GamificationData = {
   points: number;
   badges: string[];
 };
+
+export type CommunitySidebarItem = {
+  id: string;
+  communityId: string;
+  emoji: string;
+  order: number;
+  visible: boolean;
+  salesPageUrl: string;
+};

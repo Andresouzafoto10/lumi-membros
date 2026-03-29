@@ -35,6 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ImageLightbox } from "@/components/community/ImageLightbox";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -124,75 +125,89 @@ function renderBody(
 }
 
 // ---------------------------------------------------------------------------
-// Image Grid — smart layout based on count
+// Image Grid — smart layout based on count + lightbox
 // ---------------------------------------------------------------------------
 function ImageGrid({ images }: { images: string[] }) {
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
 
   if (images.length === 0) return null;
 
-  if (images.length === 1) {
-    return (
-      <div className="rounded-xl overflow-hidden bg-muted mt-3 ring-1 ring-border/20">
-        <img
-          src={images[0]}
-          alt="Post"
-          className="w-full max-h-96 object-cover hover:opacity-95 transition-opacity cursor-pointer"
-          onClick={() => setLightboxIdx(0)}
-        />
-      </div>
-    );
-  }
+  const grid = () => {
+    if (images.length === 1) {
+      return (
+        <div className="rounded-xl overflow-hidden bg-muted mt-3 ring-1 ring-border/20">
+          <img
+            src={images[0]}
+            alt="Post"
+            className="w-full max-h-96 object-cover hover:opacity-95 transition-opacity cursor-pointer"
+            onClick={() => setLightboxIdx(0)}
+          />
+        </div>
+      );
+    }
 
-  if (images.length === 2) {
+    if (images.length === 2) {
+      return (
+        <div className="grid grid-cols-2 gap-1 mt-3 rounded-xl overflow-hidden ring-1 ring-border/20">
+          {images.map((img, i) => (
+            <img
+              key={i}
+              src={img}
+              alt={`Imagem ${i + 1}`}
+              className="w-full h-48 object-cover hover:opacity-95 transition-opacity cursor-pointer"
+              onClick={() => setLightboxIdx(i)}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    // 3+ images: 2-column grid, last item shows "+X" overlay if more than 4
+    const showCount = Math.min(images.length, 4);
+    const remaining = images.length - showCount;
+
     return (
       <div className="grid grid-cols-2 gap-1 mt-3 rounded-xl overflow-hidden ring-1 ring-border/20">
-        {images.map((img, i) => (
-          <img
+        {images.slice(0, showCount).map((img, i) => (
+          <div
             key={i}
-            src={img}
-            alt={`Imagem ${i + 1}`}
-            className="w-full h-48 object-cover hover:opacity-95 transition-opacity cursor-pointer"
+            className={cn(
+              "relative overflow-hidden cursor-pointer",
+              images.length === 3 && i === 0 && "col-span-2"
+            )}
             onClick={() => setLightboxIdx(i)}
-          />
+          >
+            <img
+              src={img}
+              alt={`Imagem ${i + 1}`}
+              className={cn(
+                "w-full object-cover hover:opacity-95 transition-opacity",
+                images.length === 3 && i === 0 ? "h-48" : "h-36"
+              )}
+            />
+            {i === showCount - 1 && remaining > 0 && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <span className="text-white text-2xl font-bold">+{remaining}</span>
+              </div>
+            )}
+          </div>
         ))}
       </div>
     );
-  }
-
-  // 3+ images: 2-column grid, last item shows "+X" overlay if more than 4
-  const showCount = Math.min(images.length, 4);
-  const remaining = images.length - showCount;
+  };
 
   return (
-    <div className="grid grid-cols-2 gap-1 mt-3 rounded-xl overflow-hidden ring-1 ring-border/20">
-      {images.slice(0, showCount).map((img, i) => (
-        <div
-          key={i}
-          className={cn(
-            "relative overflow-hidden cursor-pointer",
-            // First image spans full width if 3 images
-            images.length === 3 && i === 0 && "col-span-2"
-          )}
-          onClick={() => setLightboxIdx(i)}
-        >
-          <img
-            src={img}
-            alt={`Imagem ${i + 1}`}
-            className={cn(
-              "w-full object-cover hover:opacity-95 transition-opacity",
-              images.length === 3 && i === 0 ? "h-48" : "h-36"
-            )}
-          />
-          {/* "+X" overlay on last visible image */}
-          {i === showCount - 1 && remaining > 0 && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <span className="text-white text-2xl font-bold">+{remaining}</span>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
+    <>
+      {grid()}
+      {lightboxIdx !== null && (
+        <ImageLightbox
+          images={images}
+          currentIndex={lightboxIdx}
+          onClose={() => setLightboxIdx(null)}
+          onNavigate={setLightboxIdx}
+        />
+      )}
+    </>
   );
 }
 

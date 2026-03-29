@@ -7,6 +7,7 @@ import {
   Flag,
   MoreHorizontal,
   Send,
+  Flame,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -28,10 +29,12 @@ import { cn } from "@/lib/utils";
 function CommentItem({
   comment,
   isReply = false,
+  isMostLiked = false,
   onReply,
 }: {
   comment: PostComment;
   isReply?: boolean;
+  isMostLiked?: boolean;
   onReply?: (commentId: string) => void;
 }) {
   const { currentUserId } = useCurrentUser();
@@ -69,7 +72,10 @@ function CommentItem({
       </Link>
 
       <div className="flex-1 min-w-0">
-        <div className="rounded-xl bg-muted/40 border border-border/30 px-3 py-2">
+        <div className={cn(
+          "rounded-xl bg-muted/40 border px-3 py-2",
+          isMostLiked ? "border-amber-500/30 bg-amber-500/5" : "border-border/30"
+        )}>
           <div className="flex items-center gap-1.5">
             <Link
               to={`/perfil/${comment.authorId}`}
@@ -77,6 +83,12 @@ function CommentItem({
             >
               {author?.displayName ?? "Anonimo"}
             </Link>
+            {isMostLiked && (
+              <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-500">
+                <Flame className="h-3 w-3" />
+                Mais curtido
+              </span>
+            )}
             <span className="text-[10px] text-muted-foreground">
               {formatDistanceToNow(new Date(comment.createdAt), {
                 addSuffix: true,
@@ -169,8 +181,25 @@ export function PostComments({ postId }: { postId: string }) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  const rootComments = getRootComments(postId);
+  const rawRootComments = getRootComments(postId);
   const restricted = isRestricted(currentUserId);
+
+  // Find the most liked comment (must have at least 1 like)
+  const mostLikedId = rawRootComments.length > 0
+    ? rawRootComments.reduce((best, c) =>
+        c.likesCount > best.likesCount ? c : best
+      , rawRootComments[0])
+    : null;
+  const hasMostLiked = mostLikedId && mostLikedId.likesCount > 0;
+
+  // Sort: most liked first, then chronological
+  const rootComments = [...rawRootComments].sort((a, b) => {
+    if (hasMostLiked) {
+      if (a.id === mostLikedId.id) return -1;
+      if (b.id === mostLikedId.id) return 1;
+    }
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
 
   function handleSubmitComment() {
     if (!newComment.trim()) return;
@@ -238,10 +267,12 @@ export function PostComments({ postId }: { postId: string }) {
         <div className="space-y-3">
           {rootComments.map((comment) => {
             const replies = getReplies(comment.id);
+            const isTop = hasMostLiked && comment.id === mostLikedId.id;
             return (
               <div key={comment.id} className="space-y-2">
                 <CommentItem
                   comment={comment}
+                  isMostLiked={isTop}
                   onReply={(id) => {
                     setReplyTo(replyTo === id ? null : id);
                     setReplyText("");
