@@ -25,12 +25,18 @@ export function ProgressRing({
       className={cn("rotate-[-90deg]", className)}
       viewBox={`0 0 ${size} ${size}`}
     >
+      <defs>
+        <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" />
+          <stop offset="100%" stopColor="hsl(var(--primary) / 0.6)" />
+        </linearGradient>
+      </defs>
       <circle
         cx={size / 2}
         cy={size / 2}
         r={radius}
         fill="none"
-        className="stroke-muted"
+        className="stroke-muted/50"
         strokeWidth={strokeWidth}
       />
       <circle
@@ -38,7 +44,8 @@ export function ProgressRing({
         cy={size / 2}
         r={radius}
         fill="none"
-        className="stroke-primary transition-all duration-500 ease-in-out"
+        stroke="url(#progress-gradient)"
+        className="transition-all duration-700 ease-out"
         strokeWidth={strokeWidth}
         strokeDasharray={circumference}
         strokeDashoffset={offset}
@@ -49,8 +56,8 @@ export function ProgressRing({
         y="50%"
         textAnchor="middle"
         dominantBaseline="central"
-        className="rotate-90 origin-center fill-foreground text-xs font-semibold"
-        style={{ fontSize: size * 0.22 }}
+        className="rotate-90 origin-center fill-primary text-xs font-bold"
+        style={{ fontSize: size * 0.24 }}
       >
         {Math.round(clamped)}%
       </text>

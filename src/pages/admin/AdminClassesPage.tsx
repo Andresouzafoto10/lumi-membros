@@ -219,7 +219,7 @@ export default function AdminClassesPage() {
             const count = enrollmentCount[cls.id] ?? 0;
 
             return (
-              <Card key={cls.id}>
+              <Card key={cls.id} className="border-border/50 hover:border-border hover:shadow-md transition-all duration-200">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base leading-snug">

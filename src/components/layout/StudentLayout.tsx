@@ -35,7 +35,7 @@ export function StudentLayout() {
   return (
     <SearchProvider>
       <div className="min-h-screen bg-background">
-        <nav className="h-16 border-b px-6 flex items-center justify-between bg-background">
+        <nav className="fixed top-0 left-0 right-0 z-50 h-16 border-b px-6 flex items-center justify-between bg-background/95 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <Link to="/cursos" className="text-lg font-bold text-primary">
               Lumi Membros
@@ -67,7 +67,7 @@ export function StudentLayout() {
           </div>
         </nav>
 
-        <main className="w-full">
+        <main className="w-full pt-16">
           <Outlet />
         </main>
       </div>

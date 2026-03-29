@@ -51,9 +51,9 @@ function CommentItem({
   }
 
   return (
-    <div className={cn("flex gap-2.5", isReply && "ml-10")}>
+    <div className={cn("flex gap-2.5", isReply && "ml-10 pl-3 border-l-2 border-muted")}>
       <Link to={`/perfil/${comment.authorId}`} className="shrink-0">
-        <div className="h-7 w-7 rounded-full overflow-hidden bg-muted">
+        <div className="h-7 w-7 rounded-full overflow-hidden bg-muted ring-1 ring-border/30">
           {author?.avatarUrl ? (
             <img
               src={author.avatarUrl}
@@ -69,7 +69,7 @@ function CommentItem({
       </Link>
 
       <div className="flex-1 min-w-0">
-        <div className="rounded-lg bg-muted/50 px-3 py-2">
+        <div className="rounded-xl bg-muted/40 border border-border/30 px-3 py-2">
           <div className="flex items-center gap-1.5">
             <Link
               to={`/perfil/${comment.authorId}`}
@@ -92,7 +92,7 @@ function CommentItem({
           <Button
             variant="ghost"
             size="sm"
-            className={cn("h-6 px-1.5 text-xs gap-1", liked && "text-red-500")}
+            className={cn("h-6 px-1.5 text-xs gap-1 transition-all active:scale-90", liked ? "text-red-500" : "hover:text-red-500")}
             onClick={() => toggleLikeComment(comment.id, currentUserId)}
           >
             <Heart className={cn("h-3 w-3", liked && "fill-current")} />
@@ -217,11 +217,11 @@ export function PostComments({ postId }: { postId: string }) {
             }
           }}
           disabled={restricted}
-          className="text-sm h-9"
+          className="text-sm h-9 border-border/60 transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
         />
         <Button
           size="sm"
-          className="h-9 px-3"
+          className="h-9 px-3 active:scale-95 transition-all"
           disabled={!newComment.trim() || restricted}
           onClick={handleSubmitComment}
         >

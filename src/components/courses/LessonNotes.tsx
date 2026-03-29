@@ -28,11 +28,11 @@ export function LessonNotes({ content, onChange }: LessonNotesProps) {
   return (
     <Collapsible>
       <CollapsibleTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground transition-colors">
           <StickyNote className="h-4 w-4" />
           Minhas anotacoes
           {content.trim() && (
-            <span className="h-2 w-2 rounded-full bg-primary" />
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse-soft" />
           )}
         </Button>
       </CollapsibleTrigger>
@@ -41,9 +41,10 @@ export function LessonNotes({ content, onChange }: LessonNotesProps) {
           placeholder="Escreva suas anotacoes sobre esta aula..."
           defaultValue={content}
           onChange={(e) => handleChange(e.target.value)}
-          className="min-h-[120px] resize-y"
+          className="min-h-[120px] resize-y border-border/60 transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/15 focus:shadow-sm"
         />
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-[11px] text-muted-foreground/70 mt-1.5 flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-green-500/60" />
           Salvo automaticamente
         </p>
       </CollapsibleContent>

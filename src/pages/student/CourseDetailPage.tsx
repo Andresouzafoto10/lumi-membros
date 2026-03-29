@@ -232,15 +232,17 @@ export default function CourseDetailPage() {
         <div className="space-y-6 min-w-0">
           {/* Course header */}
           <div>
-            <h1 className="text-2xl font-bold">{course.title}</h1>
-            <p className="mt-1 text-muted-foreground">{course.description}</p>
+            <h1 className="text-2xl font-bold tracking-tight">{course.title}</h1>
+            <p className="mt-1.5 text-muted-foreground leading-relaxed">{course.description}</p>
           </div>
 
           {/* No content */}
           {!hasContent && (
-            <Card className="flex flex-col items-center justify-center py-16 px-6 border-dashed">
-              <BookOpen className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-muted-foreground text-sm">
+            <Card className="flex flex-col items-center justify-center py-16 px-6 border-dashed animate-fade-in">
+              <div className="rounded-full bg-primary/10 p-4 mb-4">
+                <BookOpen className="h-8 w-8 text-primary/60" />
+              </div>
+              <p className="text-muted-foreground text-sm font-medium">
                 Conteudo em breve
               </p>
             </Card>
@@ -248,7 +250,7 @@ export default function CourseDetailPage() {
 
           {/* Has content but no active lesson */}
           {hasContent && !activeLesson && (
-            <Button size="lg" onClick={handleStartCourse}>
+            <Button size="lg" onClick={handleStartCourse} className="shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] transition-all">
               Iniciar curso
             </Button>
           )}
@@ -290,7 +292,10 @@ export default function CourseDetailPage() {
                   size="sm"
                   onClick={handleCompleteLesson}
                   disabled={completedLessons[activeLesson.id]}
-                  className="gap-1.5"
+                  className={cn(
+                    "gap-1.5 transition-all active:scale-[0.97]",
+                    !completedLessons[activeLesson.id] && "shadow-sm shadow-primary/15 hover:shadow-md hover:shadow-primary/20"
+                  )}
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {completedLessons[activeLesson.id]

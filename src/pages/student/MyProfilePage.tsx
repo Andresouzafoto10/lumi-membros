@@ -60,14 +60,14 @@ function MiniPostCard({
   createdAt: string;
 }) {
   return (
-    <Card>
+    <Card className="border-border/50 hover:border-border transition-colors">
       <CardContent className="p-4 space-y-1.5">
         {title && (
-          <p className="font-medium text-sm leading-snug">{title}</p>
+          <p className="font-semibold text-sm leading-snug">{title}</p>
         )}
         <p className="text-sm text-muted-foreground line-clamp-2">{body}</p>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
-          <span>{communityName}</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1.5">
+          <span className="text-primary/70">{communityName}</span>
           <span>·</span>
           <span>{likesCount} curtida{likesCount !== 1 ? "s" : ""}</span>
           <span>·</span>
@@ -212,13 +212,14 @@ export default function MyProfilePage() {
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/30 to-primary/10" />
+            <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5" />
           )}
+          <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
         </div>
         <Button
           size="icon"
           variant="secondary"
-          className="absolute bottom-3 right-3 h-8 w-8 rounded-full opacity-80 hover:opacity-100"
+          className="absolute bottom-3 right-3 h-8 w-8 rounded-full opacity-70 hover:opacity-100 backdrop-blur-sm transition-opacity"
           onClick={() => coverInputRef.current?.click()}
         >
           <Camera className="h-4 w-4" />
@@ -236,7 +237,7 @@ export default function MyProfilePage() {
       <div className="px-4 -mt-12 sm:-mt-14 relative z-10">
         <div className="flex items-end gap-4">
           <div className="relative">
-            <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 border-background overflow-hidden bg-muted">
+            <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 border-background overflow-hidden bg-muted shadow-lg ring-2 ring-primary/20">
               {profile.avatarUrl ? (
                 <img
                   src={profile.avatarUrl}
@@ -252,7 +253,7 @@ export default function MyProfilePage() {
             <Button
               size="icon"
               variant="secondary"
-              className="absolute bottom-0 right-0 h-7 w-7 rounded-full opacity-80 hover:opacity-100"
+              className="absolute bottom-0 right-0 h-7 w-7 rounded-full opacity-70 hover:opacity-100 backdrop-blur-sm transition-opacity shadow-sm"
               onClick={() => avatarInputRef.current?.click()}
             >
               <Camera className="h-3.5 w-3.5" />
@@ -278,7 +279,7 @@ export default function MyProfilePage() {
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
           </div>
 
-          <Button size="sm" variant="outline" onClick={openEditDialog} className="shrink-0">
+          <Button size="sm" variant="outline" onClick={openEditDialog} className="shrink-0 active:scale-95 transition-all">
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Editar perfil
           </Button>
@@ -290,10 +291,10 @@ export default function MyProfilePage() {
         )}
 
         {/* Meta row */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           {profile.location && (
             <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" />
+              <MapPin className="h-3.5 w-3.5 text-primary/50" />
               {profile.location}
             </span>
           )}
@@ -309,27 +310,27 @@ export default function MyProfilePage() {
             </a>
           )}
           <span className="flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5" />
+            <CalendarDays className="h-3.5 w-3.5 text-primary/50" />
             Entrou em{" "}
             {format(new Date(profile.createdAt), "MMM yyyy", { locale: ptBR })}
           </span>
         </div>
 
         {/* Followers / Following */}
-        <div className="mt-2 flex gap-4 text-sm">
+        <div className="mt-3 flex gap-4 text-sm">
           <Link to="#" className="hover:underline">
-            <span className="font-semibold">{profile.following.length}</span>{" "}
+            <span className="font-bold text-foreground">{profile.following.length}</span>{" "}
             <span className="text-muted-foreground">seguindo</span>
           </Link>
           <Link to="#" className="hover:underline">
-            <span className="font-semibold">{profile.followers.length}</span>{" "}
+            <span className="font-bold text-foreground">{profile.followers.length}</span>{" "}
             <span className="text-muted-foreground">
               seguidor{profile.followers.length !== 1 ? "es" : ""}
             </span>
           </Link>
           <span className="text-muted-foreground">·</span>
           <span className="text-sm">
-            <span className="font-semibold">{playerData.points}</span>{" "}
+            <span className="font-bold text-primary">{playerData.points}</span>{" "}
             <span className="text-muted-foreground">pontos</span>
           </span>
         </div>
@@ -440,12 +441,14 @@ export default function MyProfilePage() {
               {/* Badges */}
               {playerBadges.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium mb-2">Badges</h3>
-                  <div className="flex flex-wrap gap-2">
+                  <h3 className="text-sm font-semibold mb-2">Conquistas</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {playerBadges.map((badge) => (
-                      <Badge key={badge.id} variant="secondary" className="gap-1.5 py-1">
-                        {badge.name}
-                      </Badge>
+                      <div key={badge.id} className="rounded-lg border border-border/50 bg-gradient-to-br from-primary/5 to-transparent p-3 text-center">
+                        <div className="text-2xl mb-1">{badge.icon}</div>
+                        <p className="text-xs font-semibold">{badge.name}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{badge.description}</p>
+                      </div>
                     ))}
                   </div>
                 </div>

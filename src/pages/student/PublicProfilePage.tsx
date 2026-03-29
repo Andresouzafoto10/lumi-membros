@@ -29,6 +29,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { EmptyState } from "@/components/courses/EmptyState";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Mini PostCard (compact)
@@ -49,14 +50,14 @@ function MiniPostCard({
   createdAt: string;
 }) {
   return (
-    <Card>
+    <Card className="border-border/50 hover:border-border transition-colors">
       <CardContent className="p-4 space-y-1.5">
         {title && (
-          <p className="font-medium text-sm leading-snug">{title}</p>
+          <p className="font-semibold text-sm leading-snug">{title}</p>
         )}
         <p className="text-sm text-muted-foreground line-clamp-2">{body}</p>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
-          <span>{communityName}</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1.5">
+          <span className="text-primary/70">{communityName}</span>
           <span>·</span>
           <span>{likesCount} curtida{likesCount !== 1 ? "s" : ""}</span>
           <span>·</span>
@@ -157,15 +158,16 @@ export default function PublicProfilePage() {
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/30 to-primary/10" />
+            <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5" />
           )}
+          <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
         </div>
       </div>
 
       {/* Avatar + Info */}
       <div className="px-4 -mt-12 sm:-mt-14 relative z-10">
         <div className="flex items-end gap-4">
-          <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 border-background overflow-hidden bg-muted shrink-0">
+          <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 border-background overflow-hidden bg-muted shrink-0 shadow-lg ring-2 ring-primary/20">
             {profile.avatarUrl ? (
               <img
                 src={profile.avatarUrl}
@@ -198,9 +200,13 @@ export default function PublicProfilePage() {
           {!isOwnProfile && (
             <Button
               size="sm"
-              variant={following ? "secondary" : "default"}
+              variant={following ? "outline" : "default"}
               onClick={handleToggleFollow}
-              className="shrink-0"
+              className={cn(
+                "shrink-0 active:scale-95 transition-all",
+                following && "hover:text-destructive hover:border-destructive/30",
+                !following && "shadow-sm shadow-primary/15"
+              )}
             >
               {following ? (
                 <>
@@ -223,10 +229,10 @@ export default function PublicProfilePage() {
         )}
 
         {/* Meta row */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           {profile.location && (
             <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" />
+              <MapPin className="h-3.5 w-3.5 text-primary/50" />
               {profile.location}
             </span>
           )}
@@ -242,27 +248,27 @@ export default function PublicProfilePage() {
             </a>
           )}
           <span className="flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5" />
+            <CalendarDays className="h-3.5 w-3.5 text-primary/50" />
             Entrou em{" "}
             {format(new Date(profile.createdAt), "MMM yyyy", { locale: ptBR })}
           </span>
         </div>
 
         {/* Followers / Following */}
-        <div className="mt-2 flex gap-4 text-sm">
+        <div className="mt-3 flex gap-4 text-sm">
           <span>
-            <span className="font-semibold">{profile.following.length}</span>{" "}
+            <span className="font-bold text-foreground">{profile.following.length}</span>{" "}
             <span className="text-muted-foreground">seguindo</span>
           </span>
           <span>
-            <span className="font-semibold">{profile.followers.length}</span>{" "}
+            <span className="font-bold text-foreground">{profile.followers.length}</span>{" "}
             <span className="text-muted-foreground">
               seguidor{profile.followers.length !== 1 ? "es" : ""}
             </span>
           </span>
           <span className="text-muted-foreground">·</span>
           <span className="text-sm">
-            <span className="font-semibold">{playerData.points}</span>{" "}
+            <span className="font-bold text-primary">{playerData.points}</span>{" "}
             <span className="text-muted-foreground">pontos</span>
           </span>
         </div>
@@ -348,16 +354,14 @@ export default function PublicProfilePage() {
               {/* Badges */}
               {playerBadges.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium mb-2">Badges</h3>
-                  <div className="flex flex-wrap gap-2">
+                  <h3 className="text-sm font-semibold mb-2">Conquistas</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {playerBadges.map((badge) => (
-                      <Badge
-                        key={badge.id}
-                        variant="secondary"
-                        className="gap-1.5 py-1"
-                      >
-                        {badge.name}
-                      </Badge>
+                      <div key={badge.id} className="rounded-lg border border-border/50 bg-gradient-to-br from-primary/5 to-transparent p-3 text-center">
+                        <div className="text-2xl mb-1">{badge.icon}</div>
+                        <p className="text-xs font-semibold">{badge.name}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{badge.description}</p>
+                      </div>
                     ))}
                   </div>
                 </div>

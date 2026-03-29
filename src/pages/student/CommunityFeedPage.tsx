@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Rss, PenSquare } from "lucide-react";
+import { useSearchParams, Link } from "react-router-dom";
+import { Plus, PenSquare, ChevronDown } from "lucide-react";
 
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCommunities } from "@/hooks/useCommunities";
@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/courses/EmptyState";
 import { PostCard } from "@/components/community/PostCard";
 import { PostComments } from "@/components/community/PostComments";
 import { CreatePostDialog } from "@/components/community/CreatePostDialog";
+import { cn } from "@/lib/utils";
 
 export default function CommunityFeedPage() {
   const { currentUserId } = useCurrentUser();
@@ -68,9 +69,9 @@ export default function CommunityFeedPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Rss className="h-5 w-5 text-primary" />
+        <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold">
             {tagFilter ? `#${tagFilter}` : "Feed"}
           </h1>
@@ -80,47 +81,90 @@ export default function CommunityFeedPage() {
             </Badge>
           )}
         </div>
+
+        <div className="flex items-center gap-2">
+          {/* Filter */}
+          {!tagFilter && (
+            <Select
+              value={filter}
+              onValueChange={(v) => setFilter(v as "recent" | "popular" | "following")}
+            >
+              <SelectTrigger className="w-[150px] h-9 text-xs border-border/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recent">Mais recente</SelectItem>
+                <SelectItem value="popular">Mais curtido</SelectItem>
+                <SelectItem value="following">Seguindo</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
+          <Button
+            onClick={() => setCreateOpen(true)}
+            disabled={restricted}
+            className="gap-2 rounded-full shadow-sm shadow-primary/15 hover:shadow-md hover:shadow-primary/20 active:scale-[0.97] transition-all"
+          >
+            <PenSquare className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Nova publicação</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Create post input bar */}
+      <div
+        className={cn(
+          "flex items-center gap-3 rounded-xl border border-border/40 bg-card p-3 transition-all duration-200",
+          "hover:border-border/60 hover:shadow-sm cursor-pointer"
+        )}
+        onClick={() => !restricted && setCreateOpen(true)}
+      >
+        {/* Avatar */}
+        <div className="h-9 w-9 rounded-full overflow-hidden bg-muted shrink-0 ring-2 ring-border/30">
+          {myProfile?.avatarUrl ? (
+            <img src={myProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold text-sm">
+              {(myProfile?.displayName ?? "?").charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+
+        {/* Placeholder input */}
+        <div className="flex-1 rounded-full bg-muted/50 border border-border/30 px-4 py-2 text-sm text-muted-foreground">
+          {restricted ? "Você está restrito de publicar" : "No que você está pensando?"}
+        </div>
+
+        {/* Plus button */}
         <Button
-          size="sm"
-          onClick={() => setCreateOpen(true)}
+          size="icon"
+          variant="ghost"
+          className="h-9 w-9 rounded-full shrink-0 hover:bg-primary/10 hover:text-primary transition-colors"
           disabled={restricted}
+          onClick={(e) => {
+            e.stopPropagation();
+            setCreateOpen(true);
+          }}
         >
-          <PenSquare className="mr-1.5 h-3.5 w-3.5" />
-          Publicar
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Filter */}
-      {!tagFilter && (
-        <Select
-          value={filter}
-          onValueChange={(v) => setFilter(v as "recent" | "popular" | "following")}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="recent">Mais recente</SelectItem>
-            <SelectItem value="popular">Mais curtido</SelectItem>
-            <SelectItem value="following">Seguindo</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
-
+      {/* Posts */}
       {feedPosts.length === 0 ? (
         <EmptyState
-          icon={Rss}
+          icon={PenSquare}
           title={tagFilter ? "Nenhum post com essa tag" : "Feed vazio"}
           description={
             tagFilter
-              ? "Nao ha publicacoes com essa hashtag."
-              : "As comunidades que voce participa ainda nao tem publicacoes."
+              ? "Não há publicações com essa hashtag."
+              : "As comunidades que você participa ainda não têm publicações."
           }
         />
       ) : (
-        <div className="space-y-3">
-          {feedPosts.map((post) => (
-            <div key={post.id}>
+        <div className="space-y-4">
+          {feedPosts.map((post, idx) => (
+            <div key={post.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
               <PostCard
                 post={post}
                 showCommunity

@@ -51,9 +51,9 @@ export function AdminLayout() {
               to={link.to}
               onClick={() => setMobileMenuOpen(false)}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
                 isActive(link.to, link.exact)
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  ? "bg-primary/10 text-primary border-l-2 border-primary"
                   : "text-sidebar-foreground hover:bg-sidebar-accent/50"
               )}
             >
@@ -68,7 +68,7 @@ export function AdminLayout() {
         <Link
           to="/cursos"
           onClick={() => setMobileMenuOpen(false)}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-primary/80 bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-colors"
         >
           <ExternalLink className="h-4 w-4" />
           Área do Aluno
@@ -111,7 +111,7 @@ export function AdminLayout() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
           <div className="absolute left-0 top-0 h-full w-64 flex flex-col justify-between bg-sidebar animate-slide-in">

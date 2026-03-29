@@ -133,7 +133,7 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
               className="h-full w-full object-cover select-none pointer-events-none"
               draggable={false}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-black/10" />
 
             <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-10 lg:p-14">
               {banner.title && (
@@ -178,14 +178,14 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
         <>
           <button
             onClick={goPrev}
-            className="absolute left-3 top-1/2 -translate-y-1/2 hidden md:group-hover:flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+            className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full bg-black/30 text-white/80 backdrop-blur-md hover:bg-black/50 hover:text-white transition-all opacity-0 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 active:scale-90"
             aria-label="Anterior"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button
             onClick={goNext}
-            className="absolute right-3 top-1/2 -translate-y-1/2 hidden md:group-hover:flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full bg-black/30 text-white/80 backdrop-blur-md hover:bg-black/50 hover:text-white transition-all opacity-0 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 active:scale-90"
             aria-label="Proximo"
           >
             <ChevronRight className="h-5 w-5" />
@@ -193,18 +193,18 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
         </>
       )}
 
-      {/* Dot indicators */}
+      {/* Pill indicators */}
       {activeBanners.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 rounded-full bg-black/20 backdrop-blur-sm px-2 py-1.5">
           {activeBanners.map((_, idx) => (
             <button
               key={idx}
               onClick={() => goTo(idx + 1)}
               className={cn(
-                "h-2 rounded-full transition-all duration-300",
+                "h-2 rounded-full transition-all duration-300 ease-out",
                 idx === dotIndex
-                  ? "w-6 bg-white"
-                  : "w-2 bg-white/50 hover:bg-white/75"
+                  ? "w-7 bg-white shadow-sm"
+                  : "w-2 bg-white/40 hover:bg-white/60"
               )}
               aria-label={`Ir para banner ${idx + 1}`}
             />

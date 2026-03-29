@@ -172,7 +172,7 @@ export default function AdminCommunitiesPage() {
               .filter(Boolean);
 
             return (
-              <Card key={comm.id}>
+              <Card key={comm.id} className="border-border/50 hover:border-border hover:shadow-md transition-all duration-200">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base leading-snug">

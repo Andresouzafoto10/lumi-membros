@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -177,13 +178,13 @@ export default function AdminModerationPage() {
         <TabsContent value="posts" className="space-y-4">
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <div className="relative group/search">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground transition-colors group-focus-within/search:text-primary" />
               <Input
                 placeholder="Buscar..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="pl-8 h-9 w-[200px]"
+                className="pl-8 h-9 w-[200px] border-border/60 transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
               />
               {searchText && (
                 <Button
@@ -235,7 +236,11 @@ export default function AdminModerationPage() {
                 const author = findProfile(post.authorId);
                 const community = findCommunity(post.communityId);
                 return (
-                  <Card key={post.id}>
+                  <Card key={post.id} className={cn(
+                    "border-border/50",
+                    post.status === "pending" && "border-l-2 border-l-amber-500",
+                    post.status === "rejected" && "border-l-2 border-l-destructive"
+                  )}>
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         {/* Avatar */}
@@ -276,11 +281,12 @@ export default function AdminModerationPage() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex flex-wrap items-center gap-1 mt-3">
+                      <div className="flex flex-wrap items-center gap-1.5 mt-3">
                         {post.status === "pending" && (
                           <Button
                             size="sm"
                             variant="outline"
+                            className="active:scale-95 transition-all hover:border-emerald-500/30 hover:text-emerald-500"
                             onClick={() => {
                               approvePost(post.id);
                               toast.success("Post aprovado.");
@@ -293,6 +299,7 @@ export default function AdminModerationPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="active:scale-95 transition-all hover:border-destructive/30 hover:text-destructive"
                           onClick={() => setDeleteTargetId(post.id)}
                         >
                           <Trash2 className="mr-1 h-3.5 w-3.5 text-destructive" />
@@ -301,6 +308,7 @@ export default function AdminModerationPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="active:scale-95 transition-all hover:border-yellow-500/30 hover:text-yellow-500"
                           onClick={() => openRestrict(post.authorId)}
                         >
                           <Ban className="mr-1 h-3.5 w-3.5 text-yellow-500" />

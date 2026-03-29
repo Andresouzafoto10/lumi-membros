@@ -174,28 +174,41 @@ export default function CoursesPage() {
 
         return (
           <section key={session.id}>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-semibold">{session.title}</h2>
-                {session.description && (
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {session.description}
-                  </p>
-                )}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="h-6 w-1 rounded-full bg-primary" />
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-xl font-bold tracking-tight">{session.title}</h2>
+                    <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                      {activeCourses.length} {activeCourses.length === 1 ? "curso" : "cursos"}
+                    </span>
+                  </div>
+                  {session.description && (
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {session.description}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {activeCourses.map((course) => (
-                <CourseCard
+              {activeCourses.map((course, idx) => (
+                <div
                   key={course.id}
-                  to={`/cursos/${course.id}`}
-                  title={course.title}
-                  description={course.description}
-                  bannerUrl={course.bannerUrl}
-                  progressPercent={courseProgress[course.id]}
-                  isDisabled={!course.isActive}
-                />
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${idx * 60}ms` }}
+                >
+                  <CourseCard
+                    to={`/cursos/${course.id}`}
+                    title={course.title}
+                    description={course.description}
+                    bannerUrl={course.bannerUrl}
+                    progressPercent={courseProgress[course.id]}
+                    isDisabled={!course.isActive}
+                  />
+                </div>
               ))}
             </div>
           </section>

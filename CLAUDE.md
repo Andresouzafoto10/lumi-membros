@@ -88,10 +88,10 @@ Mock data files: `src/data/mock-courses.ts`, `src/data/mock-students.ts`, `src/d
 
 ### UI Components
 
-- `src/components/ui/` — shadcn/ui primitives (button, card, dialog, input, select, tabs, table, breadcrumb, etc.). Use `cn()` from `src/lib/utils.ts` for conditional class merging.
+- `src/components/ui/` — shadcn/ui primitives (button, card, dialog, input, select, tabs, table, breadcrumb, etc.). Use `cn()` from `src/lib/utils.ts` for conditional class merging. `DialogContent` supports `hideCloseButton` prop to hide the default close button when using a custom header.
 - `src/components/courses/` — domain components (CourseCard, CourseSidebar, LessonPlayer, ProgressRing, CourseBannersCarousel, ContinueWatching, CourseProgressTopBar, LessonRating, LessonNotes, EmptyState, SkeletonCourseCard, CourseSearch)
-- `src/components/community/` — PostCard (markdown rendering, image carousel, actions, system/pinned variants), PostComments (nested replies), CreatePostDialog (title, body, images, community select)
-- `src/components/layout/` — StudentLayout (header: search, user switcher, notification bell, community link), AdminLayout (7 nav links: Dashboard, Cursos, Turmas, Alunos, Comunidade, Moderacao, Configuracoes), CommunityLayout (sidebar: feed, communities, trending, top posts + drawer mobile), ThemeToggle, NotificationBell
+- `src/components/community/` — PostCard (markdown rendering, smart image grid, actions with animated like, system/pinned variants, border-b separator layout), PostComments (nested replies), CreatePostDialog (redesigned modal: custom header with expand/collapse, borderless title+body, toolbar with action icons, slash command "/" dropdown, image preview grid)
+- `src/components/layout/` — StudentLayout (fixed header with backdrop-blur: search, user switcher, notification bell, community link), AdminLayout (7 nav links: Dashboard, Cursos, Turmas, Alunos, Comunidade, Moderacao, Configuracoes), CommunityLayout (fixed sidebar with sectioned layout: feed, communities, trending hashtags, top posts with mini avatars + drawer mobile; only feed area scrolls), ThemeToggle, NotificationBell
 
 ### Theming
 
@@ -131,18 +131,66 @@ Brand color is **Lumi teal** (`#00C2CB`, HSL `183 100% 40%`) used as `--primary`
 
 - **Perfil do Aluno** (`/meu-perfil`) — capa + avatar com upload (base64), displayName, @username, bio (160 chars), link, localizacao, followers/following, pontos + badges de gamificacao, 3 abas (Publicacoes, Salvos, Sobre com cursos matriculados), dialog de edicao.
 - **Perfil Publico** (`/perfil/:id`) — mesma estrutura sem edicao, botao Seguir/Seguindo.
-- **Feed da Comunidade** (`/comunidade/feed`) — feed geral de todas as comunidades do aluno, filtros (Mais recente / Mais curtido / Seguindo), filtro por hashtag via `?tag=`, botao Publicar.
-- **Comunidade Especifica** (`/comunidade/:slug`) — feed isolado com header da comunidade, post fixado no topo, verificacao de acesso.
-- **PostCard** — avatar + nome + @username + badge gamificacao, data relativa, markdown (negrito, italico, links, #hashtags e @mencoes clicaveis), carrossel de imagens (ate 6), acoes (curtir, comentar, salvar, compartilhar, menu), variantes system (trofeu) e pinned (badge fixado).
+- **Feed da Comunidade** (`/comunidade/feed`) — feed geral com header limpo (titulo + filtro dropdown + botao pill "Nova publicacao"), input inline "No que voce esta pensando?" com avatar do usuario + botao "+", filtro por hashtag via `?tag=`.
+- **Comunidade Especifica** (`/comunidade/:slug`) — header com icone + nome + badge de membros (contagem via enrollments), input inline de criacao, post fixado no topo, verificacao de acesso.
+- **PostCard** — layout sem Card (usa `border-b border-border/20` como separador), conteudo alinhado com `pl-[52px]`, avatar 40px com hover ring, nome bold + @username + badge de role com borda teal, acoes rounded-full com hover colorido contextual, animacao de like scale(1.3) 300ms, smart image grid (1=full, 2=side-by-side, 3=hero+2, 4+=grid 2x2 com overlay "+X"), variantes system (trofeu) e pinned.
 - **Comentarios** — expandiveis, respostas aninhadas (1 nivel), curtir, excluir/reportar, verificacao de restricao.
-- **Criar Publicacao** — dialog com titulo, body (markdown), upload imagens (base64), select comunidade, status pending/published conforme config.
+- **Criar Publicacao** — modal redesenhado: header custom com botoes expandir/fechar, campo titulo text-xl sem borda, textarea auto-resize sem borda, slash command "/" (dropdown com secoes Basico/Inserir/Fazer Upload, navegacao por teclado), toolbar inferior com icones de acao (+, #, anexo, imagem, emoji, enquete, audio) + select comunidade + botao Publicar pill, preview de imagens em grid com contador e botao remover.
 - **Notificacoes** — sino no header com badge de contagem, dropdown com lista, marcar como lido.
 - **Seletor de Usuario** — dropdown no header para trocar o aluno logado (testar interacoes).
 - **Gamificacao** — 5 badges pre-definidos, pontos mock por aluno, exibido no perfil e nos posts.
 
+### Visual Design System and Polish
+
+The project has a refined visual layer built on top of shadcn/ui with consistent patterns.
+
+#### Animations (tailwind.config.ts)
+
+- `fade-in`: opacity 0 to 1 plus translateY(10px to 0), 0.3s ease-out
+- `fade-in-up`: opacity 0 to 1 plus translateY(16px to 0), 0.4s ease-out (staggered card/post entry)
+- `slide-in`: translateX(-100% to 0), 0.3s ease-out (mobile drawers)
+- `shimmer`: translateX(-100% to 100%), 1.5s ease-in-out infinite (skeleton loaders)
+- `pulse-soft`: opacity 1 to 0.7 to 1, 2s ease-in-out infinite (badges, indicators)
+- `accordion-down/up`: height animation for collapsibles, 0.2s ease-out
+
+#### CSS Utilities (src/index.css)
+
+- `.shimmer-overlay`: pseudo-element gradient animation for skeleton loading states (replaces animate-pulse)
+
+#### Consistent Visual Patterns
+
+- **Cards**: `border-border/50 hover:border-border hover:shadow-md transition-all duration-200` with shadow lift on hover
+- **Course cards**: more dramatic lift with `hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/20`
+- **Search inputs**: `border-border/60 focus:border-primary/40 focus:ring-2 focus:ring-primary/15` with search icon color change on focus via `group-focus-within`
+- **Action buttons**: `active:scale-90` (icons) or `active:scale-95` (text buttons) for press feedback. Primary buttons get `shadow-sm shadow-primary/15`
+- **Fixed community layout**: StudentLayout header is `fixed top-0 z-50` with `backdrop-blur-sm`. CommunityLayout uses `h-[calc(100vh-4rem)] overflow-hidden` container; sidebar is fixed (`overflow-y-auto`), only the feed `<main>` scrolls. StudentLayout main content has `pt-16` offset.
+- **Nav items (active)**: `bg-primary/10 text-primary border-l-2 border-primary` across AdminLayout and CommunityLayout. Community sidebar uses sectioned layout with `border-b border-border/30` dividers and `tracking-[0.15em]` uppercase labels.
+- **Avatars**: `ring-2 ring-border/50` (posts) or `ring-2 ring-primary/20 shadow-lg` (profiles)
+- **Like buttons**: `active:scale-90` plus icon `scale-110 fill-current` when liked, `hover:text-red-500` when not
+- **Stagger animations**: `animate-fade-in-up` with incremental animationDelay (50ms posts, 60ms cards)
+- **Mobile overlays**: `bg-black/50 backdrop-blur-sm`
+- **Gradients**: 3-stop overlays on cards/carousel/profile covers
+
+#### Key Component Visual Details
+
+- **CourseCard**: "Novo" badge with pulse-soft animation and shadow. Progress bar shows label plus percentage
+- **CourseBannersCarousel**: pill indicators in blurred container, nav buttons with opacity transition
+- **ContinueWatching**: gradient background with ChevronRight, play icon fills on hover
+- **SkeletonCourseCard**: shimmer-overlay class, structure mirrors real card
+- **CourseSidebar**: max-h instead of fixed h. Active lesson border-l-2. Module count pill turns green when complete
+- **CourseProgressTopBar**: gradient bar with label and percentage
+- **ProgressRing**: SVG linearGradient stroke, primary-colored text
+- **PostCard**: borderless layout with `border-b border-border/20` separators, content aligned at `pl-[52px]`, smart ImageGrid (1/2/3/4+ layout with "+X" overlay), like animation with `scale-[1.3]` + 300ms timeout, action buttons `rounded-full` with contextual hover colors (red/teal), system posts with amber gradient circle, pinned with `bg-primary/[0.03]`
+- **PostComments**: rounded-xl bubbles with border, replies with border-l connector
+- **CreatePostDialog**: custom `hideCloseButton` on DialogContent, expandable modal (compact/85vh), borderless title (text-xl) + textarea (auto-resize), slash command "/" dropdown (3 sections: Basico/Inserir/Fazer Upload, keyboard nav), bottom toolbar with icon buttons + separator + community select + pill publish button, image preview grid with hover remove
+- **NotificationBell**: dropdown with fade-in, unread border-l-2, badge pulse
+- **Profile pages**: cover gradient overlay, avatar shadow-lg with ring, badge cards as grid with gradient
+- **Admin Dashboard**: MetricCards with semantic colored icon backgrounds (emerald, yellow, destructive, primary, blue)
+- **Admin Moderation**: post cards with status-colored left border (amber pending, red rejected)
+
 ### CSS Theme Injection
 
-`AdminSettingsPage` injeta/atualiza um `<style id="lumi-custom-theme">` no `document.head` via `applyThemeToCss()`. A função `hexToHsl()` usa `hex.match(/pattern/)` em vez de `regex.exec(hex)` para evitar falso positivo do hook de segurança do repositório.
+`AdminSettingsPage` injeta/atualiza um style tag no document.head via `applyThemeToCss()`. A funcao `hexToHsl()` usa `hex.match(/pattern/)` em vez de regex.exec para evitar falso positivo do hook de seguranca do repositorio.
 
 ### Planned Backend
 

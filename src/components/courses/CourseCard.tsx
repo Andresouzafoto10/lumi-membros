@@ -40,18 +40,18 @@ export function CourseCard({
       tabIndex={isDisabled ? -1 : undefined}
       aria-disabled={isDisabled}
     >
-      <Card className="overflow-hidden border-none shadow-md transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
+      <Card className="overflow-hidden border border-border/50 shadow-md transition-all duration-300 group-hover:shadow-xl group-hover:shadow-primary/5 group-hover:-translate-y-1 group-hover:border-primary/20">
         <div className="relative">
           <AspectRatio ratio={16 / 9}>
             <img
               src={bannerUrl}
               alt={title}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
           </AspectRatio>
           {isNew && (
-            <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">
+            <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground shadow-lg shadow-primary/25 animate-pulse-soft">
               Novo
             </Badge>
           )}
@@ -59,16 +59,21 @@ export function CourseCard({
 
         <CardContent className="p-5">
           <h3 className="text-base font-semibold leading-snug">{title}</h3>
-          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+          <p className="mt-1.5 text-sm text-muted-foreground line-clamp-2">
             {description}
           </p>
 
           {progressPercent != null && (
             <div className="mt-3 space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">
-                {Math.round(progressPercent)}% concluido
-              </span>
-              <Progress value={progressPercent} className="h-2" />
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Progresso
+                </span>
+                <span className="text-xs font-semibold text-primary">
+                  {Math.round(progressPercent)}%
+                </span>
+              </div>
+              <Progress value={progressPercent} className="h-1.5" />
             </div>
           )}
         </CardContent>

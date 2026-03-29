@@ -51,14 +51,14 @@ export function NotificationBell() {
       >
         <Bell className="h-4 w-4" />
         {count > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground animate-pulse-soft">
             {count > 9 ? "9+" : count}
           </span>
         )}
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-50 w-80 max-h-96 overflow-y-auto rounded-lg border bg-popover shadow-lg">
+        <div className="absolute right-0 top-10 z-50 w-80 max-h-96 overflow-y-auto rounded-lg border bg-popover shadow-lg animate-fade-in">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b">
             <p className="text-sm font-semibold">Notificacoes</p>
@@ -100,7 +100,7 @@ export function NotificationBell() {
                     }}
                     className={cn(
                       "flex items-start gap-3 px-4 py-3 hover:bg-accent transition-colors",
-                      !n.read && "bg-primary/5"
+                      !n.read && "bg-primary/5 border-l-2 border-primary"
                     )}
                   >
                     <div className="h-8 w-8 rounded-full overflow-hidden bg-muted shrink-0">
