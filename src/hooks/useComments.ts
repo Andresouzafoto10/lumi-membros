@@ -1,196 +1,141 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { PostComment } from "@/types/student";
-import { mockComments } from "@/data/mock-comments";
-import { updatePostCommentCount, findPostDirect } from "@/hooks/usePosts";
-import { addNotification } from "@/hooks/useNotifications";
-import { findProfileDirect } from "@/hooks/useProfiles";
 
-// ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
-// ---------------------------------------------------------------------------
+const QK_ALL = ["comments"] as const;
 
-const STORAGE_KEY = "lumi-membros:comments";
-
-let state: PostComment[] = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): PostComment[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as PostComment[];
-  } catch {
-    // ignore
-  }
-  return [...mockComments];
+function mapRow(c: Record<string, unknown>): PostComment {
+  return {
+    id: c.id as string,
+    postId: c.post_id as string,
+    authorId: c.author_id as string,
+    body: c.body as string,
+    likesCount: c.likes_count as number,
+    likedBy: (c.liked_by as string[]) ?? [],
+    parentCommentId: (c.parent_comment_id as string | null) ?? null,
+    createdAt: c.created_at as string,
+  };
 }
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
+async function fetchAllComments(): Promise<PostComment[]> {
+  const { data, error } = await supabase
+    .from("post_comments")
+    .select("*")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(mapRow);
 }
-
-function setState(next: PostComment[]) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-function uuid(): string {
-  return crypto.randomUUID();
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useComments() {
-  const comments = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
 
-  const getCommentsByPost = useCallback(
-    (postId: string) =>
-      comments
-        .filter((c) => c.postId === postId)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    [comments]
+  const { data: allComments = [], isLoading } = useQuery({
+    queryKey: QK_ALL,
+    queryFn: fetchAllComments,
+    staleTime: 1000 * 30,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK_ALL });
+  }, [queryClient]);
+
+  const getCommentsForPost = useCallback(
+    (postId: string) => allComments.filter((c) => c.postId === postId),
+    [allComments]
   );
 
-  const getRootComments = useCallback(
-    (postId: string) =>
-      comments
-        .filter((c) => c.postId === postId && c.parentCommentId === null)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    [comments]
-  );
-
-  const getReplies = useCallback(
-    (commentId: string) =>
-      comments
-        .filter((c) => c.parentCommentId === commentId)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    [comments]
-  );
-
-  const getCommentCount = useCallback(
-    (postId: string) => comments.filter((c) => c.postId === postId).length,
-    [comments]
-  );
-
-  const addComment = useCallback(
-    (data: {
+  const createComment = useCallback(
+    async (data: {
       postId: string;
       authorId: string;
       body: string;
       parentCommentId?: string | null;
     }) => {
-      const newComment: PostComment = {
-        id: uuid(),
-        postId: data.postId,
-        authorId: data.authorId,
-        body: data.body,
-        likesCount: 0,
-        likedBy: [],
-        parentCommentId: data.parentCommentId ?? null,
-        createdAt: new Date().toISOString(),
-      };
-      setState([...state, newComment]);
-      updatePostCommentCount(data.postId, 1);
-
-      // Build notification
-      const actorProfile = findProfileDirect(data.authorId);
-      const actorName = actorProfile?.displayName ?? "Alguém";
-
-      // Notify post author about the comment (if not self)
-      const post = findPostDirect(data.postId);
-      if (post && post.authorId !== data.authorId) {
-        addNotification({
-          type: "comment",
-          recipientId: post.authorId,
-          actorId: data.authorId,
-          targetId: data.postId,
-          targetType: "post",
-          message: `${actorName} comentou na sua publicação`,
-        });
+      const { data: row, error } = await supabase
+        .from("post_comments")
+        .insert({
+          post_id: data.postId,
+          author_id: data.authorId,
+          body: data.body,
+          likes_count: 0,
+          liked_by: [],
+          parent_comment_id: data.parentCommentId ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      // Increment comments_count on post
+      const { data: post } = await supabase
+        .from("community_posts")
+        .select("comments_count")
+        .eq("id", data.postId)
+        .single();
+      if (post) {
+        await supabase
+          .from("community_posts")
+          .update({ comments_count: (post.comments_count as number) + 1 })
+          .eq("id", data.postId);
       }
-
-      // If replying, also notify the parent comment author (if different from commenter and post author)
-      if (data.parentCommentId) {
-        const parentComment = state.find((c) => c.id === data.parentCommentId);
-        if (
-          parentComment &&
-          parentComment.authorId !== data.authorId &&
-          parentComment.authorId !== post?.authorId
-        ) {
-          addNotification({
-            type: "comment",
-            recipientId: parentComment.authorId,
-            actorId: data.authorId,
-            targetId: data.postId,
-            targetType: "comment",
-            message: `${actorName} respondeu ao seu comentário`,
-          });
-        }
-      }
-
-      return newComment.id;
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      return row.id as string;
     },
-    []
+    [invalidate, queryClient]
   );
 
-  const deleteComment = useCallback((commentId: string) => {
-    const target = state.find((c) => c.id === commentId);
-    if (target) {
-      // Count the comment itself plus any direct replies that will be cascade-deleted
-      const repliesCount = state.filter(
-        (c) => c.parentCommentId === commentId
-      ).length;
-      const totalRemoved = 1 + repliesCount;
-      setState(
-        state.filter(
-          (c) => c.id !== commentId && c.parentCommentId !== commentId
-        )
-      );
-      updatePostCommentCount(target.postId, -totalRemoved);
-    }
-  }, []);
+  const deleteComment = useCallback(
+    async (commentId: string) => {
+      const comment = allComments.find((c) => c.id === commentId);
+      const { error } = await supabase
+        .from("post_comments")
+        .delete()
+        .eq("id", commentId);
+      if (error) throw error;
+      if (comment) {
+        const { data: post } = await supabase
+          .from("community_posts")
+          .select("comments_count")
+          .eq("id", comment.postId)
+          .single();
+        if (post) {
+          await supabase
+            .from("community_posts")
+            .update({
+              comments_count: Math.max(0, (post.comments_count as number) - 1),
+            })
+            .eq("id", comment.postId);
+        }
+      }
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+    },
+    [allComments, invalidate, queryClient]
+  );
 
   const toggleLikeComment = useCallback(
-    (commentId: string, studentId: string) => {
-      setState(
-        state.map((c) => {
-          if (c.id !== commentId) return c;
-          const liked = c.likedBy.includes(studentId);
-          return {
-            ...c,
-            likedBy: liked
-              ? c.likedBy.filter((id) => id !== studentId)
-              : [...c.likedBy, studentId],
-            likesCount: liked ? c.likesCount - 1 : c.likesCount + 1,
-          };
-        })
-      );
+    async (commentId: string, userId: string) => {
+      const comment = allComments.find((c) => c.id === commentId);
+      if (!comment) return;
+      const liked = comment.likedBy.includes(userId);
+      const newLikedBy = liked
+        ? comment.likedBy.filter((id) => id !== userId)
+        : [...comment.likedBy, userId];
+      const { error } = await supabase
+        .from("post_comments")
+        .update({ liked_by: newLikedBy, likes_count: newLikedBy.length })
+        .eq("id", commentId);
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [allComments, invalidate]
   );
 
   return {
-    comments,
-    getCommentsByPost,
-    getRootComments,
-    getReplies,
-    getCommentCount,
-    addComment,
+    allComments,
+    loading: isLoading,
+    getCommentsForPost,
+    createComment,
     deleteComment,
     toggleLikeComment,
   };

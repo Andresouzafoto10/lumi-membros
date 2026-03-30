@@ -1,59 +1,38 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { Class, ContentScheduleRule, EnrollmentType } from "@/types/student";
-import { mockClasses } from "@/data/mock-classes";
 
-// ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
-// ---------------------------------------------------------------------------
+const QK = ["classes"] as const;
 
-const STORAGE_KEY = "lumi-membros:classes";
-
-let state: Class[] = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): Class[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as Class[];
-  } catch {
-    // ignore
-  }
-  return [...mockClasses];
+async function fetchClasses(): Promise<Class[]> {
+  const { data, error } = await supabase
+    .from("classes")
+    .select("*")
+    .order("name");
+  if (error) throw error;
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    courseIds: c.course_ids ?? [],
+    enrollmentType: c.enrollment_type as EnrollmentType,
+    accessDurationDays: c.access_duration_days,
+    status: c.status as "active" | "inactive",
+    contentSchedule: (c.content_schedule as ContentScheduleRule[]) ?? [],
+  }));
 }
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
-}
-
-function setState(next: Class[]) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-function uuid(): string {
-  return crypto.randomUUID();
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useClasses() {
-  const classes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
+  const { data: classes = [], isLoading } = useQuery({
+    queryKey: QK,
+    queryFn: fetchClasses,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }, [queryClient]);
 
   const activeClasses = useMemo(
     () => classes.filter((c) => c.status === "active"),
@@ -72,29 +51,33 @@ export function useClasses() {
   );
 
   const createClass = useCallback(
-    (data: {
+    async (data: {
       name: string;
       courseIds: string[];
       enrollmentType: EnrollmentType;
       accessDurationDays: number | null;
     }) => {
-      const newClass: Class = {
-        id: uuid(),
-        name: data.name,
-        courseIds: data.courseIds,
-        enrollmentType: data.enrollmentType,
-        accessDurationDays: data.accessDurationDays,
-        status: "active",
-        contentSchedule: [],
-      };
-      setState([...state, newClass]);
-      return newClass.id;
+      const { data: row, error } = await supabase
+        .from("classes")
+        .insert({
+          name: data.name,
+          course_ids: data.courseIds,
+          enrollment_type: data.enrollmentType,
+          access_duration_days: data.accessDurationDays,
+          status: "active",
+          content_schedule: [],
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidate();
+      return row.id as string;
     },
-    []
+    [invalidate]
   );
 
   const updateClass = useCallback(
-    (
+    async (
       classId: string,
       patch: Partial<
         Pick<
@@ -108,57 +91,80 @@ export function useClasses() {
         >
       >
     ) => {
-      setState(
-        state.map((c) => (c.id === classId ? { ...c, ...patch } : c))
-      );
+      const { error } = await supabase
+        .from("classes")
+        .update({
+          ...(patch.name !== undefined && { name: patch.name }),
+          ...(patch.courseIds !== undefined && { course_ids: patch.courseIds }),
+          ...(patch.enrollmentType !== undefined && {
+            enrollment_type: patch.enrollmentType,
+          }),
+          ...(patch.accessDurationDays !== undefined && {
+            access_duration_days: patch.accessDurationDays,
+          }),
+          ...(patch.status !== undefined && { status: patch.status }),
+          ...(patch.contentSchedule !== undefined && {
+            content_schedule: patch.contentSchedule,
+          }),
+        })
+        .eq("id", classId);
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [invalidate]
   );
 
-  const deleteClass = useCallback((classId: string) => {
-    setState(state.filter((c) => c.id !== classId));
-  }, []);
+  const deleteClass = useCallback(
+    async (classId: string) => {
+      const { error } = await supabase
+        .from("classes")
+        .delete()
+        .eq("id", classId);
+      if (error) throw error;
+      invalidate();
+    },
+    [invalidate]
+  );
 
   const updateScheduleRule = useCallback(
-    (classId: string, rule: ContentScheduleRule) => {
-      setState(
-        state.map((c) => {
-          if (c.id !== classId) return c;
-          const existing = c.contentSchedule.findIndex(
-            (r) => r.targetId === rule.targetId && r.targetType === rule.targetType
-          );
-          if (existing >= 0) {
-            const updated = [...c.contentSchedule];
-            updated[existing] = rule;
-            return { ...c, contentSchedule: updated };
-          }
-          return { ...c, contentSchedule: [...c.contentSchedule, rule] };
-        })
+    async (classId: string, rule: ContentScheduleRule) => {
+      const cls = findClass(classId);
+      if (!cls) return;
+      const existing = cls.contentSchedule.findIndex(
+        (r) => r.targetId === rule.targetId && r.targetType === rule.targetType
       );
+      let updated: ContentScheduleRule[];
+      if (existing >= 0) {
+        updated = [...cls.contentSchedule];
+        updated[existing] = rule;
+      } else {
+        updated = [...cls.contentSchedule, rule];
+      }
+      await updateClass(classId, { contentSchedule: updated });
     },
-    []
+    [findClass, updateClass]
   );
 
   const removeScheduleRule = useCallback(
-    (classId: string, targetId: string, targetType: "module" | "lesson") => {
-      setState(
-        state.map((c) => {
-          if (c.id !== classId) return c;
-          return {
-            ...c,
-            contentSchedule: c.contentSchedule.filter(
-              (r) => !(r.targetId === targetId && r.targetType === targetType)
-            ),
-          };
-        })
+    async (
+      classId: string,
+      targetId: string,
+      targetType: "module" | "lesson"
+    ) => {
+      const cls = findClass(classId);
+      if (!cls) return;
+      const updated = cls.contentSchedule.filter(
+        (r) => !(r.targetId === targetId && r.targetType === targetType)
       );
+      await updateClass(classId, { contentSchedule: updated });
     },
-    []
+    [findClass, updateClass]
   );
 
   return {
     classes,
     activeClasses,
+    loading: isLoading,
     findClass,
     getClassesByCourse,
     createClass,

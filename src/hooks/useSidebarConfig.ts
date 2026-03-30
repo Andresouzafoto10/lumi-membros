@@ -1,51 +1,38 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { CommunitySidebarItem } from "@/types/student";
-import { mockSidebarConfig } from "@/data/mock-sidebar-config";
 
-// ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
-// ---------------------------------------------------------------------------
+const QK = ["sidebar-config"] as const;
 
-const STORAGE_KEY = "lumi-membros:community-sidebar";
-
-let state: CommunitySidebarItem[] = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): CommunitySidebarItem[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as CommunitySidebarItem[];
-  } catch {
-    // ignore
-  }
-  return [...mockSidebarConfig];
-}
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
-}
-
-function setState(next: CommunitySidebarItem[]) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
+async function fetchSidebarConfig(): Promise<CommunitySidebarItem[]> {
+  const { data, error } = await supabase
+    .from("sidebar_config")
+    .select("*")
+    .order("order");
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    communityId: r.community_id as string,
+    emoji: r.emoji as string,
+    order: r.order as number,
+    visible: r.visible as boolean,
+    salesPageUrl: (r.sales_page_url as string) ?? "",
+  }));
 }
 
 export function useSidebarConfig() {
-  const items = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
+
+  const { data: items = [] } = useQuery({
+    queryKey: QK,
+    queryFn: fetchSidebarConfig,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }, [queryClient]);
 
   const sortedItems = useMemo(
     () => [...items].sort((a, b) => a.order - b.order),
@@ -59,37 +46,65 @@ export function useSidebarConfig() {
   );
 
   const updateItem = useCallback(
-    (id: string, patch: Partial<Omit<CommunitySidebarItem, "id">>) => {
-      setState(state.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+    async (id: string, patch: Partial<Omit<CommunitySidebarItem, "id">>) => {
+      await supabase
+        .from("sidebar_config")
+        .update({
+          ...(patch.emoji !== undefined && { emoji: patch.emoji }),
+          ...(patch.order !== undefined && { order: patch.order }),
+          ...(patch.visible !== undefined && { visible: patch.visible }),
+          ...(patch.salesPageUrl !== undefined && {
+            sales_page_url: patch.salesPageUrl,
+          }),
+          ...(patch.communityId !== undefined && {
+            community_id: patch.communityId,
+          }),
+        })
+        .eq("id", id);
+      invalidate();
     },
-    []
+    [invalidate]
   );
 
-  const reorder = useCallback((orderedIds: string[]) => {
-    setState(
-      state.map((item) => {
-        const idx = orderedIds.indexOf(item.id);
-        return idx >= 0 ? { ...item, order: idx } : item;
-      })
-    );
-  }, []);
+  const reorder = useCallback(
+    async (orderedIds: string[]) => {
+      await Promise.all(
+        orderedIds.map((id, idx) =>
+          supabase.from("sidebar_config").update({ order: idx }).eq("id", id)
+        )
+      );
+      invalidate();
+    },
+    [invalidate]
+  );
 
-  const addItem = useCallback((communityId: string) => {
-    const newItem: CommunitySidebarItem = {
-      id: crypto.randomUUID(),
-      communityId,
-      emoji: "💬",
-      order: state.length,
-      visible: true,
-      salesPageUrl: "",
-    };
-    setState([...state, newItem]);
-    return newItem.id;
-  }, []);
+  const addItem = useCallback(
+    async (communityId: string): Promise<string> => {
+      const { data, error } = await supabase
+        .from("sidebar_config")
+        .insert({
+          community_id: communityId,
+          emoji: "💬",
+          order: items.length,
+          visible: true,
+          sales_page_url: "",
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidate();
+      return data.id as string;
+    },
+    [items.length, invalidate]
+  );
 
-  const removeItem = useCallback((id: string) => {
-    setState(state.filter((i) => i.id !== id));
-  }, []);
+  const removeItem = useCallback(
+    async (id: string) => {
+      await supabase.from("sidebar_config").delete().eq("id", id);
+      invalidate();
+    },
+    [invalidate]
+  );
 
   return {
     items: sortedItems,

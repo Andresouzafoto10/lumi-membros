@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-03-29 19:00 | **Versão do Tracker:** 2.0.0
+**Última atualização:** 2026-03-29 22:00 | **Versão do Tracker:** 2.1.0
 
 ---
 
@@ -17,9 +17,7 @@
 | TASK-008 | Design: Analytics dashboard para o produtor | DESIGN | ALTA | 2026-03-29 |
 | TASK-009 | Design: Melhorias no player de vídeo (baseado em referência Cademi) | DESIGN | ALTA | 2026-03-29 |
 | TASK-010 | Design: Onboarding do produtor (primeiro curso guiado) | DESIGN | MÉDIA | 2026-03-29 |
-| TASK-011 | Dev: Integração Supabase — substituição do mock data de cursos | DEV | ALTA | 2026-03-29 |
 | TASK-012 | Dev: Upload de vídeo/imagem via Cloudflare R2 | DEV | ALTA | 2026-03-29 |
-| TASK-013 | Dev: Sistema de autenticação real (Supabase Auth) | DEV | CRÍTICA | 2026-03-29 |
 | TASK-014 | Dev: Webhook Stripe/Ticto para matrículas | DEV | ALTA | 2026-03-29 |
 | TASK-015 | QA: Auditoria completa da experiência do aluno | QA | ALTA | 2026-03-29 |
 | TASK-016 | QA: Auditoria completa da experiência do admin | QA | ALTA | 2026-03-29 |
@@ -46,6 +44,8 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| TASK-013 | Dev: Sistema de autenticação real (Supabase Auth) — login, cadastro, sessão persistente, proteção de rotas | DEV | 2026-03-29 |
+| TASK-011 | Dev: Migração completa mock→Supabase — 20+ hooks, SQL schema, RLS, build limpo sem erros | DEV | 2026-03-29 |
 | PERF-001 | Code-splitting com React.lazy: bundle principal de 1MB para 362KB, 85+ chunks separados | DEV | 2026-03-29 |
 | FEAT-001 | ErrorBoundary global: crashes agora mostram UI amigável em vez de tela branca | DEV | 2026-03-29 |
 | FEAT-002 | Loading spinner (PageLoader) para transições entre rotas lazy-loaded | DEV | 2026-03-29 |
@@ -83,7 +83,7 @@
 | Tasks criadas | 33 |
 | Tasks em andamento | 0 |
 | Tasks aguardando aprovação | 0 |
-| Tasks concluídas | 15 |
+| Tasks concluídas | 17 |
 | Bugs críticos abertos | 0 |
 | Skills criadas | 0 |
 | Decisões registradas | 1 |
@@ -101,6 +101,12 @@
 ---
 
 ## 🧭 DECISÕES REGISTRADAS
+
+### DEC-003 | 2026-03-29 | Migração completa mock data → Supabase
+**Status:** Concluído
+**Contexto:** Plataforma usava localStorage + useSyncExternalStore com mock data. Sem autenticação real.
+**Decisão:** Migrar 100% para Supabase Auth + PostgreSQL. Remover VITE_USE_MOCK_DATA. Criar SQL schema com 23 tabelas + RLS. Páginas /login e /cadastro. ProtectedRoute para admin e alunos.
+**Impacto:** Plataforma agora tem backend real. Dados persistem no banco. Auth seguro com sessão persistente. Build passa sem erros (`npm run build` ✓). 20+ hooks migrados para React Query + Supabase.
 
 ### DEC-002 | 2026-03-29 | CEO como orquestrador automático com Gateway
 **Status:** Aprovado

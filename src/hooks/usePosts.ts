@@ -1,91 +1,76 @@
-import { useCallback, useSyncExternalStore } from "react";
-import type { CommunityPost } from "@/types/student";
-import { mockPosts } from "@/data/mock-posts";
-import { addNotification } from "@/hooks/useNotifications";
-import { findProfileDirect, findProfileByUsernameDirect } from "@/hooks/useProfiles";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import type { CommunityPost, SystemEvent } from "@/types/student";
+
+const QK = ["posts"] as const;
+const qkByCommunity = (id: string) => ["posts", "community", id] as const;
+const qkFeed = () => ["posts", "feed"] as const;
 
 // ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
-// ---------------------------------------------------------------------------
-
-const STORAGE_KEY = "lumi-membros:posts";
-
-let state: CommunityPost[] = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): CommunityPost[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as CommunityPost[];
-  } catch {
-    // ignore
-  }
-  return [...mockPosts];
-}
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
-}
-
-function setState(next: CommunityPost[]) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-function uuid(): string {
-  return crypto.randomUUID();
-}
-
-// ---------------------------------------------------------------------------
-// Helpers — extract hashtags and mentions from body text
+// Helpers
 // ---------------------------------------------------------------------------
 
 function extractHashtags(body: string): string[] {
   const matches = body.match(/#([\w-]+)/g);
-  if (!matches) return [];
-  return [...new Set(matches.map((m) => m.slice(1).toLowerCase()))];
+  return matches ? [...new Set(matches.map((m) => m.slice(1).toLowerCase()))] : [];
 }
 
-function extractMentions(body: string): string[] {
-  const matches = body.match(/@([\w.]+)/g);
-  if (!matches) return [];
-  return [...new Set(matches.map((m) => m.slice(1).toLowerCase()))];
+function mapRow(p: Record<string, unknown>): CommunityPost {
+  return {
+    id: p.id as string,
+    communityId: p.community_id as string,
+    authorId: p.author_id as string,
+    type: p.type as CommunityPost["type"],
+    systemEvent: (p.system_event as SystemEvent) ?? undefined,
+    title: p.title as string,
+    body: p.body as string,
+    images: (p.images as string[]) ?? [],
+    hashtags: (p.hashtags as string[]) ?? [],
+    mentions: (p.mentions as string[]) ?? [],
+    likesCount: p.likes_count as number,
+    commentsCount: p.comments_count as number,
+    likedBy: (p.liked_by as string[]) ?? [],
+    savedBy: (p.saved_by as string[]) ?? [],
+    status: p.status as CommunityPost["status"],
+    createdAt: p.created_at as string,
+    updatedAt: p.updated_at as string,
+  };
 }
 
 // ---------------------------------------------------------------------------
-// Direct state accessor — can be called from other stores (non-hook)
+// Fetchers
 // ---------------------------------------------------------------------------
 
-export function findPostDirect(postId: string): CommunityPost | null {
-  return state.find((p) => p.id === postId) ?? null;
+async function fetchPostsByCommunity(communityId: string): Promise<CommunityPost[]> {
+  const { data, error } = await supabase
+    .from("community_posts")
+    .select("*")
+    .eq("community_id", communityId)
+    .eq("status", "published")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(mapRow);
 }
 
-// ---------------------------------------------------------------------------
-// Direct state mutator — called from useComments to keep commentsCount in sync
-// ---------------------------------------------------------------------------
+async function fetchFeedPosts(): Promise<CommunityPost[]> {
+  const { data, error } = await supabase
+    .from("community_posts")
+    .select("*")
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []).map(mapRow);
+}
 
-export function updatePostCommentCount(postId: string, delta: number) {
-  setState(
-    state.map((p) =>
-      p.id === postId
-        ? { ...p, commentsCount: Math.max(0, p.commentsCount + delta) }
-        : p
-    )
-  );
+async function fetchAllPostsAdmin(): Promise<CommunityPost[]> {
+  const { data, error } = await supabase
+    .from("community_posts")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(mapRow);
 }
 
 // ---------------------------------------------------------------------------
@@ -93,335 +78,311 @@ export function updatePostCommentCount(postId: string, delta: number) {
 // ---------------------------------------------------------------------------
 
 export function usePosts() {
-  const posts = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
 
-  // --- Queries ---
+  const allPostsQuery = useQuery({
+    queryKey: QK,
+    queryFn: fetchAllPostsAdmin,
+    staleTime: 1000 * 60 * 2,
+  });
 
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+    queryClient.invalidateQueries({ queryKey: qkFeed() });
+  }, [queryClient]);
+
+  const allPosts = allPostsQuery.data ?? [];
+
+  // Posts for a specific community
   const getPostsByCommunity = useCallback(
     (communityId: string) =>
-      posts
-        .filter((p) => p.communityId === communityId && p.status === "published")
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [posts]
+      allPosts.filter(
+        (p) => p.communityId === communityId && p.status === "published"
+      ),
+    [allPosts]
   );
 
-  const getPostsByAuthor = useCallback(
-    (studentId: string) =>
-      posts
-        .filter((p) => p.authorId === studentId && p.status === "published")
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [posts]
-  );
-
-  const getSavedPosts = useCallback(
-    (studentId: string) =>
-      posts
-        .filter((p) => p.savedBy.includes(studentId) && p.status === "published")
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [posts]
-  );
-
+  // Feed posts — supports optional communityIds filter and followingIds
   const getFeedPosts = useCallback(
     (
-      communityIds: string[],
-      filter: "recent" | "popular" | "following",
+      communityIdsOrFilter?: string[] | "recent" | "popular" | "following",
+      filterArg?: "recent" | "popular" | "following",
       followingIds?: string[]
     ) => {
-      let filtered = posts.filter(
+      let communityIds: string[] | undefined;
+      let filter: "recent" | "popular" | "following" = "recent";
+      let following: string[] = [];
+
+      if (Array.isArray(communityIdsOrFilter)) {
+        communityIds = communityIdsOrFilter;
+        filter = filterArg ?? "recent";
+        following = followingIds ?? [];
+      } else if (communityIdsOrFilter) {
+        filter = communityIdsOrFilter;
+      }
+
+      let published = allPosts.filter(
         (p) =>
-          communityIds.includes(p.communityId) && p.status === "published"
+          p.status === "published" &&
+          (!communityIds || communityIds.length === 0 || communityIds.includes(p.communityId))
       );
 
-      if (filter === "following" && followingIds) {
-        filtered = filtered.filter((p) => followingIds.includes(p.authorId));
+      if (filter === "following" && following.length > 0) {
+        published = published.filter((p) => following.includes(p.authorId));
       }
 
       if (filter === "popular") {
-        return filtered.sort((a, b) => b.likesCount - a.likesCount);
+        return [...published].sort((a, b) => b.likesCount - a.likesCount);
       }
-
-      // "recent" or "following" — chronological
-      return filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return [...published].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
     },
-    [posts]
+    [allPosts]
+  );
+
+  const getTopPosts = useCallback(
+    (communityIdsOrLimit?: string[] | number, limitArg?: number) => {
+      let communityIds: string[] | undefined;
+      let limit = 5;
+      if (Array.isArray(communityIdsOrLimit)) {
+        communityIds = communityIdsOrLimit;
+        limit = limitArg ?? 5;
+      } else if (typeof communityIdsOrLimit === "number") {
+        limit = communityIdsOrLimit;
+      }
+      return [...allPosts.filter(
+        (p) =>
+          p.status === "published" &&
+          (!communityIds || communityIds.length === 0 || communityIds.includes(p.communityId))
+      )]
+        .sort((a, b) => b.likesCount - a.likesCount)
+        .slice(0, limit);
+    },
+    [allPosts]
+  );
+
+  const getTrendingHashtags = useCallback(
+    (_period?: "week" | "month", communityIds?: string[]) => {
+      const freq: Record<string, number> = {};
+      allPosts
+        .filter(
+          (p) =>
+            p.status === "published" &&
+            (!communityIds || communityIds.length === 0 || communityIds.includes(p.communityId))
+        )
+        .forEach((p) =>
+          p.hashtags.forEach((h) => {
+            freq[h] = (freq[h] ?? 0) + 1;
+          })
+        );
+      return Object.entries(freq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([tag, count]) => ({ tag, count }));
+    },
+    [allPosts]
   );
 
   const getPostsByHashtag = useCallback(
     (tag: string, communityIds?: string[]) => {
       const lower = tag.toLowerCase();
-      return posts
-        .filter(
-          (p) =>
-            p.status === "published" &&
-            p.hashtags.includes(lower) &&
-            (!communityIds || communityIds.includes(p.communityId))
-        )
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return allPosts.filter(
+        (p) =>
+          p.status === "published" &&
+          p.hashtags.includes(lower) &&
+          (!communityIds || communityIds.length === 0 || communityIds.includes(p.communityId))
+      );
     },
-    [posts]
+    [allPosts]
   );
 
   const findPost = useCallback(
-    (postId: string | undefined) =>
-      postId ? posts.find((p) => p.id === postId) ?? null : null,
-    [posts]
+    (postId: string) => allPosts.find((p) => p.id === postId) ?? null,
+    [allPosts]
+  );
+
+  const getPostsByAuthor = useCallback(
+    (authorId: string) =>
+      allPosts.filter(
+        (p) => p.authorId === authorId && p.status === "published"
+      ),
+    [allPosts]
+  );
+
+  const getSavedPosts = useCallback(
+    (userId: string) =>
+      allPosts.filter(
+        (p) => p.savedBy.includes(userId) && p.status === "published"
+      ),
+    [allPosts]
   );
 
   const getPendingPosts = useCallback(
-    (communityId?: string) =>
-      posts
-        .filter(
-          (p) =>
-            p.status === "pending" &&
-            (!communityId || p.communityId === communityId)
-        )
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [posts]
+    () => allPosts.filter((p) => p.status === "pending"),
+    [allPosts]
   );
 
-  const getAllPostsForModeration = useCallback(
-    (communityId?: string) =>
-      posts
-        .filter((p) => !communityId || p.communityId === communityId)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [posts]
-  );
-
-  // --- Trending & Top ---
-
-  const getTrendingHashtags = useCallback(
-    (communityIds: string[], limit = 5) => {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const cutoff = sevenDaysAgo.toISOString();
-
-      const counts: Record<string, number> = {};
-      for (const p of posts) {
-        if (
-          p.status !== "published" ||
-          !communityIds.includes(p.communityId) ||
-          p.createdAt < cutoff
-        )
-          continue;
-        for (const tag of p.hashtags) {
-          counts[tag] = (counts[tag] ?? 0) + 1;
-        }
-      }
-
-      return Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, limit)
-        .map(([tag, count]) => ({ tag, count }));
-    },
-    [posts]
-  );
-
-  const getTopHashtags = useCallback(
-    (communityIds: string[], limit = 5) => {
-      const counts: Record<string, number> = {};
-
-      for (const p of posts) {
-        if (p.status !== "published" || !communityIds.includes(p.communityId)) {
-          continue;
-        }
-
-        for (const tag of p.hashtags) {
-          counts[tag] = (counts[tag] ?? 0) + 1;
-        }
-      }
-
-      return Object.entries(counts)
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .slice(0, limit)
-        .map(([tag, count]) => ({ tag, count }));
-    },
-    [posts]
-  );
-
-  const getTopPosts = useCallback(
-    (communityIds: string[], limit = 3) => {
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-
-      return posts
-        .filter(
-          (p) =>
-            p.status === "published" &&
-            communityIds.includes(p.communityId) &&
-            p.createdAt >= monthStart
-        )
-        .sort((a, b) => b.likesCount - a.likesCount)
-        .slice(0, limit);
-    },
-    [posts]
-  );
-
-  // --- Mutations ---
+  // ---- Mutations ----
 
   const createPost = useCallback(
-    (data: {
+    async (data: {
       communityId: string;
       authorId: string;
-      title: string;
+      title?: string;
       body: string;
-      images: string[];
-      status?: "published" | "pending";
+      images?: string[];
+      requireApproval?: boolean;
+      systemEvent?: SystemEvent;
+      type?: CommunityPost["type"];
     }) => {
-      const now = new Date().toISOString();
-      const newPost: CommunityPost = {
-        id: uuid(),
-        communityId: data.communityId,
-        authorId: data.authorId,
-        type: "user",
-        title: data.title,
-        body: data.body,
-        images: data.images,
-        hashtags: extractHashtags(data.body),
-        mentions: extractMentions(data.body),
-        likesCount: 0,
-        commentsCount: 0,
-        likedBy: [],
-        savedBy: [],
-        status: data.status ?? "published",
-        createdAt: now,
-        updatedAt: now,
-      };
-      setState([newPost, ...state]);
-
-      // Notify mentioned users
-      if (newPost.mentions.length > 0) {
-        const authorProfile = findProfileDirect(data.authorId);
-        const authorName = authorProfile?.displayName ?? "Alguém";
-        for (const username of newPost.mentions) {
-          const mentionedProfile = findProfileByUsernameDirect(username);
-          if (mentionedProfile && mentionedProfile.studentId !== data.authorId) {
-            addNotification({
-              type: "mention",
-              recipientId: mentionedProfile.studentId,
-              actorId: data.authorId,
-              targetId: newPost.id,
-              targetType: "post",
-              message: `${authorName} mencionou você em uma publicação`,
-            });
-          }
-        }
-      }
-
-      return newPost.id;
+      const hashtags = extractHashtags(data.body);
+      const status = data.requireApproval ? "pending" : "published";
+      const { data: row, error } = await supabase
+        .from("community_posts")
+        .insert({
+          community_id: data.communityId,
+          author_id: data.authorId,
+          type: data.type ?? "user",
+          system_event: data.systemEvent ?? null,
+          title: data.title ?? "",
+          body: data.body,
+          images: data.images ?? [],
+          hashtags,
+          mentions: [],
+          likes_count: 0,
+          comments_count: 0,
+          liked_by: [],
+          saved_by: [],
+          status,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidate();
+      return row.id as string;
     },
-    []
+    [invalidate]
   );
 
   const updatePost = useCallback(
-    (postId: string, patch: { title?: string; body?: string; images?: string[] }) => {
-      setState(
-        state.map((p) => {
-          if (p.id !== postId) return p;
-          const updated = { ...p, ...patch, updatedAt: new Date().toISOString() };
-          if (patch.body !== undefined) {
-            updated.hashtags = extractHashtags(patch.body);
-            updated.mentions = extractMentions(patch.body);
-          }
-          return updated;
+    async (
+      postId: string,
+      patch: Partial<Pick<CommunityPost, "title" | "body" | "images" | "status">>
+    ) => {
+      const { error } = await supabase
+        .from("community_posts")
+        .update({
+          ...(patch.title !== undefined && { title: patch.title }),
+          ...(patch.body !== undefined && {
+            body: patch.body,
+            hashtags: extractHashtags(patch.body),
+          }),
+          ...(patch.images !== undefined && { images: patch.images }),
+          ...(patch.status !== undefined && { status: patch.status }),
         })
-      );
+        .eq("id", postId);
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [invalidate]
   );
 
-  const deletePost = useCallback((postId: string) => {
-    setState(state.filter((p) => p.id !== postId));
-  }, []);
-
-  const approvePost = useCallback((postId: string) => {
-    setState(
-      state.map((p) =>
-        p.id === postId ? { ...p, status: "published" as const } : p
-      )
-    );
-  }, []);
-
-  const rejectPost = useCallback((postId: string) => {
-    setState(
-      state.map((p) =>
-        p.id === postId ? { ...p, status: "rejected" as const } : p
-      )
-    );
-  }, []);
+  const deletePost = useCallback(
+    async (postId: string) => {
+      const { error } = await supabase
+        .from("community_posts")
+        .delete()
+        .eq("id", postId);
+      if (error) throw error;
+      invalidate();
+    },
+    [invalidate]
+  );
 
   const toggleLike = useCallback(
-    (postId: string, studentId: string) => {
-      const post = state.find((p) => p.id === postId);
-      const alreadyLiked = post?.likedBy.includes(studentId) ?? false;
-
-      setState(
-        state.map((p) => {
-          if (p.id !== postId) return p;
-          const liked = p.likedBy.includes(studentId);
-          return {
-            ...p,
-            likedBy: liked
-              ? p.likedBy.filter((id) => id !== studentId)
-              : [...p.likedBy, studentId],
-            likesCount: liked ? p.likesCount - 1 : p.likesCount + 1,
-          };
+    async (postId: string, userId: string) => {
+      const post = findPost(postId);
+      if (!post) return;
+      const liked = post.likedBy.includes(userId);
+      const newLikedBy = liked
+        ? post.likedBy.filter((id) => id !== userId)
+        : [...post.likedBy, userId];
+      const { error } = await supabase
+        .from("community_posts")
+        .update({
+          liked_by: newLikedBy,
+          likes_count: newLikedBy.length,
         })
-      );
-
-      // Notify post author on like (not unlike, not self-like)
-      if (!alreadyLiked && post && post.authorId !== studentId) {
-        const actorProfile = findProfileDirect(studentId);
-        const actorName = actorProfile?.displayName ?? "Alguém";
-        addNotification({
-          type: "like",
-          recipientId: post.authorId,
-          actorId: studentId,
-          targetId: postId,
-          targetType: "post",
-          message: `${actorName} curtiu sua publicação`,
-        });
-      }
+        .eq("id", postId);
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [findPost, invalidate]
   );
 
   const toggleSave = useCallback(
-    (postId: string, studentId: string) => {
-      setState(
-        state.map((p) => {
-          if (p.id !== postId) return p;
-          const saved = p.savedBy.includes(studentId);
-          return {
-            ...p,
-            savedBy: saved
-              ? p.savedBy.filter((id) => id !== studentId)
-              : [...p.savedBy, studentId],
-          };
-        })
-      );
+    async (postId: string, userId: string) => {
+      const post = findPost(postId);
+      if (!post) return;
+      const saved = post.savedBy.includes(userId);
+      const newSavedBy = saved
+        ? post.savedBy.filter((id) => id !== userId)
+        : [...post.savedBy, userId];
+      const { error } = await supabase
+        .from("community_posts")
+        .update({ saved_by: newSavedBy })
+        .eq("id", postId);
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [findPost, invalidate]
+  );
+
+  const approvePost = useCallback(
+    async (postId: string) => updatePost(postId, { status: "published" }),
+    [updatePost]
+  );
+
+  const rejectPost = useCallback(
+    async (postId: string) => updatePost(postId, { status: "rejected" }),
+    [updatePost]
+  );
+
+  // Called by useComments to keep commentsCount in sync
+  const incrementCommentsCount = useCallback(
+    async (postId: string, delta: number) => {
+      const post = findPost(postId);
+      if (!post) return;
+      await supabase
+        .from("community_posts")
+        .update({ comments_count: Math.max(0, post.commentsCount + delta) })
+        .eq("id", postId);
+      invalidate();
+    },
+    [findPost, invalidate]
   );
 
   return {
-    posts,
-    findPost,
+    allPosts,
+    posts: allPosts, // backward-compat alias
+    loading: allPostsQuery.isLoading,
     getPostsByCommunity,
+    getFeedPosts,
+    getTopPosts,
+    getTrendingHashtags,
+    getPostsByHashtag,
+    findPost,
     getPostsByAuthor,
     getSavedPosts,
-    getFeedPosts,
-    getPostsByHashtag,
     getPendingPosts,
-    getAllPostsForModeration,
-    getTrendingHashtags,
-    getTopHashtags,
-    getTopPosts,
     createPost,
     updatePost,
     deletePost,
-    approvePost,
-    rejectPost,
     toggleLike,
     toggleSave,
+    approvePost,
+    rejectPost,
+    incrementCommentsCount,
   };
 }

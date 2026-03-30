@@ -261,10 +261,10 @@ export default function AdminStudentsPage() {
     reader.readAsText(file);
   }
 
-  function handleConfirmImport() {
+  async function handleConfirmImport() {
     const valid = csvRows.filter((r) => r.valid);
     if (valid.length === 0) { toast.error("Nenhuma linha válida para importar."); return; }
-    const count = createStudentsBulk(valid, csvClassIds);
+    const count = await createStudentsBulk(valid, csvClassIds);
     toast.success(`${count} aluno${count !== 1 ? "s" : ""} importado${count !== 1 ? "s" : ""} com sucesso.`);
     setCsvRows([]);
     setCsvClassIds([]);

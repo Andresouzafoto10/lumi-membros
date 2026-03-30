@@ -288,7 +288,7 @@ export function CreatePostDialog({
       title: title.trim(),
       body: body.trim(),
       images,
-      status: requiresApproval ? "pending" : "published",
+      requireApproval: requiresApproval,
     });
 
     toast.success(

@@ -1,48 +1,53 @@
 import { useState, useCallback, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
-const STORAGE_PREFIX = "lumi-membros:notes:";
+export function useLessonNotes(
+  courseId: string | undefined,
+  lessonId: string | null
+) {
+  const { user } = useAuth();
+  const [content, setContent] = useState("");
 
-export function useLessonNotes(courseId: string | undefined, lessonId: string | null) {
-  const key = courseId && lessonId ? `${STORAGE_PREFIX}${courseId}:${lessonId}` : null;
-
-  const [content, setContent] = useState(() => {
-    if (!key) return "";
-    try {
-      return localStorage.getItem(key) ?? "";
-    } catch {
-      return "";
-    }
-  });
-
-  // Reload when lesson changes
   useEffect(() => {
-    if (!key) {
+    if (!courseId || !lessonId || !user) {
       setContent("");
       return;
     }
-    try {
-      setContent(localStorage.getItem(key) ?? "");
-    } catch {
-      setContent("");
-    }
-  }, [key]);
+    supabase
+      .from("lesson_notes")
+      .select("content")
+      .eq("lesson_id", lessonId)
+      .eq("student_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setContent((data?.content as string) ?? "");
+      });
+  }, [courseId, lessonId, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveNote = useCallback(
-    (text: string) => {
+    async (text: string) => {
       setContent(text);
-      if (key) {
-        try {
-          if (text.trim()) {
-            localStorage.setItem(key, text);
-          } else {
-            localStorage.removeItem(key);
-          }
-        } catch {
-          // ignore
-        }
+      if (!courseId || !lessonId || !user) return;
+      if (text.trim()) {
+        await supabase.from("lesson_notes").upsert(
+          {
+            lesson_id: lessonId,
+            student_id: user.id,
+            course_id: courseId,
+            content: text,
+          },
+          { onConflict: "lesson_id,student_id" }
+        );
+      } else {
+        await supabase
+          .from("lesson_notes")
+          .delete()
+          .eq("lesson_id", lessonId)
+          .eq("student_id", user.id);
       }
     },
-    [key]
+    [courseId, lessonId, user]
   );
 
   return { content, saveNote };

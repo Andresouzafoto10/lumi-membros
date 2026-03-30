@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AuthProvider } from "./contexts/AuthContext";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -19,8 +20,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <QueryClientProvider client={queryClient}>
             <BrowserRouter>
-              <App />
-              <Toaster richColors position="bottom-right" />
+              <AuthProvider>
+                <App />
+                <Toaster richColors position="bottom-right" />
+              </AuthProvider>
             </BrowserRouter>
           </QueryClientProvider>
         </ThemeProvider>

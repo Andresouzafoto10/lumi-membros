@@ -1,94 +1,72 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
-const STORAGE_KEY = "lumi-membros:lesson-ratings";
-
-/**
- * Rating per lesson: "like" | "dislike" | null (no vote).
- * Stored as Record<lessonId, "like" | "dislike">.
- */
 type RatingValue = "like" | "dislike";
 type RatingsMap = Record<string, RatingValue>;
 
-let cached: RatingsMap = load();
-const listeners = new Set<() => void>();
+const QK = ["lesson-ratings"] as const;
 
-function load(): RatingsMap {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
+async function fetchRatings(userId: string): Promise<RatingsMap> {
+  const { data, error } = await supabase
+    .from("lesson_ratings")
+    .select("lesson_id, rating")
+    .eq("student_id", userId);
+  if (error) throw error;
+  const map: RatingsMap = {};
+  for (const r of data ?? []) {
+    map[r.lesson_id as string] = r.rating as RatingValue;
   }
-}
-
-function save(value: RatingsMap) {
-  cached = value;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  } catch {
-    // ignore
-  }
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function getSnapshot() {
-  return cached;
+  return map;
 }
 
 export function useLessonRatings() {
-  const ratings = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: ratings = {} } = useQuery({
+    queryKey: [...QK, user?.id],
+    queryFn: () => fetchRatings(user!.id),
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
 
   const setRating = useCallback(
-    (lessonId: string, rating: RatingValue | null) => {
-      const next = { ...cached };
+    async (lessonId: string, rating: RatingValue | null) => {
+      if (!user) return;
       if (rating === null) {
-        delete next[lessonId];
+        await supabase
+          .from("lesson_ratings")
+          .delete()
+          .eq("lesson_id", lessonId)
+          .eq("student_id", user.id);
       } else {
-        next[lessonId] = rating;
+        await supabase.from("lesson_ratings").upsert(
+          { lesson_id: lessonId, student_id: user.id, rating },
+          { onConflict: "lesson_id,student_id" }
+        );
       }
-      save(next);
+      queryClient.invalidateQueries({ queryKey: QK });
     },
-    []
+    [user, queryClient]
   );
 
   const getRating = useCallback(
-    (lessonId: string): RatingValue | null => {
-      return ratings[lessonId] ?? null;
-    },
+    (lessonId: string): RatingValue | null => ratings[lessonId] ?? null,
     [ratings]
   );
 
   return { ratings, getRating, setRating };
 }
 
-/**
- * Utility to compute aggregated rating counts for a list of lesson IDs.
- * Useful for admin views.
- */
-export function getLessonRatingCounts(lessonId: string): {
-  likes: number;
-  dislikes: number;
-} {
-  // In a real app this would come from a backend.
-  // For now, since we only have one user (localStorage), counts are 0 or 1.
-  const ratings = load();
-  const rating = ratings[lessonId];
-  return {
-    likes: rating === "like" ? 1 : 0,
-    dislikes: rating === "dislike" ? 1 : 0,
-  };
+// Stub for admin view — real aggregation would require a separate admin query
+export function getLessonRatingCounts(
+  _lessonId: string
+): { likes: number; dislikes: number } {
+  return { likes: 0, dislikes: 0 };
 }
 
-/**
- * Returns all ratings map (for admin usage).
- */
 export function getAllLessonRatings(): RatingsMap {
-  return load();
+  return {};
 }

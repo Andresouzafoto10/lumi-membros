@@ -1,67 +1,43 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { Student, Enrollment, StudentStatus, StudentRole } from "@/types/student";
-import { mockStudents } from "@/data/mock-students";
-import { mockEnrollments } from "@/data/mock-enrollments";
+
+const QK = ["students"] as const;
 
 // ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
+// Fetchers
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = "lumi-membros:students";
-const ENROLLMENTS_KEY = "lumi-membros:enrollments";
+async function fetchStudents(): Promise<{ students: Student[]; enrollments: Enrollment[] }> {
+  const [studentsRes, enrollmentsRes] = await Promise.all([
+    supabase.from("profiles").select("*").order("name"),
+    supabase.from("enrollments").select("*"),
+  ]);
+  if (studentsRes.error) throw studentsRes.error;
+  if (enrollmentsRes.error) throw enrollmentsRes.error;
 
-type StudentsState = {
-  students: Student[];
-  enrollments: Enrollment[];
-};
+  const enrollments: Enrollment[] = (enrollmentsRes.data ?? []).map((e) => ({
+    id: e.id,
+    studentId: e.student_id,
+    classId: e.class_id,
+    type: e.type as Enrollment["type"],
+    expiresAt: e.expires_at,
+    status: e.status as Enrollment["status"],
+    enrolledAt: e.enrolled_at,
+  }));
 
-let state: StudentsState = loadFromStorage();
-const listeners = new Set<() => void>();
+  const students: Student[] = (studentsRes.data ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    email: p.email,
+    role: p.role as StudentRole,
+    status: p.status as StudentStatus,
+    createdAt: p.created_at,
+    enrollments: enrollments.filter((e) => e.studentId === p.id),
+  }));
 
-function loadFromStorage(): StudentsState {
-  try {
-    const rawStudents = localStorage.getItem(STORAGE_KEY);
-    const rawEnrollments = localStorage.getItem(ENROLLMENTS_KEY);
-    const students = rawStudents ? (JSON.parse(rawStudents) as Student[]) : null;
-    const enrollments = rawEnrollments
-      ? (JSON.parse(rawEnrollments) as Enrollment[])
-      : null;
-    if (students && enrollments) return { students, enrollments };
-  } catch {
-    // ignore
-  }
-  return {
-    students: mockStudents.map((s) => ({ ...s, enrollments: [] })),
-    enrollments: [...mockEnrollments],
-  };
-}
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.students));
-    localStorage.setItem(ENROLLMENTS_KEY, JSON.stringify(state.enrollments));
-  } catch {
-    // ignore
-  }
-}
-
-function setState(next: StudentsState) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-function uuid(): string {
-  return crypto.randomUUID();
+  return { students, enrollments };
 }
 
 // ---------------------------------------------------------------------------
@@ -69,157 +45,173 @@ function uuid(): string {
 // ---------------------------------------------------------------------------
 
 export function useStudents() {
-  const store = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: QK,
+    queryFn: fetchStudents,
+    staleTime: 1000 * 60 * 2,
+  });
 
-  const students = useMemo(
-    () => [...store.students].sort((a, b) => a.name.localeCompare(b.name)),
-    [store.students]
-  );
+  const students = useMemo(() => data?.students ?? [], [data]);
+  const enrollments = useMemo(() => data?.enrollments ?? [], [data]);
 
-  const enrollments = useMemo(() => store.enrollments, [store.enrollments]);
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }, [queryClient]);
 
   const findStudent = useCallback(
     (id: string | undefined) =>
-      id ? store.students.find((s) => s.id === id) ?? null : null,
-    [store.students]
+      id ? students.find((s) => s.id === id) ?? null : null,
+    [students]
   );
 
   const getStudentEnrollments = useCallback(
-    (studentId: string) =>
-      store.enrollments.filter((e) => e.studentId === studentId),
-    [store.enrollments]
+    (studentId: string) => enrollments.filter((e) => e.studentId === studentId),
+    [enrollments]
   );
 
+  // Admin creates a student record (invites via Supabase Admin API or just creates profile)
   const createStudent = useCallback(
-    (data: {
+    async (data: {
       name: string;
       email: string;
       role: StudentRole;
       status: StudentStatus;
       classIds?: string[];
     }) => {
-      const now = new Date().toISOString();
-      const studentId = uuid();
-      const newEnrollments: Enrollment[] = (data.classIds ?? []).map(
-        (classId) => ({
-          id: uuid(),
-          studentId,
-          classId,
-          type: "individual" as const,
-          expiresAt: null,
-          status: "active" as const,
-          enrolledAt: now,
-        })
-      );
-      const student: Student = {
-        id: studentId,
-        name: data.name,
+      // For admin-created students, use Supabase Admin API via Edge Function.
+      // Here we create a profile entry directly (assumes user will be invited separately).
+      const tempId = crypto.randomUUID();
+      const { error: pe } = await supabase.from("profiles").insert({
+        id: tempId,
         email: data.email,
+        name: data.name,
         role: data.role,
         status: data.status,
-        createdAt: now,
-        enrollments: [],
-      };
-      setState({
-        students: [...state.students, student],
-        enrollments: [...state.enrollments, ...newEnrollments],
+        display_name: data.name,
+        username: data.email.split("@")[0],
+        avatar_url: "",
+        cover_url: "",
+        bio: "",
+        link: "",
+        location: "",
+        followers: [],
+        following: [],
       });
-      return studentId;
+      if (pe) throw pe;
+      // Create enrollments
+      for (const classId of data.classIds ?? []) {
+        await supabase.from("enrollments").insert({
+          student_id: tempId,
+          class_id: classId,
+          type: "individual",
+          status: "active",
+        });
+      }
+      invalidate();
+      return tempId;
     },
-    []
+    [invalidate]
   );
 
   const createStudentsBulk = useCallback(
-    (
-      items: Array<{ name: string; email: string }>,
-      classIds: string[]
-    ) => {
-      const now = new Date().toISOString();
-      const newStudents: Student[] = [];
-      const newEnrollments: Enrollment[] = [];
-
+    async (items: Array<{ name: string; email: string }>, classIds: string[]) => {
       for (const item of items) {
-        const studentId = uuid();
-        newStudents.push({
-          id: studentId,
-          name: item.name,
+        const tempId = crypto.randomUUID();
+        await supabase.from("profiles").insert({
+          id: tempId,
           email: item.email,
+          name: item.name,
           role: "student",
           status: "active",
-          createdAt: now,
-          enrollments: [],
+          display_name: item.name,
+          username: item.email.split("@")[0],
+          avatar_url: "",
+          cover_url: "",
+          bio: "",
+          link: "",
+          location: "",
+          followers: [],
+          following: [],
         });
         for (const classId of classIds) {
-          newEnrollments.push({
-            id: uuid(),
-            studentId,
-            classId,
+          await supabase.from("enrollments").insert({
+            student_id: tempId,
+            class_id: classId,
             type: "individual",
-            expiresAt: null,
             status: "active",
-            enrolledAt: now,
           });
         }
       }
-
-      setState({
-        students: [...state.students, ...newStudents],
-        enrollments: [...state.enrollments, ...newEnrollments],
-      });
-      return newStudents.length;
+      invalidate();
+      return items.length;
     },
-    []
+    [invalidate]
   );
 
   const updateStudent = useCallback(
-    (
+    async (
       studentId: string,
       patch: Partial<Pick<Student, "name" | "email" | "role" | "status">>
     ) => {
-      setState({
-        ...state,
-        students: state.students.map((s) =>
-          s.id === studentId ? { ...s, ...patch } : s
-        ),
-      });
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          ...(patch.name !== undefined && { name: patch.name }),
+          ...(patch.email !== undefined && { email: patch.email }),
+          ...(patch.role !== undefined && { role: patch.role }),
+          ...(patch.status !== undefined && { status: patch.status }),
+        })
+        .eq("id", studentId);
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [invalidate]
   );
 
-  const deleteStudent = useCallback((studentId: string) => {
-    setState({
-      students: state.students.filter((s) => s.id !== studentId),
-      enrollments: state.enrollments.filter((e) => e.studentId !== studentId),
-    });
-  }, []);
+  const deleteStudent = useCallback(
+    async (studentId: string) => {
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", studentId);
+      if (error) throw error;
+      invalidate();
+    },
+    [invalidate]
+  );
 
   const addEnrollment = useCallback(
-    (data: Omit<Enrollment, "id" | "enrolledAt">) => {
-      const enrollment: Enrollment = {
-        ...data,
-        id: uuid(),
-        enrolledAt: new Date().toISOString(),
-      };
-      setState({
-        ...state,
-        enrollments: [...state.enrollments, enrollment],
+    async (data: Omit<Enrollment, "id" | "enrolledAt">) => {
+      const { error } = await supabase.from("enrollments").insert({
+        student_id: data.studentId,
+        class_id: data.classId,
+        type: data.type,
+        expires_at: data.expiresAt,
+        status: data.status,
       });
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [invalidate]
   );
 
-  const revokeEnrollment = useCallback((enrollmentId: string) => {
-    setState({
-      ...state,
-      enrollments: state.enrollments.map((e) =>
-        e.id === enrollmentId ? { ...e, status: "cancelled" as const } : e
-      ),
-    });
-  }, []);
+  const revokeEnrollment = useCallback(
+    async (enrollmentId: string) => {
+      const { error } = await supabase
+        .from("enrollments")
+        .update({ status: "cancelled" })
+        .eq("id", enrollmentId);
+      if (error) throw error;
+      invalidate();
+    },
+    [invalidate]
+  );
 
   return {
     students,
     enrollments,
+    loading: isLoading,
     findStudent,
     getStudentEnrollments,
     createStudent,

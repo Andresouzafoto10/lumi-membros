@@ -1,6 +1,6 @@
-import { useCallback, useSyncExternalStore } from "react";
-
-const STORAGE_KEY = "lumi-membros:last-watched";
+import { useState, useCallback, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 type LastWatched = {
   courseId: string;
@@ -10,52 +10,54 @@ type LastWatched = {
   timestamp: number;
 } | null;
 
-let cached: LastWatched = load();
-const listeners = new Set<() => void>();
-
-function load(): LastWatched {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function save(value: LastWatched) {
-  cached = value;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  } catch {
-    // ignore
-  }
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function getSnapshot() {
-  return cached;
-}
-
 export function useLastWatched() {
-  const lastWatched = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const { user } = useAuth();
+  const [lastWatched, setLastWatchedState] = useState<LastWatched>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setLastWatchedState(null);
+      return;
+    }
+    supabase
+      .from("last_watched")
+      .select("*")
+      .eq("student_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setLastWatchedState({
+            courseId: data.course_id as string,
+            courseTitle: data.course_title as string,
+            lessonId: data.lesson_id as string,
+            lessonTitle: data.lesson_title as string,
+            timestamp: new Date(data.updated_at as string).getTime(),
+          });
+        }
+      });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setLastWatched = useCallback(
-    (data: {
+    async (data: {
       courseId: string;
       courseTitle: string;
       lessonId: string;
       lessonTitle: string;
     }) => {
-      save({ ...data, timestamp: Date.now() });
+      if (!user) return;
+      setLastWatchedState({ ...data, timestamp: Date.now() });
+      await supabase.from("last_watched").upsert(
+        {
+          student_id: user.id,
+          course_id: data.courseId,
+          course_title: data.courseTitle,
+          lesson_id: data.lessonId,
+          lesson_title: data.lessonTitle,
+        },
+        { onConflict: "student_id" }
+      );
     },
-    []
+    [user]
   );
 
   return { lastWatched, setLastWatched };

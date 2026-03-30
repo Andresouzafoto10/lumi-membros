@@ -434,14 +434,14 @@ export default function AdminClassEditPage() {
   // ---------------------------------------------------------------------------
   // Save
   // ---------------------------------------------------------------------------
-  function handleSave() {
+  async function handleSave() {
     if (!name.trim()) { toast.error("Informe o nome da turma."); return; }
     if (courseIds.length === 0) { toast.error("Selecione pelo menos um curso."); return; }
 
     const days = accessDays ? Number(accessDays) : null;
 
     if (isNew) {
-      const newId = createClass({
+      const newId = await createClass({
         name: name.trim(),
         courseIds,
         enrollmentType,

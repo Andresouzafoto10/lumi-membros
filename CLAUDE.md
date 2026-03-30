@@ -6,6 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Lumi Membros is a member-area / course platform for managing and consuming online courses (focused on photography). It has two interfaces: a **student-facing** area for browsing and watching courses, and an **admin panel** for managing courses, modules, lessons, banners, and sections. The app language is Brazilian Portuguese.
 
+## Supabase Project (ALWAYS USE THIS)
+
+- **Project ID:** `gdbkbeurjjtjgmrmfngk`
+- **URL:** `https://gdbkbeurjjtjgmrmfngk.supabase.co`
+- **Dashboard:** https://supabase.com/dashboard/project/gdbkbeurjjtjgmrmfngk
+- **SQL Editor:** https://supabase.com/dashboard/project/gdbkbeurjjtjgmrmfngk/sql
+- **Auth Users:** https://supabase.com/dashboard/project/gdbkbeurjjtjgmrmfngk/auth/users
+- **Owner account:** `fotografoandresouza@gmail.com` / role: `owner`
+- **NEVER use project `zowcnbpzojesyvmcjtri`** — that is a different product (Lumi Fotos)
+- MCP Supabase tools are connected to a different account and **cannot access `gdbkbeurjjtjgmrmfngk`**. For DDL/SQL operations, use the SQL Editor in the dashboard or use `curl` with the service role key from `.env` (`VITE_SUPABASE_SERVICE_ROLE_KEY`).
+- After any schema change, always update `supabase/migrations/001_initial_schema.sql` to keep the local file in sync.
+
 ## Commands
 
 - **Dev server:** `npm run dev` (runs on port 5174)

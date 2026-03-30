@@ -1,65 +1,48 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { StudentRestriction } from "@/types/student";
-import { mockRestrictions } from "@/data/mock-restrictions";
 
-// ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
-// ---------------------------------------------------------------------------
+const QK = ["restrictions"] as const;
 
-const STORAGE_KEY = "lumi-membros:restrictions";
-
-let state: StudentRestriction[] = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): StudentRestriction[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as StudentRestriction[];
-  } catch {
-    // ignore
-  }
-  return [...mockRestrictions];
+function mapRow(r: Record<string, unknown>): StudentRestriction {
+  return {
+    id: r.id as string,
+    studentId: r.student_id as string,
+    reason: r.reason as string,
+    appliedBy: r.applied_by as string,
+    startsAt: r.starts_at as string,
+    endsAt: (r.ends_at as string | null) ?? null,
+    active: r.active as boolean,
+  };
 }
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
+async function fetchRestrictions(): Promise<StudentRestriction[]> {
+  const { data, error } = await supabase
+    .from("restrictions")
+    .select("*")
+    .order("starts_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(mapRow);
 }
-
-function setState(next: StudentRestriction[]) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-function uuid(): string {
-  return crypto.randomUUID();
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useRestrictions() {
-  const restrictions = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
+
+  const { data: restrictions = [], isLoading } = useQuery({
+    queryKey: QK,
+    queryFn: fetchRestrictions,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }, [queryClient]);
 
   const activeRestrictions = useMemo(
     () =>
       restrictions.filter((r) => {
         if (!r.active) return false;
-        // If endsAt exists and is past, it's no longer active
         if (r.endsAt && new Date(r.endsAt) < new Date()) return false;
         return true;
       }),
@@ -87,43 +70,51 @@ export function useRestrictions() {
   );
 
   const addRestriction = useCallback(
-    (data: {
+    async (data: {
       studentId: string;
       reason: string;
       appliedBy: string;
-      durationDays: number | null; // null = permanent
+      durationDays: number | null;
     }) => {
       const now = new Date();
-      const newRestriction: StudentRestriction = {
-        id: uuid(),
-        studentId: data.studentId,
-        reason: data.reason,
-        appliedBy: data.appliedBy,
-        startsAt: now.toISOString(),
-        endsAt: data.durationDays
-          ? new Date(
-              now.getTime() + data.durationDays * 24 * 60 * 60 * 1000
-            ).toISOString()
-          : null,
-        active: true,
-      };
-      setState([...state, newRestriction]);
-      return newRestriction.id;
+      const endsAt = data.durationDays
+        ? new Date(now.getTime() + data.durationDays * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+      const { data: row, error } = await supabase
+        .from("restrictions")
+        .insert({
+          student_id: data.studentId,
+          reason: data.reason,
+          applied_by: data.appliedBy,
+          starts_at: now.toISOString(),
+          ends_at: endsAt,
+          active: true,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidate();
+      return row.id as string;
     },
-    []
+    [invalidate]
   );
 
-  const removeRestriction = useCallback((restrictionId: string) => {
-    setState(
-      state.map((r) =>
-        r.id === restrictionId ? { ...r, active: false } : r
-      )
-    );
-  }, []);
+  const removeRestriction = useCallback(
+    async (restrictionId: string) => {
+      const { error } = await supabase
+        .from("restrictions")
+        .update({ active: false })
+        .eq("id", restrictionId);
+      if (error) throw error;
+      invalidate();
+    },
+    [invalidate]
+  );
 
   return {
     restrictions,
     activeRestrictions,
+    loading: isLoading,
     isRestricted,
     getRestriction,
     getRestrictionsForStudent,

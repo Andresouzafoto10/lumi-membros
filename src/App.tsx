@@ -4,6 +4,14 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { StudentLayout } from "@/components/layout/StudentLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { CommunityLayout } from "@/components/layout/CommunityLayout";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+
+// ---------------------------------------------------------------------------
+// Auth pages (NOT lazy — precisam ser rápidas)
+// ---------------------------------------------------------------------------
+import LoginPage from "@/pages/auth/LoginPage";
+import RegisterPage from "@/pages/auth/RegisterPage";
+import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded pages (code-splitting)
@@ -101,8 +109,19 @@ export default function App() {
         {/* Root redirect */}
         <Route path="/" element={<Navigate to="/cursos" replace />} />
 
-        {/* Student routes */}
-        <Route element={<StudentLayout />}>
+        {/* Public auth routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/cadastro" element={<RegisterPage />} />
+        <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
+
+        {/* Student routes — require authentication */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <StudentLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route path="/cursos" element={<CoursesPage />} />
           <Route path="/cursos/:courseId" element={<CourseDetailPage />} />
           <Route
@@ -124,8 +143,14 @@ export default function App() {
           </Route>
         </Route>
 
-        {/* Admin routes */}
-        <Route element={<AdminLayout />}>
+        {/* Admin routes — require authentication + admin role */}
+        <Route
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route path="/admin" element={<AdminDashboardPage />} />
           <Route path="/admin/cursos" element={<AdminCoursesPage />} />
           <Route

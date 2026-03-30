@@ -1,65 +1,82 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { Community, CommunitySettings } from "@/types/student";
-import { mockCommunities } from "@/data/mock-communities";
-import { useStudents } from "@/hooks/useStudents";
+import { useAuth } from "@/contexts/AuthContext";
 
-// ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
-// ---------------------------------------------------------------------------
+const QK_ENROLLED = (userId: string) => ["my-class-ids", userId] as const;
 
-const STORAGE_KEY = "lumi-membros:communities";
+const QK = ["communities"] as const;
 
-let state: Community[] = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): Community[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as Community[];
-  } catch {
-    // ignore
-  }
-  return [...mockCommunities];
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
 }
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
+async function fetchCommunities(): Promise<Community[]> {
+  const { data, error } = await supabase
+    .from("communities")
+    .select("*")
+    .order("name");
+  if (error) throw error;
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    description: c.description,
+    coverUrl: c.cover_url,
+    iconUrl: c.icon_url,
+    classIds: c.class_ids ?? [],
+    pinnedPostId: c.pinned_post_id,
+    settings: c.settings as CommunitySettings,
+    status: c.status as "active" | "inactive",
+    createdAt: c.created_at,
+  }));
 }
-
-function setState(next: Community[]) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-function uuid(): string {
-  return crypto.randomUUID();
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useCommunities() {
-  const communities = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const { enrollments } = useStudents();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const { data: communities = [], isLoading } = useQuery({
+    queryKey: QK,
+    queryFn: fetchCommunities,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }, [queryClient]);
+
+  // Pre-fetch current user's enrolled class IDs for sync community access
+  const { data: myEnrolledClassIds = [] } = useQuery({
+    queryKey: QK_ENROLLED(user?.id ?? ""),
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from("enrollments")
+        .select("class_id")
+        .eq("student_id", user.id)
+        .eq("status", "active");
+      return (data ?? []).map((e) => e.class_id as string);
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
 
   const activeCommunities = useMemo(
     () => communities.filter((c) => c.status === "active"),
     [communities]
+  );
+
+  const myCommunities = useMemo(
+    () =>
+      communities.filter((c) =>
+        c.classIds.some((cid) => myEnrolledClassIds.includes(cid))
+      ),
+    [communities, myEnrolledClassIds]
   );
 
   const findCommunity = useCallback(
@@ -74,111 +91,118 @@ export function useCommunities() {
     [communities]
   );
 
+  // Sync — uses pre-fetched enrollment data for the current user
   const getCommunitiesForStudent = useCallback(
-    (studentId: string) => {
-      // Get classIds the student is actively enrolled in
-      const studentClassIds = enrollments
-        .filter((e) => e.studentId === studentId && e.status === "active")
-        .map((e) => e.classId);
-
-      // Return active communities whose classIds overlap with student's classIds
-      return communities.filter(
-        (c) =>
-          c.status === "active" &&
-          c.classIds.some((classId) => studentClassIds.includes(classId))
-      );
+    (studentId: string): Community[] => {
+      if (studentId === user?.id) return myCommunities;
+      // For other users (admin context) return all active
+      return activeCommunities;
     },
-    [communities, enrollments]
+    [myCommunities, activeCommunities, user?.id]
+  );
+
+  // Sync version for components that already have enrollment class IDs
+  const getCommunitiesForStudentSync = useCallback(
+    (_studentId: string, enrolledClassIds: string[]): Community[] =>
+      communities.filter((c) =>
+        c.classIds.some((cid) => enrolledClassIds.includes(cid))
+      ),
+    [communities]
   );
 
   const getCommunitiesByClass = useCallback(
-    (classId: string) =>
-      communities.filter((c) => c.classIds.includes(classId)),
+    (classId: string) => communities.filter((c) => c.classIds.includes(classId)),
     [communities]
   );
 
   const createCommunity = useCallback(
-    (data: {
-      name: string;
-      slug: string;
-      description: string;
-      coverUrl: string;
-      iconUrl: string;
-      classIds: string[];
-      settings: CommunitySettings;
-    }) => {
-      const newCommunity: Community = {
-        id: uuid(),
-        name: data.name,
-        slug: data.slug,
-        description: data.description,
-        coverUrl: data.coverUrl,
-        iconUrl: data.iconUrl,
-        classIds: data.classIds,
-        pinnedPostId: null,
-        settings: data.settings,
-        status: "active",
-        createdAt: new Date().toISOString(),
-      };
-      setState([...state, newCommunity]);
-      return newCommunity.id;
+    async (data: Partial<Community> & { name: string }) => {
+      const slug = data.slug || slugify(data.name);
+      const { data: row, error } = await supabase
+        .from("communities")
+        .insert({
+          slug,
+          name: data.name,
+          description: data.description ?? "",
+          cover_url: data.coverUrl ?? "",
+          icon_url: data.iconUrl ?? "",
+          class_ids: data.classIds ?? [],
+          pinned_post_id: null,
+          settings: data.settings ?? {
+            allowStudentPosts: true,
+            requireApproval: false,
+            allowImages: true,
+          },
+          status: data.status ?? "active",
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidate();
+      return row.id as string;
     },
-    []
+    [invalidate]
   );
 
   const updateCommunity = useCallback(
-    (
-      communityId: string,
-      patch: Partial<
-        Pick<
-          Community,
-          | "name"
-          | "slug"
-          | "description"
-          | "coverUrl"
-          | "iconUrl"
-          | "classIds"
-          | "settings"
-          | "status"
-        >
-      >
-    ) => {
-      setState(
-        state.map((c) => (c.id === communityId ? { ...c, ...patch } : c))
-      );
+    async (communityId: string, patch: Partial<Community>) => {
+      const { error } = await supabase
+        .from("communities")
+        .update({
+          ...(patch.name !== undefined && { name: patch.name }),
+          ...(patch.slug !== undefined && { slug: patch.slug }),
+          ...(patch.description !== undefined && { description: patch.description }),
+          ...(patch.coverUrl !== undefined && { cover_url: patch.coverUrl }),
+          ...(patch.iconUrl !== undefined && { icon_url: patch.iconUrl }),
+          ...(patch.classIds !== undefined && { class_ids: patch.classIds }),
+          ...(patch.settings !== undefined && { settings: patch.settings }),
+          ...(patch.status !== undefined && { status: patch.status }),
+          ...(patch.pinnedPostId !== undefined && {
+            pinned_post_id: patch.pinnedPostId,
+          }),
+        })
+        .eq("id", communityId);
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [invalidate]
   );
 
-  const deleteCommunity = useCallback((communityId: string) => {
-    setState(state.filter((c) => c.id !== communityId));
-  }, []);
+  const deleteCommunity = useCallback(
+    async (communityId: string) => {
+      const { error } = await supabase
+        .from("communities")
+        .delete()
+        .eq("id", communityId);
+      if (error) throw error;
+      invalidate();
+    },
+    [invalidate]
+  );
 
   const pinPost = useCallback(
-    (communityId: string, postId: string) => {
-      setState(
-        state.map((c) =>
-          c.id === communityId ? { ...c, pinnedPostId: postId } : c
-        )
-      );
+    async (communityId: string, postId: string) => {
+      await updateCommunity(communityId, { pinnedPostId: postId });
     },
-    []
+    [updateCommunity]
   );
 
-  const unpinPost = useCallback((communityId: string) => {
-    setState(
-      state.map((c) =>
-        c.id === communityId ? { ...c, pinnedPostId: null } : c
-      )
-    );
-  }, []);
+  const unpinPost = useCallback(
+    async (communityId: string) => {
+      await updateCommunity(communityId, { pinnedPostId: null });
+    },
+    [updateCommunity]
+  );
 
   return {
     communities,
     activeCommunities,
+    myCommunities,
+    loading: isLoading,
     findCommunity,
     findBySlug,
     getCommunitiesForStudent,
+    getCommunitiesForStudentSync,
     getCommunitiesByClass,
     createCommunity,
     updateCommunity,

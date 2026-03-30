@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import {
   Camera,
@@ -11,6 +12,10 @@ import {
   Info,
   GraduationCap,
   Award,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -88,6 +93,7 @@ function MiniPostCard({
 // Page
 // ---------------------------------------------------------------------------
 export default function MyProfilePage() {
+  const { updatePassword } = useAuth();
   const { currentUserId } = useCurrentUser();
   const { findProfile, updateProfile } = useProfiles();
   const { findStudent, enrollments } = useStudents();
@@ -114,6 +120,11 @@ export default function MyProfilePage() {
     link: "",
     location: "",
   });
+
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwForm, setPwForm] = useState({ newPassword: "", confirm: "" });
+  const [pwShow, setPwShow] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -165,6 +176,25 @@ export default function MyProfilePage() {
       location: profile.location,
     });
     setEditOpen(true);
+  }
+
+  async function handleSavePassword() {
+    if (!pwForm.newPassword || !pwForm.confirm) return;
+    if (pwForm.newPassword !== pwForm.confirm) {
+      toast.error("As senhas não coincidem.");
+      return;
+    }
+    if (pwForm.newPassword.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+    setPwLoading(true);
+    const { error } = await updatePassword(pwForm.newPassword);
+    setPwLoading(false);
+    if (error) { toast.error(error); return; }
+    toast.success("Senha alterada com sucesso!");
+    setPwOpen(false);
+    setPwForm({ newPassword: "", confirm: "" });
   }
 
   function handleSaveEdit() {
@@ -299,6 +329,15 @@ export default function MyProfilePage() {
           >
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Editar perfil
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => { setPwOpen(true); setPwForm({ newPassword: "", confirm: "" }); }}
+            className="w-full shrink-0 active:scale-95 transition-all sm:w-auto text-muted-foreground"
+          >
+            <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+            Alterar senha
           </Button>
         </div>
 
@@ -538,6 +577,66 @@ export default function MyProfilePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Change Password Dialog */}
+      <Dialog open={pwOpen} onOpenChange={setPwOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar senha</DialogTitle>
+            <DialogDescription>Escolha uma nova senha para sua conta.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="pw-new">Nova senha</Label>
+              <div className="relative">
+                <Input
+                  id="pw-new"
+                  type={pwShow ? "text" : "password"}
+                  placeholder="Mínimo 6 caracteres"
+                  value={pwForm.newPassword}
+                  onChange={(e) => setPwForm((f) => ({ ...f, newPassword: e.target.value }))}
+                  disabled={pwLoading}
+                  className="h-11 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPwShow((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {pwShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="pw-confirm">Confirmar senha</Label>
+              <Input
+                id="pw-confirm"
+                type={pwShow ? "text" : "password"}
+                placeholder="Repita a nova senha"
+                value={pwForm.confirm}
+                onChange={(e) => setPwForm((f) => ({ ...f, confirm: e.target.value }))}
+                disabled={pwLoading}
+                className="h-11"
+              />
+              {pwForm.confirm && pwForm.newPassword !== pwForm.confirm && (
+                <p className="text-xs text-destructive">As senhas não coincidem</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPwOpen(false)} disabled={pwLoading}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSavePassword}
+              disabled={pwLoading || !pwForm.newPassword || !pwForm.confirm}
+            >
+              {pwLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando…</> : "Salvar senha"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

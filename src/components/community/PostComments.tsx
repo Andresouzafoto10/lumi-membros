@@ -174,14 +174,15 @@ function CommentItem({
 // ---------------------------------------------------------------------------
 export function PostComments({ postId }: { postId: string }) {
   const { currentUserId } = useCurrentUser();
-  const { getRootComments, getReplies, addComment } = useComments();
+  const { getCommentsForPost, createComment } = useComments();
   const { isRestricted } = useRestrictions();
 
   const [newComment, setNewComment] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  const rawRootComments = getRootComments(postId);
+  const allPostComments = getCommentsForPost(postId);
+  const rawRootComments = allPostComments.filter((c) => !c.parentCommentId);
   const restricted = isRestricted(currentUserId);
 
   // Find the most liked comment (must have at least 1 like)
@@ -207,7 +208,7 @@ export function PostComments({ postId }: { postId: string }) {
       toast.error("Voce esta restrito de comentar.");
       return;
     }
-    addComment({
+    createComment({
       postId,
       authorId: currentUserId,
       body: newComment.trim(),
@@ -221,7 +222,7 @@ export function PostComments({ postId }: { postId: string }) {
       toast.error("Voce esta restrito de comentar.");
       return;
     }
-    addComment({
+    createComment({
       postId,
       authorId: currentUserId,
       body: replyText.trim(),
@@ -266,7 +267,7 @@ export function PostComments({ postId }: { postId: string }) {
       ) : (
         <div className="space-y-3">
           {rootComments.map((comment) => {
-            const replies = getReplies(comment.id);
+            const replies = allPostComments.filter((c) => c.parentCommentId === comment.id);
             const isTop = !!(hasMostLiked && comment.id === mostLikedId.id);
             return (
               <div key={comment.id} className="space-y-2">

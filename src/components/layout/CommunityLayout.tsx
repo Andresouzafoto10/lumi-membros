@@ -26,7 +26,7 @@ export function CommunityLayout() {
   const location = useLocation();
   const { currentUserId } = useCurrentUser();
   const { getCommunitiesForStudent, activeCommunities } = useCommunities();
-  const { getTopHashtags, getTopPosts, getPostsByCommunity } = usePosts();
+  const { getTrendingHashtags, getTopPosts, getPostsByCommunity } = usePosts();
   const { findProfile } = useProfiles();
   const { items: sidebarItems } = useSidebarConfig();
   const { getLastSeen, markSeen } = useCommunityLastSeen();
@@ -46,8 +46,8 @@ export function CommunityLayout() {
   );
 
   const topHashtags = useMemo(
-    () => getTopHashtags(communityIds, 5),
-    [getTopHashtags, communityIds]
+    () => getTrendingHashtags(undefined, communityIds),
+    [getTrendingHashtags, communityIds]
   );
 
   const topPosts = useMemo(

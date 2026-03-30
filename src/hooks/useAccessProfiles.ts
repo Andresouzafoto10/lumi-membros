@@ -1,10 +1,9 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { AccessProfile } from "@/types/student";
 
-// ---------------------------------------------------------------------------
-// System (fixed) profiles — never persisted, always present
-// ---------------------------------------------------------------------------
-
+// System profiles are hardcoded — never stored in DB
 const SYSTEM_PROFILES: AccessProfile[] = [
   {
     id: "system-aluno",
@@ -44,78 +43,94 @@ const SYSTEM_PROFILES: AccessProfile[] = [
   },
 ];
 
-// ---------------------------------------------------------------------------
-// Store — custom profiles only
-// ---------------------------------------------------------------------------
+const QK = ["access-profiles"] as const;
 
-const STORAGE_KEY = "lumi-membros:access-profiles";
-
-let state: AccessProfile[] = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): AccessProfile[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as AccessProfile[];
-  } catch {
-    // ignore
-  }
-  return [];
+async function fetchCustomProfiles(): Promise<AccessProfile[]> {
+  const { data, error } = await supabase
+    .from("access_profiles")
+    .select("*")
+    .order("name");
+  if (error) throw error;
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    permissions: p.permissions as AccessProfile["permissions"],
+  }));
 }
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
-}
-
-function setState(next: AccessProfile[]) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useAccessProfiles() {
-  const customProfiles = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
+
+  const { data: customProfiles = [], isLoading } = useQuery({
+    queryKey: QK,
+    queryFn: fetchCustomProfiles,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }, [queryClient]);
 
   const createProfile = useCallback(
-    (data: Omit<AccessProfile, "id">) => {
-      const profile: AccessProfile = {
-        ...data,
-        id: `profile-${Date.now()}`,
+    async (data: Omit<AccessProfile, "id">) => {
+      const { data: row, error } = await supabase
+        .from("access_profiles")
+        .insert({
+          name: data.name,
+          description: data.description,
+          permissions: data.permissions,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidate();
+      return {
+        id: row.id as string,
+        name: row.name as string,
+        description: row.description as string,
+        permissions: row.permissions as AccessProfile["permissions"],
       };
-      setState([...state, profile]);
-      return profile;
     },
-    []
+    [invalidate]
   );
 
-  const updateProfile = useCallback((id: string, patch: Partial<AccessProfile>) => {
-    setState(state.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-  }, []);
+  const updateProfile = useCallback(
+    async (id: string, patch: Partial<AccessProfile>) => {
+      const { error } = await supabase
+        .from("access_profiles")
+        .update({
+          ...(patch.name !== undefined && { name: patch.name }),
+          ...(patch.description !== undefined && {
+            description: patch.description,
+          }),
+          ...(patch.permissions !== undefined && {
+            permissions: patch.permissions,
+          }),
+        })
+        .eq("id", id);
+      if (error) throw error;
+      invalidate();
+    },
+    [invalidate]
+  );
 
-  const deleteProfile = useCallback((id: string) => {
-    setState(state.filter((p) => p.id !== id));
-  }, []);
+  const deleteProfile = useCallback(
+    async (id: string) => {
+      const { error } = await supabase
+        .from("access_profiles")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      invalidate();
+    },
+    [invalidate]
+  );
 
   return {
     systemProfiles: SYSTEM_PROFILES,
     customProfiles,
+    loading: isLoading,
     createProfile,
     updateProfile,
     deleteProfile,

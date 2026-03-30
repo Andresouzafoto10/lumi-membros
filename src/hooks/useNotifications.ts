@@ -1,54 +1,36 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { AppNotification } from "@/types/student";
-import { mockNotifications } from "@/data/mock-notifications";
 
-// ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
-// ---------------------------------------------------------------------------
+const QK = ["notifications"] as const;
 
-const STORAGE_KEY = "lumi-membros:notifications";
-
-let state: AppNotification[] = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): AppNotification[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as AppNotification[];
-  } catch {
-    // ignore
-  }
-  return [...mockNotifications];
+function mapRow(n: Record<string, unknown>): AppNotification {
+  return {
+    id: n.id as string,
+    recipientId: n.recipient_id as string,
+    type: n.type as AppNotification["type"],
+    actorId: n.actor_id as string | null,
+    targetId: n.target_id as string,
+    targetType: n.target_type as AppNotification["targetType"],
+    message: n.message as string,
+    read: n.read as boolean,
+    createdAt: n.created_at as string,
+  };
 }
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
+async function fetchNotifications(): Promise<AppNotification[]> {
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []).map(mapRow);
 }
 
-function setState(next: AppNotification[]) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-// ---------------------------------------------------------------------------
-// Direct state mutator — can be called from other stores (non-hook)
-// ---------------------------------------------------------------------------
-
-export function addNotification(data: {
+// Direct mutator — kept for compat with hooks that call addNotification()
+export async function addNotification(data: {
   type: AppNotification["type"];
   recipientId: string;
   actorId: string | null;
@@ -56,28 +38,29 @@ export function addNotification(data: {
   targetType: AppNotification["targetType"];
   message: string;
 }) {
-  const notification: AppNotification = {
-    id: crypto.randomUUID(),
+  await supabase.from("notifications").insert({
+    recipient_id: data.recipientId,
     type: data.type,
-    recipientId: data.recipientId,
-    actorId: data.actorId,
-    targetId: data.targetId,
-    targetType: data.targetType,
+    actor_id: data.actorId,
+    target_id: data.targetId,
+    target_type: data.targetType,
     message: data.message,
     read: false,
-    createdAt: new Date().toISOString(),
-  };
-  state = [notification, ...state];
-  persist();
-  listeners.forEach((fn) => fn());
+  });
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
 export function useNotifications() {
-  const notifications = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
+
+  const { data: notifications = [], isLoading } = useQuery({
+    queryKey: QK,
+    queryFn: fetchNotifications,
+    staleTime: 1000 * 30,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }, [queryClient]);
 
   const getNotificationsForUser = useCallback(
     (recipientId: string) =>
@@ -89,9 +72,8 @@ export function useNotifications() {
 
   const unreadCount = useCallback(
     (recipientId: string) =>
-      notifications.filter(
-        (n) => n.recipientId === recipientId && !n.read
-      ).length,
+      notifications.filter((n) => n.recipientId === recipientId && !n.read)
+        .length,
     [notifications]
   );
 
@@ -105,24 +87,32 @@ export function useNotifications() {
     return map;
   }, [notifications]);
 
-  const markAsRead = useCallback((notificationId: string) => {
-    setState(
-      state.map((n) =>
-        n.id === notificationId ? { ...n, read: true } : n
-      )
-    );
-  }, []);
+  const markAsRead = useCallback(
+    async (notificationId: string) => {
+      await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("id", notificationId);
+      invalidate();
+    },
+    [invalidate]
+  );
 
-  const markAllAsRead = useCallback((recipientId: string) => {
-    setState(
-      state.map((n) =>
-        n.recipientId === recipientId && !n.read ? { ...n, read: true } : n
-      )
-    );
-  }, []);
+  const markAllAsRead = useCallback(
+    async (recipientId: string) => {
+      await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("recipient_id", recipientId)
+        .eq("read", false);
+      invalidate();
+    },
+    [invalidate]
+  );
 
   return {
     notifications,
+    loading: isLoading,
     getNotificationsForUser,
     unreadCount,
     unreadCountMemo,

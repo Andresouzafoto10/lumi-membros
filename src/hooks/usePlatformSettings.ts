@@ -1,9 +1,7 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { PlatformSettings, ThemeColors } from "@/types/student";
-
-// ---------------------------------------------------------------------------
-// Defaults
-// ---------------------------------------------------------------------------
 
 const DEFAULT_SETTINGS: PlatformSettings = {
   name: "Lumi Membros",
@@ -29,82 +27,104 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
-// ---------------------------------------------------------------------------
+const QK = ["platform-settings"] as const;
 
-const STORAGE_KEY = "lumi-membros:platform-settings";
-
-let state: PlatformSettings = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): PlatformSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as PlatformSettings) };
-  } catch {
-    // ignore
-  }
-  return { ...DEFAULT_SETTINGS };
+async function fetchSettings(): Promise<PlatformSettings> {
+  const { data, error } = await supabase
+    .from("platform_settings")
+    .select("*")
+    .eq("id", "default")
+    .single();
+  if (error || !data) return { ...DEFAULT_SETTINGS };
+  return {
+    name: (data.name as string) ?? DEFAULT_SETTINGS.name,
+    logoUrl: (data.logo_url as string) ?? "",
+    defaultTheme: (data.default_theme as "dark" | "light") ?? "dark",
+    ratingsEnabled: (data.ratings_enabled as boolean) ?? true,
+    certificateBackgroundUrl: (data.certificate_background_url as string) ?? "",
+    certificateDefaultText:
+      (data.certificate_default_text as string) ??
+      DEFAULT_SETTINGS.certificateDefaultText,
+    theme: (data.theme as PlatformSettings["theme"]) ?? DEFAULT_SETTINGS.theme,
+  };
 }
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
-}
-
-function setState(next: PlatformSettings) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function usePlatformSettings() {
-  const settings = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
+
+  const { data: settings = DEFAULT_SETTINGS, isLoading } = useQuery({
+    queryKey: QK,
+    queryFn: fetchSettings,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }, [queryClient]);
 
   const updateSettings = useCallback(
-    (patch: Partial<Omit<PlatformSettings, "theme">>) => {
-      setState({ ...state, ...patch });
+    async (patch: Partial<Omit<PlatformSettings, "theme">>) => {
+      const { error } = await supabase
+        .from("platform_settings")
+        .update({
+          ...(patch.name !== undefined && { name: patch.name }),
+          ...(patch.logoUrl !== undefined && { logo_url: patch.logoUrl }),
+          ...(patch.defaultTheme !== undefined && {
+            default_theme: patch.defaultTheme,
+          }),
+          ...(patch.ratingsEnabled !== undefined && {
+            ratings_enabled: patch.ratingsEnabled,
+          }),
+          ...(patch.certificateBackgroundUrl !== undefined && {
+            certificate_background_url: patch.certificateBackgroundUrl,
+          }),
+          ...(patch.certificateDefaultText !== undefined && {
+            certificate_default_text: patch.certificateDefaultText,
+          }),
+        })
+        .eq("id", "default");
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [invalidate]
   );
 
   const updateThemeColors = useCallback(
-    (mode: "dark" | "light", colors: Partial<ThemeColors>) => {
-      setState({
-        ...state,
-        theme: {
-          ...state.theme,
-          [mode]: { ...state.theme[mode], ...colors },
-        },
-      });
+    async (mode: "dark" | "light", colors: Partial<ThemeColors>) => {
+      const newTheme = {
+        ...settings.theme,
+        [mode]: { ...settings.theme[mode], ...colors },
+      };
+      const { error } = await supabase
+        .from("platform_settings")
+        .update({ theme: newTheme })
+        .eq("id", "default");
+      if (error) throw error;
+      invalidate();
     },
-    []
+    [settings, invalidate]
   );
 
-  const resetSettings = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setState({ ...DEFAULT_SETTINGS });
-  }, []);
+  const resetSettings = useCallback(async () => {
+    const { error } = await supabase
+      .from("platform_settings")
+      .update({
+        name: DEFAULT_SETTINGS.name,
+        logo_url: DEFAULT_SETTINGS.logoUrl,
+        default_theme: DEFAULT_SETTINGS.defaultTheme,
+        ratings_enabled: DEFAULT_SETTINGS.ratingsEnabled,
+        certificate_background_url: DEFAULT_SETTINGS.certificateBackgroundUrl,
+        certificate_default_text: DEFAULT_SETTINGS.certificateDefaultText,
+        theme: DEFAULT_SETTINGS.theme,
+      })
+      .eq("id", "default");
+    if (error) throw error;
+    invalidate();
+  }, [invalidate]);
 
   return {
     settings,
+    loading: isLoading,
     updateSettings,
     updateThemeColors,
     resetSettings,
