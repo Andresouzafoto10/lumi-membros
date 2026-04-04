@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { notifyStudentRestricted } from "@/lib/notificationTriggers";
 import type { StudentRestriction } from "@/types/student";
 
 const QK = ["restrictions"] as const;
@@ -94,6 +95,8 @@ export function useRestrictions() {
         .single();
       if (error) throw error;
       invalidate();
+      // Notify the restricted student
+      notifyStudentRestricted(data.studentId, data.reason).catch(() => {});
       return row.id as string;
     },
     [invalidate]

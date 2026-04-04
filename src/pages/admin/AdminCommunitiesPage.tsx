@@ -21,6 +21,7 @@ import { useCommunities } from "@/hooks/useCommunities";
 import { useClasses } from "@/hooks/useClasses";
 import { usePosts } from "@/hooks/usePosts";
 import { useSidebarConfig } from "@/hooks/useSidebarConfig";
+import { isCommunityPublic } from "@/types/student";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -181,12 +182,24 @@ function CommunityListTab() {
                     <CardTitle className="text-base leading-snug">
                       {comm.name}
                     </CardTitle>
-                    <Badge
-                      variant={comm.status === "active" ? "default" : "secondary"}
-                      className="shrink-0"
-                    >
-                      {comm.status === "active" ? "Ativa" : "Inativa"}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge
+                        variant={comm.status === "active" ? "default" : "secondary"}
+                      >
+                        {comm.status === "active" ? "Ativa" : "Inativa"}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px]",
+                          isCommunityPublic(comm)
+                            ? "border-emerald-500/30 text-emerald-600"
+                            : "border-amber-500/30 text-amber-600"
+                        )}
+                      >
+                        {isCommunityPublic(comm) ? "Publica" : "Restrita"}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">

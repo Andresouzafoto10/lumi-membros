@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { StudentProfile } from "@/types/student";
+import { onProfileComplete } from "@/lib/gamificationEngine";
+import type { StudentProfile, StudentRole } from "@/types/student";
 
 const QK = ["profiles"] as const;
 
@@ -16,9 +17,11 @@ function mapRow(p: Record<string, unknown>): StudentProfile {
     bio: (p.bio as string) ?? "",
     link: (p.link as string) ?? "",
     location: (p.location as string) ?? "",
+    cpf: (p.cpf as string) ?? "",
     createdAt: p.created_at as string,
     followers: (p.followers as string[]) ?? [],
     following: (p.following as string[]) ?? [],
+    role: ((p.role as string) ?? "student") as StudentRole,
   };
 }
 
@@ -79,6 +82,7 @@ export function useProfiles() {
           | "bio"
           | "link"
           | "location"
+          | "cpf"
         >
       >
     ) => {
@@ -92,12 +96,28 @@ export function useProfiles() {
           ...(patch.bio !== undefined && { bio: patch.bio }),
           ...(patch.link !== undefined && { link: patch.link }),
           ...(patch.location !== undefined && { location: patch.location }),
+          ...(patch.cpf !== undefined && { cpf: patch.cpf }),
         })
         .eq("id", profileId);
       if (error) throw error;
       invalidate();
+
+      // Check if profile is now complete → award points
+      const existing = profiles.find((p) => p.id === profileId);
+      if (existing) {
+        const merged = { ...existing, ...patch };
+        const isComplete = !!(
+          merged.displayName?.trim() &&
+          merged.bio?.trim() &&
+          merged.avatarUrl?.trim() &&
+          merged.username?.trim()
+        );
+        if (isComplete) {
+          onProfileComplete(profileId).catch(() => {});
+        }
+      }
     },
-    [invalidate]
+    [invalidate, profiles]
   );
 
   const follow = useCallback(

@@ -305,15 +305,15 @@ Impacto | Esforço | Risco | Dependência
 | 🟨 GAMMA | QA + DOCS | Feature entregue, bug reportado |
 | 🟥 DELTA | CEO + DEV + QA | Emergência, plataforma caiu |
 
-### Skills Mapeadas por Agente
+### Skills e Ferramentas por Agente (Atualizado 2026-03-31)
 
-- **CEO:** `/standup-notes`, `/incident-response`, `/feature-development`, `/launch-strategy`, `/pricing-strategy`
-- **RESEARCH:** `/seo-audit`, `/web-perf`, `/competitor-alternatives`, `/content-strategy`, `/site-architecture`
-- **DESIGN:** `/frontend-design`, `/ui-ux-pro-max`, `/accessibility-audit`, `/page-cro`, `/onboarding-cro`
-- **DEV:** `/supabase-postgres-best-practices`, `/stripe-best-practices`, `/pdf`, `/cloudflare`, `/smart-fix`, `/tdd-cycle`, `/security-scan`
-- **SKILL:** `/skill-creator`, `/find-skills`, `/prompt-optimize`, `/code-explain`
-- **QA:** `/accessibility-audit`, `/web-perf`, `/security-scan`, `/full-review`, `/multi-agent-review`, `/test-harness`
-- **DOCS:** `/doc-generate`, `/pdf`, `/standup-notes`, `/pr-enhance`, `/git-workflow`, `/context-save`
+- **CEO:** `superpowers:brainstorming`, `superpowers:writing-plans`, `superpowers:executing-plans`, `superpowers:dispatching-parallel-agents`, `feature-dev:feature-dev`, `task-management`, `memory-management`
+- **RESEARCH:** `superpowers:brainstorming`, **Playwright MCP** (browser navigation), **Context7 MCP** (docs lookup)
+- **DESIGN:** `frontend-design`, `theme-factory`, `superpowers:brainstorming`, **Playwright MCP** (screenshots)
+- **DEV:** `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:writing-plans`, `superpowers:verification-before-completion`, `superpowers:using-git-worktrees`, `feature-dev:feature-dev`, `claude-api`, `pdf`, **Supabase MCP**, **Cloudflare MCP**, **Vercel MCP**, **Context7 MCP**
+- **SKILL:** `skill-creator`, `skill-development`, `claude-automation-recommender`, **Context7 MCP**
+- **QA:** `superpowers:verification-before-completion`, `superpowers:systematic-debugging`, `code-review:code-review`, `superpowers:requesting-code-review`, **Playwright MCP**, **Supabase MCP**, **Vercel MCP**
+- **DOCS:** `claude-md-management:revise-claude-md`, `claude-md-management:claude-md-improver`, `task-management`, `memory-management`, `pdf`
 
 ### Regras do Ecossistema
 

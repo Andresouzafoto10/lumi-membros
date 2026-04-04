@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 import {
   Heart,
   MessageCircle,
@@ -11,6 +12,8 @@ import {
   Flag,
   Pin,
   Trophy,
+  FileText,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -22,9 +25,11 @@ import { useProfiles } from "@/hooks/useProfiles";
 import { usePosts } from "@/hooks/usePosts";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useGamification } from "@/hooks/useGamification";
+import { useGamificationConfig } from "@/hooks/useGamificationConfig";
+import { getMemberBadges } from "@/lib/roleBadges";
+import { LevelBadge } from "@/components/gamification/LevelBadge";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,93 +41,88 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ImageLightbox } from "@/components/community/ImageLightbox";
+import { CreatePostDialog } from "@/components/community/CreatePostDialog";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Markdown-light renderer
+// Markdown preprocessor: convert @mentions and #hashtags to markdown links
 // ---------------------------------------------------------------------------
-function renderBody(
+function preprocessBody(
   body: string,
-  profiles: ReturnType<typeof useProfiles>["profiles"]
-) {
-  const parts: (string | JSX.Element)[] = [];
-  const regex =
-    /(\*\*(.+?)\*\*|\*(.+?)\*|\[(.+?)\]\((.+?)\)|#([\w-]+)|@([\w.]+))/g;
+  profiles: { username: string; studentId: string }[]
+): string {
+  let processed = body;
 
-  let lastIndex = 0;
-  let key = 0;
-
-  for (const m of body.matchAll(regex)) {
-    if (m.index !== undefined && m.index > lastIndex) {
-      parts.push(body.slice(lastIndex, m.index));
+  // Convert @mentions to markdown links
+  processed = processed.replace(
+    /(^|\s)@([\w.]+)/gm,
+    (_match, prefix: string, username: string) => {
+      const profile = profiles.find(
+        (p) => p.username === username.toLowerCase()
+      );
+      if (profile) {
+        return `${prefix}[@${username}](/perfil/${profile.studentId})`;
+      }
+      return `${prefix}@${username}`;
     }
+  );
 
-    if (m[2]) {
-      parts.push(
-        <strong key={key++} className="font-semibold">
-          {m[2]}
-        </strong>
-      );
-    } else if (m[3]) {
-      parts.push(
-        <em key={key++} className="italic">
-          {m[3]}
-        </em>
-      );
-    } else if (m[4] && m[5]) {
-      parts.push(
-        <a
-          key={key++}
-          href={m[5]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline"
-        >
-          {m[4]}
-        </a>
-      );
-    } else if (m[6]) {
-      parts.push(
-        <Link
-          key={key++}
-          to={`/comunidade/feed?tag=${m[6]}`}
-          className="text-primary hover:underline font-medium"
-        >
-          #{m[6]}
+  // Convert #hashtags to links (#word with no space after # = hashtag, not heading)
+  processed = processed.replace(
+    /(^|\s)#([\w-]+)/gm,
+    "$1[#$2](/comunidade/feed?tag=$2)"
+  );
+
+  // Single newlines → markdown hard breaks (two trailing spaces)
+  processed = processed.replace(/([^\n])\n(?!\n)/g, "$1  \n");
+
+  return processed;
+}
+
+// Markdown components: internal links use React Router <Link>
+const mdComponents = {
+  a: ({
+    href,
+    children,
+  }: {
+    href?: string;
+    children?: React.ReactNode;
+  }) => {
+    if (href?.startsWith("/")) {
+      return (
+        <Link to={href} className="text-primary hover:underline font-medium">
+          {children}
         </Link>
       );
-    } else if (m[7]) {
-      const mentioned = profiles.find(
-        (p) => p.username === m[7]!.toLowerCase()
-      );
-      if (mentioned) {
-        parts.push(
-          <Link
-            key={key++}
-            to={`/perfil/${mentioned.studentId}`}
-            className="text-primary hover:underline font-medium"
-          >
-            @{m[7]}
-          </Link>
-        );
-      } else {
-        parts.push(
-          <span key={key++} className="text-primary font-medium">
-            @{m[7]}
-          </span>
-        );
-      }
     }
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline"
+      >
+        {children}
+      </a>
+    );
+  },
+};
 
-    lastIndex = (m.index ?? 0) + m[0].length;
-  }
-
-  if (lastIndex < body.length) {
-    parts.push(body.slice(lastIndex));
-  }
-
-  return parts;
-}
+// Prose class string for post body rendering
+const PROSE_CLASSES = [
+  "prose prose-sm dark:prose-invert max-w-none",
+  "prose-headings:font-bold prose-headings:text-foreground prose-headings:mt-3 prose-headings:mb-1",
+  "prose-h1:text-xl prose-h2:text-lg prose-h3:text-base",
+  "prose-p:text-foreground/90 prose-p:my-1 prose-p:leading-relaxed",
+  "prose-strong:text-foreground",
+  "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono prose-code:before:content-none prose-code:after:content-none",
+  "prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-3 prose-pre:my-2",
+  "prose-blockquote:border-l-2 prose-blockquote:border-primary/50 prose-blockquote:pl-4 prose-blockquote:text-muted-foreground prose-blockquote:italic prose-blockquote:my-2",
+  "prose-ul:list-disc prose-ul:pl-5 prose-ul:my-1",
+  "prose-ol:list-decimal prose-ol:pl-5 prose-ol:my-1",
+  "prose-li:my-0.5 prose-li:text-foreground/90",
+  "prose-hr:border-border/40 prose-hr:my-3",
+].join(" ");
 
 // ---------------------------------------------------------------------------
 // Image Grid — smart layout based on count + lightbox
@@ -212,6 +212,85 @@ function ImageGrid({ images }: { images: string[] }) {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ---------------------------------------------------------------------------
+// Poll display with voting
+// ---------------------------------------------------------------------------
+function PostPollDisplay({
+  poll,
+  postId,
+  currentUserId,
+  onVote,
+}: {
+  poll: NonNullable<import("@/types/student").CommunityPost["poll"]>;
+  postId: string;
+  currentUserId: string;
+  onVote: (postId: string, optionId: string, userId: string) => void;
+}) {
+  const totalVotes = poll.options.reduce((sum, o) => sum + o.votedBy.length, 0);
+  const hasVoted = poll.options.some((o) => o.votedBy.includes(currentUserId));
+  const expired = new Date(poll.endsAt) < new Date();
+
+  return (
+    <div className="mt-3 pl-[52px]">
+      <p className="font-semibold text-sm mb-2.5">{poll.question}</p>
+      <div className="space-y-2">
+        {poll.options.map((option) => {
+          const votes = option.votedBy.length;
+          const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+          const isMyVote = option.votedBy.includes(currentUserId);
+
+          if (hasVoted || expired) {
+            return (
+              <div
+                key={option.id}
+                className="relative rounded-lg overflow-hidden border border-border/30"
+              >
+                <div
+                  className={cn(
+                    "absolute inset-y-0 left-0 rounded-lg transition-all duration-500",
+                    isMyVote ? "bg-primary/20" : "bg-muted/50"
+                  )}
+                  style={{ width: `${pct}%` }}
+                />
+                <div className="relative px-3 py-2 flex items-center justify-between text-sm">
+                  <span className={cn("flex items-center gap-1.5", isMyVote && "font-medium")}>
+                    {option.text}
+                    {isMyVote && <Check className="h-3.5 w-3.5 text-primary" />}
+                  </span>
+                  <span className="font-medium text-muted-foreground text-xs">{pct}%</span>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={option.id}
+              className="w-full rounded-lg border border-border/40 px-3 py-2 text-sm text-left hover:border-primary/40 hover:bg-primary/5 transition-colors active:scale-[0.99]"
+              onClick={() => onVote(postId, option.id, currentUserId)}
+            >
+              {option.text}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-xs text-muted-foreground/60 mt-2">
+        {totalVotes} {totalVotes === 1 ? "voto" : "votos"}
+        {expired && " · Encerrada"}
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PostCard
 // ---------------------------------------------------------------------------
 export function PostCard({
@@ -227,17 +306,26 @@ export function PostCard({
 }) {
   const { currentUserId } = useCurrentUser();
   const { profiles, findProfile } = useProfiles();
-  const { toggleLike, toggleSave, deletePost } = usePosts();
+  const { toggleLike, toggleSave, deletePost, votePoll } = usePosts();
   const { findCommunity } = useCommunities();
-  const { getPrimaryBadge } = useGamification();
+  const { getPlayerData, getPlayerMissions } = useGamification();
+  const { getLevelForPoints } = useGamificationConfig();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [likeAnimating, setLikeAnimating] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const author = findProfile(post.authorId);
   const community = findCommunity(post.communityId);
-  const primaryBadge = getPrimaryBadge(post.authorId);
+  const playerData = getPlayerData(post.authorId);
+  const completedMissions = getPlayerMissions(post.authorId);
+  const memberBadges = getMemberBadges(
+    author?.role,
+    undefined,
+    playerData.points,
+    completedMissions.length
+  );
   const isOwn = post.authorId === currentUserId;
   const liked = post.likedBy.includes(currentUserId);
   const saved = post.savedBy.includes(currentUserId);
@@ -282,9 +370,11 @@ export function PostCard({
               <Trophy className="h-5 w-5 text-amber-500" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {renderBody(post.body, profiles)}
-              </p>
+              <div className="text-sm leading-relaxed [&_p]:inline">
+                <ReactMarkdown components={mdComponents}>
+                  {preprocessBody(post.body, profiles)}
+                </ReactMarkdown>
+              </div>
               <span className="text-xs text-muted-foreground/70">
                 {formatDistanceToNow(new Date(post.createdAt), {
                   addSuffix: true,
@@ -345,14 +435,32 @@ export function PostCard({
               <span className="text-xs text-muted-foreground/70">
                 @{author?.username ?? "unknown"}
               </span>
-              {primaryBadge && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] py-0 px-1.5 h-4 border-primary/30 text-primary/80"
+              {memberBadges.slice(0, 2).map((badge) => (
+                <span
+                  key={badge.label}
+                  className={cn(
+                    "inline-flex items-center gap-0.5 rounded-full text-[10px] px-2 py-0.5 border font-medium",
+                    badge.colorClass
+                  )}
                 >
-                  {primaryBadge.name}
-                </Badge>
+                  {badge.emoji} {badge.label}
+                </span>
+              ))}
+              {memberBadges.length > 2 && (
+                <span className="text-[10px] text-muted-foreground/60 font-medium">
+                  +{memberBadges.length - 2}
+                </span>
               )}
+              {playerData.points > 0 && (() => {
+                const lvl = getLevelForPoints(playerData.points);
+                return (
+                  <LevelBadge
+                    iconName={lvl.iconName}
+                    iconColor={lvl.iconColor}
+                    levelName={lvl.name}
+                  />
+                );
+              })()}
             </div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 mt-0.5">
               <span>
@@ -361,6 +469,9 @@ export function PostCard({
                   locale: ptBR,
                 })}
               </span>
+              {post.updatedAt !== post.createdAt && (
+                <span className="text-muted-foreground/50">(editado)</span>
+              )}
               {showCommunity && community && (
                 <>
                   <span>·</span>
@@ -398,7 +509,7 @@ export function PostCard({
                         className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm hover:bg-accent transition-colors"
                         onClick={() => {
                           setMenuOpen(false);
-                          toast.info("Edição de post em breve.");
+                          setEditOpen(true);
                         }}
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -442,14 +553,46 @@ export function PostCard({
         )}
 
         {/* Body */}
-        <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap pl-[52px]">
-          {renderBody(post.body, profiles)}
+        <div className={cn("mt-2 pl-[52px]", PROSE_CLASSES)}>
+          <ReactMarkdown components={mdComponents}>
+            {preprocessBody(post.body, profiles)}
+          </ReactMarkdown>
         </div>
 
         {/* Images */}
         <div className="pl-[52px]">
           <ImageGrid images={post.images} />
         </div>
+
+        {/* Attachments */}
+        {post.attachments && post.attachments.length > 0 && (
+          <div className="mt-3 pl-[52px] space-y-1.5">
+            {post.attachments.map((att, i) => (
+              <a
+                key={i}
+                href={att.dataUrl}
+                download={att.name}
+                className="flex items-center gap-2 rounded-lg border border-border/30 px-3 py-2 hover:bg-accent/50 transition-colors group/att"
+              >
+                <FileText className="h-4 w-4 text-muted-foreground group-hover/att:text-primary shrink-0" />
+                <span className="text-sm truncate">{att.name}</span>
+                <span className="text-xs text-muted-foreground/60 shrink-0 ml-auto">
+                  {formatFileSize(att.size)}
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* Poll */}
+        {post.poll && (
+          <PostPollDisplay
+            poll={post.poll}
+            postId={post.id}
+            currentUserId={currentUserId}
+            onVote={votePoll}
+          />
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-1 mt-3 pl-[40px]">
@@ -539,6 +682,24 @@ export function PostCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit dialog */}
+      {isOwn && (
+        <CreatePostDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          mode="edit"
+          editPost={{
+            id: post.id,
+            title: post.title,
+            body: post.body,
+            images: post.images,
+            attachments: post.attachments ?? [],
+            poll: post.poll ?? null,
+            communityId: post.communityId,
+          }}
+        />
+      )}
     </div>
   );
 }

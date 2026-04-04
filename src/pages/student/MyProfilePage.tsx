@@ -28,9 +28,14 @@ import { useClasses } from "@/hooks/useClasses";
 import { useCourses } from "@/hooks/useCourses";
 import { usePosts } from "@/hooks/usePosts";
 import { useGamification } from "@/hooks/useGamification";
+import { useGamificationConfig } from "@/hooks/useGamificationConfig";
+import { useUpload } from "@/hooks/useUpload";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useCertificates } from "@/hooks/useCertificates";
 import { CertificateCard } from "@/components/certificates/CertificateCard";
+import { GamificationRanking } from "@/components/community/GamificationRanking";
+import { LevelBadge } from "@/components/gamification/LevelBadge";
+import { GamificationGuide } from "@/components/gamification/GamificationGuide";
 import { EmptyState } from "@/components/courses/EmptyState";
 
 import { Button } from "@/components/ui/button";
@@ -100,7 +105,8 @@ export default function MyProfilePage() {
   const { findClass } = useClasses();
   const { allCourses, findCourse } = useCourses();
   const { getPostsByAuthor, getSavedPosts } = usePosts();
-  const { getPlayerData, getPlayerBadges } = useGamification();
+  const { getPlayerData, getPlayerMissions, getPlayerMissionsInProgress } = useGamification();
+  const { uploadFile, uploading: uploadingImage } = useUpload();
   const { findCommunity } = useCommunities();
   const { getEarnedCertificates } = useCertificates();
 
@@ -119,8 +125,10 @@ export default function MyProfilePage() {
     bio: "",
     link: "",
     location: "",
+    cpf: "",
   });
 
+  const [guideOpen, setGuideOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const [pwForm, setPwForm] = useState({ newPassword: "", confirm: "" });
   const [pwShow, setPwShow] = useState(false);
@@ -130,8 +138,15 @@ export default function MyProfilePage() {
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   // Gamification
+  const { getLevelForPoints, levels } = useGamificationConfig();
   const playerData = getPlayerData(currentUserId);
-  const playerBadges = getPlayerBadges(currentUserId);
+  const completedMissions = getPlayerMissions(currentUserId);
+  const inProgressMissions = getPlayerMissionsInProgress(currentUserId);
+  const currentLevel = getLevelForPoints(playerData.points);
+  const nextLevel = useMemo(() => {
+    const sorted = [...levels].sort((a, b) => a.pointsRequired - b.pointsRequired);
+    return sorted.find((l) => l.pointsRequired > playerData.points) ?? null;
+  }, [levels, playerData.points]);
 
   // Posts
   const myPosts = useMemo(
@@ -174,6 +189,7 @@ export default function MyProfilePage() {
       bio: profile.bio,
       link: profile.link,
       location: profile.location,
+      cpf: profile.cpf,
     });
     setEditOpen(true);
   }
@@ -213,26 +229,32 @@ export default function MyProfilePage() {
       bio: editForm.bio.slice(0, 160),
       link: editForm.link.trim(),
       location: editForm.location.trim(),
+      cpf: editForm.cpf.replace(/\D/g, "").slice(0, 11),
     });
     setEditOpen(false);
     toast.success("Perfil atualizado!");
   }
 
-  function handleImageUpload(
+  async function handleImageUpload(
     e: React.ChangeEvent<HTMLInputElement>,
     type: "avatarUrl" | "coverUrl"
   ) {
     const file = e.target.files?.[0];
     if (!file || !profile) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      updateProfile(profile.id, { [type]: base64 });
+    const bucket = type === "avatarUrl" ? "avatars" : "covers";
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${profile.id}/${Date.now()}.${ext}`;
+    const result = await uploadFile(file, {
+      bucket,
+      path,
+      maxSizeBytes: type === "avatarUrl" ? 2 * 1024 * 1024 : 5 * 1024 * 1024,
+    });
+    if (result) {
+      updateProfile(profile.id, { [type]: result.url });
       toast.success(
         type === "avatarUrl" ? "Avatar atualizado!" : "Capa atualizada!"
       );
-    };
-    reader.readAsDataURL(file);
+    }
     e.target.value = "";
   }
 
@@ -312,9 +334,9 @@ export default function MyProfilePage() {
               <h1 className="text-xl font-bold leading-tight tracking-[-0.02em] sm:truncate">
                 {profile.displayName}
               </h1>
-              {playerBadges.length > 0 && (
+              {completedMissions.length > 0 && (
                 <Badge variant="outline" className="text-xs shrink-0">
-                  {playerBadges[playerBadges.length - 1].name}
+                  {completedMissions[completedMissions.length - 1].name}
                 </Badge>
               )}
             </div>
@@ -391,7 +413,80 @@ export default function MyProfilePage() {
             <span className="text-muted-foreground">pontos</span>
           </span>
         </div>
+
+        {/* Level Progress Card */}
+        {currentLevel && (
+          <div className="mt-4 rounded-xl border border-border/50 bg-card/50 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <LevelBadge
+                  iconName={currentLevel.iconName}
+                  iconColor={currentLevel.iconColor}
+                  levelName={currentLevel.name}
+                  size="md"
+                />
+                <span className="text-sm text-muted-foreground">
+                  Nivel {currentLevel.levelNumber}
+                </span>
+              </div>
+              {nextLevel && (
+                <span className="text-xs text-muted-foreground">
+                  {nextLevel.pointsRequired - playerData.points} pts para{" "}
+                  <span style={{ color: nextLevel.iconColor }} className="font-medium">
+                    {nextLevel.iconName} {nextLevel.name}
+                  </span>
+                </span>
+              )}
+            </div>
+            {nextLevel && (
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      ((playerData.points - currentLevel.pointsRequired) /
+                        (nextLevel.pointsRequired - currentLevel.pointsRequired)) *
+                        100
+                    )}%`,
+                    backgroundColor: currentLevel.iconColor,
+                  }}
+                />
+              </div>
+            )}
+            {!nextLevel && (
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: "100%", backgroundColor: currentLevel.iconColor }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Guide link */}
+        <button
+          onClick={() => setGuideOpen(true)}
+          className="mt-2 text-xs text-primary/70 hover:text-primary flex items-center gap-1 transition-colors"
+        >
+          <Info className="h-3 w-3" />
+          Como ganhar pontos e subir de nivel
+        </button>
       </div>
+
+      {/* Gamification Guide Dialog */}
+      <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Guia de Gamificacao</DialogTitle>
+            <DialogDescription>
+              Veja como ganhar pontos, subir de nivel e completar missões
+            </DialogDescription>
+          </DialogHeader>
+          <GamificationGuide studentId={currentUserId} />
+        </DialogContent>
+      </Dialog>
 
       {/* Tabs */}
       <div className="mt-6 px-4 sm:px-5">
@@ -499,21 +594,63 @@ export default function MyProfilePage() {
                 </div>
               </div>
 
-              {/* Badges */}
-              {playerBadges.length > 0 && (
+              {/* Missões */}
+              {(completedMissions.length > 0 || inProgressMissions.length > 0) && (
                 <div>
-                  <h3 className="text-sm font-semibold mb-2">Conquistas</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {playerBadges.map((badge) => (
-                      <div key={badge.id} className="rounded-lg border border-border/50 bg-gradient-to-br from-primary/5 to-transparent p-3 text-center">
-                        <div className="text-2xl mb-1">{badge.icon}</div>
-                        <p className="text-xs font-semibold">{badge.name}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{badge.description}</p>
+                  <h3 className="text-sm font-semibold mb-2">Missões</h3>
+                  {/* Missões concluídas */}
+                  {completedMissions.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                      {completedMissions.map((m) => (
+                        <div key={m.id} className="p-3 rounded-lg border border-primary/20 bg-primary/5 text-center">
+                          <div className="text-2xl mb-1">{m.icon}</div>
+                          <p className="text-xs font-bold">{m.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{m.description}</p>
+                          <p className="text-[10px] text-primary mt-1">Concluída</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Missões em progresso */}
+                  {inProgressMissions.length > 0 && (
+                    <>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">Em progresso</p>
+                      <div className="space-y-0">
+                        {inProgressMissions.map((m) => (
+                          <div key={m.id} className="flex items-center gap-3 py-2 border-b border-border/10">
+                            <span className="text-xl grayscale opacity-50">{m.icon}</span>
+                            <div className="flex-1">
+                              <p className="text-xs font-medium">{m.name}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary/60 rounded-full transition-all"
+                                    style={{ width: `${Math.min(100, (m.progress / m.conditionThreshold) * 100)}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {m.progress}/{m.conditionThreshold}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  )}
                 </div>
               )}
+
+              {/* Ranking */}
+              <div>
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                  <Award className="h-4 w-4 text-amber-500" />
+                  Ranking da plataforma
+                </h3>
+                <div className="rounded-lg border border-border/50 bg-card/50 p-2">
+                  <GamificationRanking limit={5} compact />
+                </div>
+              </div>
 
               {/* Enrolled courses */}
               <div>
@@ -715,6 +852,24 @@ export default function MyProfilePage() {
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, location: e.target.value }))
                 }
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-cpf">
+                CPF{" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  (usado na protecao de materiais)
+                </span>
+              </Label>
+              <Input
+                id="edit-cpf"
+                placeholder="000.000.000-00"
+                maxLength={14}
+                value={editForm.cpf.replace(/\D/g, "").replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_, a, b, c, d) => d ? `${a}.${b}.${c}-${d}` : c ? `${a}.${b}.${c}` : b ? `${a}.${b}` : a)}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "").slice(0, 11);
+                  setEditForm((f) => ({ ...f, cpf: raw }));
+                }}
               />
             </div>
           </div>

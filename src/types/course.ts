@@ -1,3 +1,14 @@
+export interface LessonMaterial {
+  id: string;
+  lesson_id: string;
+  title: string;
+  file_path: string;
+  file_type: 'pdf' | 'zip' | 'mp3' | 'image' | 'other';
+  file_size_bytes?: number;
+  drm_enabled: boolean;
+  created_at: string;
+}
+
 export type CourseVideoType = "youtube" | "vimeo" | "embed" | "none";
 
 export type CourseLessonLink = {
@@ -51,6 +62,7 @@ export type CourseLesson = {
   quiz?: QuizQuestion[];
   quizPassingScore?: number;
   quizRequiredToAdvance?: boolean;
+  ratingsEnabled: boolean;
 };
 
 export type CourseModule = {

@@ -337,7 +337,8 @@ export function buildCourseAccessMap(
   courseId: string,
   modules: { id: string; lessons: { id: string }[] }[],
   enrollments: Enrollment[],
-  classes: Class[]
+  classes: Class[],
+  completedLessonsOverride?: Record<string, boolean>
 ): {
   enrolled: boolean;
   expired: boolean;
@@ -377,8 +378,8 @@ export function buildCourseAccessMap(
     moduleLessonMap[m.id] = m.lessons.map((l) => l.id);
   }
 
-  // Read completed lessons from localStorage for this user+course
-  const completedLessons = loadCompletedLessons(studentId, courseId);
+  // Use provided completed lessons or fall back to localStorage (legacy)
+  const completedLessons = completedLessonsOverride ?? loadCompletedLessons(studentId, courseId);
 
   const moduleAccess: Record<string, LessonAccessStatus> = {};
   const lessonAccess: Record<string, LessonAccessStatus> = {};

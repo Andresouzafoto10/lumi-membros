@@ -1,74 +1,82 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import type { QuizAttempt } from "@/types/student";
 import type { QuizQuestion } from "@/types/course";
 
-const STORAGE_KEY = "lumi-membros:quiz-attempts";
+const QK = ["quiz-attempts"] as const;
 
-let state: QuizAttempt[] = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): QuizAttempt[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as QuizAttempt[];
-  } catch {
-    // ignore
-  }
-  return [];
+function mapRow(r: Record<string, unknown>): QuizAttempt {
+  return {
+    id: r.id as string,
+    studentId: r.student_id as string,
+    lessonId: r.lesson_id as string,
+    answers: (r.answers as Record<string, string>) ?? {},
+    score: r.score as number,
+    passed: r.passed as boolean,
+    attemptedAt: r.attempted_at as string,
+  };
 }
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
-}
-
-function setState(next: QuizAttempt[]) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
+async function fetchAttempts(studentId: string): Promise<QuizAttempt[]> {
+  const { data, error } = await supabase
+    .from("quiz_attempts")
+    .select("*")
+    .eq("student_id", studentId)
+    .order("attempted_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(mapRow);
 }
 
 export function useQuizAttempts() {
-  const attempts = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: attempts = [] } = useQuery({
+    queryKey: [...QK, user?.id],
+    queryFn: () => fetchAttempts(user!.id),
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }, [queryClient]);
 
   const submitAttempt = useCallback(
-    (
+    async (
       studentId: string,
       lessonId: string,
       quiz: QuizQuestion[],
       answers: Record<string, string>,
       passingScore: number
-    ): QuizAttempt => {
+    ): Promise<QuizAttempt> => {
       let correct = 0;
       for (const q of quiz) {
         if (answers[q.id] === q.correctOptionId) correct++;
       }
-      const score = quiz.length > 0 ? Math.round((correct / quiz.length) * 100) : 0;
-      const attempt: QuizAttempt = {
-        id: crypto.randomUUID(),
-        studentId,
-        lessonId,
-        answers,
-        score,
-        passed: score >= passingScore,
-        attemptedAt: new Date().toISOString(),
-      };
-      setState([...state, attempt]);
+      const score =
+        quiz.length > 0 ? Math.round((correct / quiz.length) * 100) : 0;
+
+      const { data: row, error } = await supabase
+        .from("quiz_attempts")
+        .insert({
+          student_id: studentId,
+          lesson_id: lessonId,
+          answers,
+          score,
+          passed: score >= passingScore,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+
+      const attempt = mapRow(row as Record<string, unknown>);
+      invalidate();
       return attempt;
     },
-    []
+    [invalidate]
   );
 
   const getAttempts = useCallback(
@@ -95,7 +103,8 @@ export function useQuizAttempts() {
   const hasPassedQuiz = useCallback(
     (studentId: string, lessonId: string): boolean =>
       attempts.some(
-        (a) => a.studentId === studentId && a.lessonId === lessonId && a.passed
+        (a) =>
+          a.studentId === studentId && a.lessonId === lessonId && a.passed
       ),
     [attempts]
   );

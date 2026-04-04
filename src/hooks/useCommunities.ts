@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Community, CommunitySettings } from "@/types/student";
+import { isCommunityPublic } from "@/types/student";
 import { useAuth } from "@/contexts/AuthContext";
 
 const QK_ENROLLED = (userId: string) => ["my-class-ids", userId] as const;
@@ -73,8 +74,11 @@ export function useCommunities() {
 
   const myCommunities = useMemo(
     () =>
-      communities.filter((c) =>
-        c.classIds.some((cid) => myEnrolledClassIds.includes(cid))
+      communities.filter(
+        (c) =>
+          c.status === "active" &&
+          (isCommunityPublic(c) ||
+            c.classIds.some((cid) => myEnrolledClassIds.includes(cid)))
       ),
     [communities, myEnrolledClassIds]
   );
@@ -104,8 +108,11 @@ export function useCommunities() {
   // Sync version for components that already have enrollment class IDs
   const getCommunitiesForStudentSync = useCallback(
     (_studentId: string, enrolledClassIds: string[]): Community[] =>
-      communities.filter((c) =>
-        c.classIds.some((cid) => enrolledClassIds.includes(cid))
+      communities.filter(
+        (c) =>
+          c.status === "active" &&
+          (isCommunityPublic(c) ||
+            c.classIds.some((cid) => enrolledClassIds.includes(cid)))
       ),
     [communities]
   );

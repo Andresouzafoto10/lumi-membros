@@ -18,6 +18,8 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useComments } from "@/hooks/useComments";
 import { useRestrictions } from "@/hooks/useRestrictions";
+import { useGamification } from "@/hooks/useGamification";
+import { getMemberBadges } from "@/lib/roleBadges";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,10 +42,19 @@ function CommentItem({
   const { currentUserId } = useCurrentUser();
   const { findProfile } = useProfiles();
   const { toggleLikeComment, deleteComment } = useComments();
+  const { getPlayerData, getPlayerMissions } = useGamification();
 
   const [menuOpen, setMenuOpen] = useState(false);
 
   const author = findProfile(comment.authorId);
+  const playerData = getPlayerData(comment.authorId);
+  const completedMissions = getPlayerMissions(comment.authorId);
+  const commentBadges = getMemberBadges(
+    author?.role,
+    undefined,
+    playerData.points,
+    completedMissions.length
+  );
   const isOwn = comment.authorId === currentUserId;
   const liked = comment.likedBy.includes(currentUserId);
 
@@ -76,13 +87,24 @@ function CommentItem({
           "rounded-xl bg-muted/40 border px-3 py-2",
           isMostLiked ? "border-amber-500/30 bg-amber-500/5" : "border-border/30"
         )}>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Link
               to={`/perfil/${comment.authorId}`}
               className="text-xs font-semibold hover:underline"
             >
               {author?.displayName ?? "Anonimo"}
             </Link>
+            {commentBadges.slice(0, 2).map((badge) => (
+              <span
+                key={badge.label}
+                className={cn(
+                  "inline-flex items-center gap-0.5 rounded-full text-[9px] px-1.5 py-0 border font-medium leading-4",
+                  badge.colorClass
+                )}
+              >
+                {badge.emoji} {badge.label}
+              </span>
+            ))}
             {isMostLiked && (
               <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-500">
                 <Flame className="h-3 w-3" />

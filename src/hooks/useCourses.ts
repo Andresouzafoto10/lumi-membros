@@ -58,6 +58,7 @@ async function fetchCourseTree(): Promise<CourseSession[]> {
     quiz: (l.quiz as CourseLesson["quiz"]) ?? undefined,
     quizPassingScore: l.quiz_passing_score ?? undefined,
     quizRequiredToAdvance: l.quiz_required_to_advance,
+    ratingsEnabled: l.ratings_enabled ?? true,
   }));
 
   const modules: CourseModule[] = (modulesRes.data ?? []).map((m) => ({
@@ -550,6 +551,7 @@ export function useCourses() {
         quiz?: CourseLesson["quiz"];
         quizPassingScore?: CourseLesson["quizPassingScore"];
         quizRequiredToAdvance?: CourseLesson["quizRequiredToAdvance"];
+        ratingsEnabled?: boolean;
       }
     ) => {
       const mod = findModule(courseId, moduleId);
@@ -569,6 +571,7 @@ export function useCourses() {
         quiz: data.quiz ?? null,
         quiz_passing_score: data.quizPassingScore ?? null,
         quiz_required_to_advance: data.quizRequiredToAdvance ?? false,
+        ratings_enabled: data.ratingsEnabled ?? true,
         order: maxOrder + 1,
       });
       if (error) throw error;
@@ -599,6 +602,9 @@ export function useCourses() {
           }),
           ...(patch.quizRequiredToAdvance !== undefined && {
             quiz_required_to_advance: patch.quizRequiredToAdvance,
+          }),
+          ...(patch.ratingsEnabled !== undefined && {
+            ratings_enabled: patch.ratingsEnabled,
           }),
         })
         .eq("id", lessonId);

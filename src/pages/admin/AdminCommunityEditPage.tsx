@@ -214,6 +214,11 @@ export default function AdminCommunityEditPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Turmas com acesso</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {classIds.length === 0
+                  ? "Nenhuma turma selecionada — a comunidade sera publica (todos os alunos autenticados terao acesso)."
+                  : `${classIds.length} turma${classIds.length > 1 ? "s" : ""} selecionada${classIds.length > 1 ? "s" : ""} — acesso restrito.`}
+              </p>
             </CardHeader>
             <CardContent>
               {classes.length === 0 ? (

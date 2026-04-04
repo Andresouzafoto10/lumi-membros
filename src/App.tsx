@@ -1,10 +1,12 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import { StudentLayout } from "@/components/layout/StudentLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { CommunityLayout } from "@/components/layout/CommunityLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { applyThemeToCss } from "@/lib/applyTheme";
 
 // ---------------------------------------------------------------------------
 // Auth pages (NOT lazy — precisam ser rápidas)
@@ -28,6 +30,7 @@ const MyCertificatesPage = lazy(
 const PublicProfilePage = lazy(
   () => import("@/pages/student/PublicProfilePage")
 );
+const RankingPage = lazy(() => import("@/pages/student/RankingPage"));
 const CommunityFeedPage = lazy(
   () => import("@/pages/student/CommunityFeedPage")
 );
@@ -73,6 +76,9 @@ const AdminSettingsPage = lazy(
 const AdminAccessProfilesPage = lazy(
   () => import("@/pages/admin/AdminAccessProfilesPage")
 );
+const AdminGamificationPage = lazy(
+  () => import("@/pages/admin/AdminGamificationPage")
+);
 const AdminCommunitiesPage = lazy(
   () => import("@/pages/admin/AdminCommunitiesPage")
 );
@@ -99,12 +105,25 @@ function PageLoader() {
 }
 
 // ---------------------------------------------------------------------------
+// Theme applicator — applies custom CSS variables on settings load
+// ---------------------------------------------------------------------------
+
+function ThemeApplicator() {
+  const { settings } = usePlatformSettings();
+  useEffect(() => {
+    applyThemeToCss(settings.theme.dark, settings.theme.light);
+  }, [settings]);
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
 
 export default function App() {
   return (
     <Suspense fallback={<PageLoader />}>
+      <ThemeApplicator />
       <Routes>
         {/* Root redirect */}
         <Route path="/" element={<Navigate to="/cursos" replace />} />
@@ -128,6 +147,7 @@ export default function App() {
             path="/cursos/:courseId/aulas/:lessonId"
             element={<LessonPage />}
           />
+          <Route path="/ranking" element={<RankingPage />} />
           <Route path="/meu-perfil" element={<MyProfilePage />} />
           <Route path="/meus-certificados" element={<MyCertificatesPage />} />
           <Route path="/perfil/:id" element={<PublicProfilePage />} />
@@ -183,6 +203,7 @@ export default function App() {
             element={<AdminCommunityEditPage />}
           />
           <Route path="/admin/comentarios" element={<AdminModerationPage />} />
+          <Route path="/admin/gamificacao" element={<AdminGamificationPage />} />
           <Route path="/admin/configuracoes" element={<AdminSettingsPage />} />
           <Route
             path="/admin/configuracoes/perfis"

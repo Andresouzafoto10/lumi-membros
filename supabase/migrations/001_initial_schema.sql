@@ -69,6 +69,21 @@ create trigger on_auth_user_created
 -- RLS
 alter table public.profiles enable row level security;
 
+-- Helper function for admin check (SECURITY DEFINER bypasses RLS to avoid infinite recursion)
+create or replace function public.is_admin_user()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid()
+      and role in ('owner', 'admin', 'support')
+  );
+$$;
+
 create policy "profiles: leitura pública"
   on public.profiles for select using (true);
 
@@ -76,15 +91,11 @@ create policy "profiles: usuário edita o próprio"
   on public.profiles for update
   using (auth.uid() = id);
 
+-- NOTE: Uses is_admin_user() SECURITY DEFINER function to avoid infinite recursion
 create policy "profiles: admin gerencia todos"
   on public.profiles for all
-  using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid()
-        and p.role in ('owner','admin','support')
-    )
-  );
+  using (public.is_admin_user())
+  with check (public.is_admin_user());
 
 -- =============================================================================
 -- 2. COURSE_SESSIONS
@@ -210,6 +221,7 @@ create table if not exists public.course_lessons (
   quiz                      jsonb,
   quiz_passing_score        integer,
   quiz_required_to_advance  boolean not null default false,
+  ratings_enabled           boolean not null default true,
   created_at                timestamptz not null default now(),
   updated_at                timestamptz not null default now()
 );
@@ -405,6 +417,8 @@ create table if not exists public.community_posts (
   title           text not null default '',
   body            text not null default '',
   images          text[] not null default '{}',
+  attachments     jsonb not null default '[]'::jsonb,
+  poll            jsonb,
   hashtags        text[] not null default '{}',
   mentions        uuid[] not null default '{}',
   likes_count     integer not null default 0,
@@ -535,11 +549,12 @@ create policy "notifications: usuário marca como lida"
 -- 13. GAMIFICATION
 -- =============================================================================
 create table if not exists public.gamification (
-  id          uuid primary key default gen_random_uuid(),
-  student_id  uuid unique not null references public.profiles(id) on delete cascade,
-  points      integer not null default 0,
-  badges      text[] not null default '{}',
-  updated_at  timestamptz not null default now()
+  id            uuid primary key default gen_random_uuid(),
+  student_id    uuid unique not null references public.profiles(id) on delete cascade,
+  points        integer not null default 0,
+  current_level integer not null default 1,
+  badges        text[] not null default '{}',
+  updated_at    timestamptz not null default now()
 );
 
 create trigger gamification_updated_at
@@ -558,6 +573,201 @@ create policy "gamification: admin atualiza"
     select 1 from public.profiles p
     where p.id = auth.uid() and p.role in ('owner','admin','support')
   ));
+
+-- 13b. POINTS CONFIG (configurable point actions)
+create table if not exists public.points_config (
+  id           uuid primary key default gen_random_uuid(),
+  action_type  text unique not null,
+  action_label text not null,
+  points       integer not null default 10,
+  max_times    integer,
+  is_system    boolean not null default false,
+  created_at   timestamptz not null default now()
+);
+
+alter table public.points_config enable row level security;
+
+create policy "points_config: todos lêem"
+  on public.points_config for select
+  using (auth.uid() is not null);
+
+create policy "points_config: admin gerencia"
+  on public.points_config for all
+  using (exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role in ('owner','admin','support')
+  ));
+
+-- Seed default point actions
+insert into public.points_config (action_type, action_label, points, max_times, is_system) values
+  ('complete_lesson', 'Aula concluída', 10, null, true),
+  ('complete_course', 'Curso finalizado (100%)', 100, 1, true),
+  ('rate_lesson', 'Aula avaliada (curtida)', 5, 20, true),
+  ('lesson_notes', 'Anotação em aula', 3, 10, true),
+  ('create_post', 'Post publicado', 15, 5, true),
+  ('comment', 'Comentário feito', 5, 20, true),
+  ('like_post', 'Curtida recebida em post', 2, null, true),
+  ('like_comment', 'Curtida recebida em comentário', 1, null, true),
+  ('poll_answered', 'Enquete respondida', 5, 10, true),
+  ('daily_login', 'Acesso diário', 2, 1, true),
+  ('profile_complete', 'Perfil completo', 20, 1, true),
+  ('first_post', 'Primeiro post', 25, 1, true),
+  ('earn_certificate', 'Certificado conquistado', 50, null, true)
+on conflict (action_type) do nothing;
+
+-- 13c. POINTS LOG (transaction history)
+create table if not exists public.points_log (
+  id           uuid primary key default gen_random_uuid(),
+  student_id   uuid not null references public.profiles(id) on delete cascade,
+  action_type  text not null,
+  points       integer not null,
+  reference_id text,
+  created_at   timestamptz not null default now()
+);
+
+create index points_log_student_id_idx on public.points_log(student_id);
+create index points_log_action_type_idx on public.points_log(action_type);
+
+alter table public.points_log enable row level security;
+
+create policy "points_log: aluno lê o próprio"
+  on public.points_log for select
+  using (student_id = auth.uid());
+
+create policy "points_log: admin lê todos"
+  on public.points_log for select
+  using (exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role in ('owner','admin','support')
+  ));
+
+create policy "points_log: sistema insere"
+  on public.points_log for insert
+  with check (auth.uid() is not null);
+
+-- 13d. LEVELS (configurable level tiers)
+create table if not exists public.levels (
+  id               uuid primary key default gen_random_uuid(),
+  level_number     integer unique not null,
+  name             text not null,
+  points_required  integer not null default 0,
+  icon_type        text not null default 'emoji',
+  icon_name        text not null default '🌱',
+  icon_color       text not null default '#94a3b8',
+  created_at       timestamptz not null default now()
+);
+
+alter table public.levels enable row level security;
+
+create policy "levels: todos lêem"
+  on public.levels for select
+  using (auth.uid() is not null);
+
+create policy "levels: admin gerencia"
+  on public.levels for all
+  using (exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role in ('owner','admin','support')
+  ));
+
+-- Seed default levels
+insert into public.levels (level_number, name, points_required, icon_name, icon_color) values
+  (1, 'Iniciante',   0,     '🌱', '#94a3b8'),
+  (2, 'Aprendiz',    50,    '⚡', '#3b82f6'),
+  (3, 'Explorador',  150,   '🔥', '#f97316'),
+  (4, 'Praticante',  400,   '⭐', '#eab308'),
+  (5, 'Fotógrafo',   800,   '💎', '#8b5cf6'),
+  (6, 'Artista',     1200,  '🎨', '#ef4444'),
+  (7, 'Expert',      2000,  '👑', '#eab308'),
+  (8, 'Mestre',      4000,  '🏆', '#f97316'),
+  (9, 'Lenda',       10000, '🌟', '#00C2CB')
+on conflict (level_number) do nothing;
+
+-- 13e. MISSIONS (sistema unificado de missões — substitui achievements/badges)
+create table if not exists public.missions (
+  id                  uuid primary key default gen_random_uuid(),
+  name                text not null,
+  description         text not null default '',
+  icon                text not null default '🎯',
+  condition_type      text not null default 'action_count',
+  condition_action    text,
+  condition_threshold integer not null default 1,
+  points_reward       integer not null default 0,
+  enabled             boolean not null default true,
+  is_secret           boolean not null default false,
+  is_default          boolean not null default false,
+  sort_order          integer not null default 0,
+  created_at          timestamptz not null default now()
+);
+
+alter table public.missions enable row level security;
+
+create policy "missions: todos lêem"
+  on public.missions for select
+  using (auth.uid() is not null);
+
+create policy "missions: admin gerencia"
+  on public.missions for all
+  using (exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role in ('owner','admin','support')
+  ));
+
+-- 13f. STUDENT_MISSIONS (missões conquistadas/em progresso por aluno)
+create table if not exists public.student_missions (
+  id              uuid primary key default gen_random_uuid(),
+  mission_id      uuid not null references public.missions(id) on delete cascade,
+  student_id      uuid not null references public.profiles(id) on delete cascade,
+  progress        integer not null default 0,
+  completed       boolean not null default false,
+  completed_at    timestamptz,
+  granted_by      text not null default 'system',
+  created_at      timestamptz not null default now(),
+  unique(mission_id, student_id)
+);
+
+create index student_missions_student_idx on public.student_missions(student_id);
+
+alter table public.student_missions enable row level security;
+
+create policy "student_missions: aluno lê o próprio"
+  on public.student_missions for select
+  using (student_id = auth.uid());
+
+create policy "student_missions: admin gerencia"
+  on public.student_missions for all
+  using (exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role in ('owner','admin','support')
+  ));
+
+create policy "student_missions: sistema insere/atualiza"
+  on public.student_missions for insert
+  with check (auth.uid() is not null);
+
+-- Missões padrão
+insert into public.missions
+  (name, description, icon, condition_type, condition_action, condition_threshold, points_reward, is_default, sort_order)
+values
+  -- APRENDIZADO
+  ('Primeiro Passo',   'Concluiu a primeira aula',              '🎯', 'lesson_complete',  'complete_lesson', 1,   10,  true, 1),
+  ('Estudioso',        'Concluiu 10 aulas',                     '📚', 'lesson_complete',  'complete_lesson', 10,  25,  true, 2),
+  ('Maratonista',      'Concluiu 50 aulas',                     '🏃', 'lesson_complete',  'complete_lesson', 50,  100, true, 3),
+  ('Dedicado',         'Completou 3 cursos inteiros',           '🎓', 'course_complete',  'complete_course', 3,   150, true, 4),
+  ('Mestre do Curso',  'Completou 10 cursos inteiros',          '👑', 'course_complete',  'complete_course', 10,  500, true, 5),
+  -- COMUNIDADE
+  ('Quebra-gelo',      'Publicou o primeiro post',              '✍️', 'action_count',     'create_post',     1,   25,  true, 6),
+  ('Influencer',       'Publicou 20 posts na comunidade',       '📣', 'action_count',     'create_post',     20,  75,  true, 7),
+  ('Comentarista',     'Fez 10 comentários',                    '💬', 'action_count',     'comment',         10,  30,  true, 8),
+  ('Voz Ativa',        'Fez 50 comentários',                    '🗣️', 'action_count',     'comment',         50,  100, true, 9),
+  ('Engajado',         'Curtiu 10 posts na comunidade',         '❤️', 'action_count',     'like_post',       10,  20,  true, 10),
+  ('Popular',          'Recebeu 20 curtidas nos seus posts',    '⭐', 'action_count',     'post_liked',      20,  50,  true, 11),
+  ('Celebridade',      'Recebeu 100 curtidas nos seus posts',   '🌟', 'action_count',     'post_liked',      100, 200, true, 12),
+  -- ENGAJAMENTO
+  ('Frequente',        'Acessou a plataforma 7 dias seguidos',  '🔥', 'streak_days',      null,              7,   50,  true, 13),
+  ('Consistente',      'Acessou a plataforma 30 dias seguidos', '💎', 'streak_days',      null,              30,  200, true, 14),
+  ('Destaque',         'Acumulou 500 pontos',                   '🏅', 'points_total',     null,              500, 0,   true, 15),
+  ('Veterano',         'Acumulou 2000 pontos',                  '🏆', 'points_total',     null,              2000,0,   true, 16);
 
 -- =============================================================================
 -- 14. RESTRICTIONS
@@ -827,6 +1037,172 @@ alter table public.last_watched enable row level security;
 create policy "last_watched: aluno gerencia o próprio"
   on public.last_watched for all
   using (student_id = auth.uid());
+
+-- =============================================================================
+-- 24. LESSON_PROGRESS
+-- =============================================================================
+create table if not exists public.lesson_progress (
+  id                    uuid primary key default gen_random_uuid(),
+  student_id            uuid not null references public.profiles(id) on delete cascade,
+  lesson_id             uuid not null references public.course_lessons(id) on delete cascade,
+  course_id             uuid not null references public.courses(id) on delete cascade,
+  module_id             uuid not null references public.course_modules(id) on delete cascade,
+  completed             boolean not null default false,
+  watch_time_seconds    integer not null default 0,
+  last_position_seconds integer not null default 0,
+  completed_at          timestamptz,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now(),
+  unique (student_id, lesson_id)
+);
+
+create index lesson_progress_student_id_idx on public.lesson_progress(student_id);
+create index lesson_progress_course_id_idx on public.lesson_progress(course_id);
+
+create trigger lesson_progress_updated_at
+  before update on public.lesson_progress
+  for each row execute function public.handle_updated_at();
+
+alter table public.lesson_progress enable row level security;
+
+create policy "lesson_progress: aluno gerencia o proprio"
+  on public.lesson_progress for all
+  using (student_id = auth.uid());
+
+create policy "lesson_progress: admin le todos"
+  on public.lesson_progress for select
+  using (public.is_admin_user());
+
+-- =============================================================================
+-- 23. EMAIL NOTIFICATION LOG
+-- =============================================================================
+
+create table if not exists public.email_notification_log (
+  id              uuid default gen_random_uuid() primary key,
+  recipient_id    text not null,
+  type            text not null,
+  sent_at         timestamptz default now(),
+  status          text default 'sent',
+  metadata        jsonb
+);
+
+create index email_notification_log_recipient_idx
+  on public.email_notification_log(recipient_id);
+create index email_notification_log_type_idx
+  on public.email_notification_log(type);
+
+alter table public.email_notification_log enable row level security;
+
+create policy "email_notification_log: admin pode tudo"
+  on public.email_notification_log for all
+  using (public.is_admin_user());
+
+create policy "email_notification_log: aluno le os proprios"
+  on public.email_notification_log for select
+  using (recipient_id = auth.uid()::text);
+
+-- =============================================================================
+-- 24. ADD email_notifications TO PROFILES
+-- =============================================================================
+
+alter table public.profiles
+  add column if not exists email_notifications boolean not null default true;
+
+-- =============================================================================
+-- 25. ADD email_notifications_enabled TO PLATFORM_SETTINGS
+-- =============================================================================
+
+alter table public.platform_settings
+  add column if not exists email_notifications_enabled boolean not null default true;
+
+-- =============================================================================
+-- 26. ADD cpf TO PROFILES (para DRM Social)
+-- =============================================================================
+
+alter table public.profiles
+  add column if not exists cpf text not null default '';
+
+-- =============================================================================
+-- 27. LESSON_MATERIALS
+-- =============================================================================
+create table if not exists public.lesson_materials (
+  id              uuid primary key default gen_random_uuid(),
+  lesson_id       uuid not null references public.course_lessons(id) on delete cascade,
+  title           text not null,
+  file_path       text not null,
+  file_type       text not null default 'other'
+                    check (file_type in ('pdf','zip','mp3','image','other')),
+  file_size_bytes bigint,
+  drm_enabled     boolean not null default true,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+
+create index if not exists idx_lesson_materials_lesson_id on public.lesson_materials(lesson_id);
+
+create trigger lesson_materials_updated_at
+  before update on public.lesson_materials
+  for each row execute function public.handle_updated_at();
+
+alter table public.lesson_materials enable row level security;
+
+-- Admin gerencia todos os materiais
+create policy "lesson_materials: admin gerencia"
+  on public.lesson_materials for all
+  using (exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role in ('owner','admin','support')
+  ));
+
+-- Aluno lê materiais de aulas cujo curso pertence a uma turma em que está matriculado
+create policy "lesson_materials: aluno lê via matrícula"
+  on public.lesson_materials for select
+  using (
+    exists (
+      select 1
+      from public.course_lessons cl
+      join public.course_modules cm on cm.id = cl.module_id
+      join public.courses c on c.id = cm.course_id
+      join public.classes cls on c.id = any(cls.course_ids)
+      join public.enrollments e on e.class_id = cls.id
+      where cl.id = lesson_materials.lesson_id
+        and e.student_id = auth.uid()
+        and e.status = 'active'
+    )
+  );
+
+-- =============================================================================
+-- 28. STORAGE BUCKET: lesson-materials (privado)
+-- =============================================================================
+
+insert into storage.buckets (id, name, public)
+values ('lesson-materials', 'lesson-materials', false)
+on conflict (id) do nothing;
+
+-- Admins fazem upload
+create policy "lesson_materials_storage: admin upload"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'lesson-materials'
+    and exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role in ('owner','admin','support')
+    )
+  );
+
+-- Admins deletam
+create policy "lesson_materials_storage: admin delete"
+  on storage.objects for delete
+  using (
+    bucket_id = 'lesson-materials'
+    and exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role in ('owner','admin','support')
+    )
+  );
+
+-- Service role lê (para Edge Function download-material)
+-- Alunos NUNCA acessam o bucket diretamente — download sempre via Edge Function
 
 -- =============================================================================
 -- FIM DO SCHEMA

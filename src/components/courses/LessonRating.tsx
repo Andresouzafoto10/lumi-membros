@@ -6,13 +6,14 @@ import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 interface LessonRatingProps {
   lessonId: string;
+  ratingsEnabled?: boolean;
 }
 
-export function LessonRating({ lessonId }: LessonRatingProps) {
+export function LessonRating({ lessonId, ratingsEnabled = true }: LessonRatingProps) {
   const { settings } = usePlatformSettings();
   const { getRating, setRating } = useLessonRatings();
 
-  if (!settings.ratingsEnabled) {
+  if (!settings.ratingsEnabled || !ratingsEnabled) {
     return null;
   }
   const current = getRating(lessonId);

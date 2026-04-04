@@ -1,7 +1,9 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { CommunityPost, SystemEvent } from "@/types/student";
+import { onPostLiked, onPostCreated, onPollAnswered, onFirstPost } from "@/lib/gamificationEngine";
+import { notifyPostLiked, notifyPostApproved, notifyPostRejected, notifyMentions } from "@/lib/notificationTriggers";
+import type { CommunityPost, SystemEvent, PostAttachment, PostPoll } from "@/types/student";
 
 const QK = ["posts"] as const;
 const qkByCommunity = (id: string) => ["posts", "community", id] as const;
@@ -26,6 +28,8 @@ function mapRow(p: Record<string, unknown>): CommunityPost {
     title: p.title as string,
     body: p.body as string,
     images: (p.images as string[]) ?? [],
+    attachments: (p.attachments as PostAttachment[]) ?? [],
+    poll: p.poll ? (p.poll as PostPoll) : undefined,
     hashtags: (p.hashtags as string[]) ?? [],
     mentions: (p.mentions as string[]) ?? [],
     likesCount: p.likes_count as number,
@@ -232,12 +236,34 @@ export function usePosts() {
       title?: string;
       body: string;
       images?: string[];
+      attachments?: PostAttachment[];
+      poll?: { question: string; options: string[]; duration: string };
       requireApproval?: boolean;
       systemEvent?: SystemEvent;
       type?: CommunityPost["type"];
     }) => {
       const hashtags = extractHashtags(data.body);
       const status = data.requireApproval ? "pending" : "published";
+
+      // Build poll data if present
+      let pollData: PostPoll | null = null;
+      if (data.poll) {
+        const durationDays: Record<string, number> = { "1d": 1, "3d": 3, "7d": 7, "14d": 14 };
+        const days = durationDays[data.poll.duration] ?? 7;
+        const endsAt = new Date();
+        endsAt.setDate(endsAt.getDate() + days);
+        pollData = {
+          question: data.poll.question,
+          options: data.poll.options.map((text, i) => ({
+            id: `opt-${i}`,
+            text,
+            votedBy: [] as string[],
+          })),
+          duration: (data.poll.duration as PostPoll["duration"]) ?? "7d",
+          endsAt: endsAt.toISOString(),
+        };
+      }
+
       const { data: row, error } = await supabase
         .from("community_posts")
         .insert({
@@ -248,6 +274,8 @@ export function usePosts() {
           title: data.title ?? "",
           body: data.body,
           images: data.images ?? [],
+          attachments: data.attachments ?? [],
+          poll: pollData,
           hashtags,
           mentions: [],
           likes_count: 0,
@@ -260,6 +288,23 @@ export function usePosts() {
         .single();
       if (error) throw error;
       invalidate();
+      // Gamification + mention notifications when post is published
+      if (status === "published") {
+        onPostCreated(data.authorId).catch(() => {});
+        // Check if this is the student's first post (bonus points)
+        const authorPosts = allPosts.filter(
+          (p) => p.authorId === data.authorId && p.status === "published"
+        );
+        if (authorPosts.length === 0) {
+          onFirstPost(data.authorId, row.id as string).catch(() => {});
+        }
+        // Extract @mentions and notify
+        const mentions = data.body.match(/@([\w-]+)/g);
+        if (mentions) {
+          const usernames = mentions.map((m) => m.slice(1));
+          notifyMentions(row.id as string, data.authorId, usernames).catch(() => {});
+        }
+      }
       return row.id as string;
     },
     [invalidate]
@@ -268,19 +313,22 @@ export function usePosts() {
   const updatePost = useCallback(
     async (
       postId: string,
-      patch: Partial<Pick<CommunityPost, "title" | "body" | "images" | "status">>
+      patch: Partial<Pick<CommunityPost, "title" | "body" | "images" | "attachments" | "poll" | "status">>
     ) => {
+      const payload: Record<string, unknown> = {};
+      if (patch.title !== undefined) payload.title = patch.title;
+      if (patch.body !== undefined) {
+        payload.body = patch.body;
+        payload.hashtags = extractHashtags(patch.body);
+      }
+      if (patch.images !== undefined) payload.images = patch.images;
+      if (patch.attachments !== undefined) payload.attachments = patch.attachments;
+      if (patch.poll !== undefined) payload.poll = patch.poll ?? null;
+      if (patch.status !== undefined) payload.status = patch.status;
+
       const { error } = await supabase
         .from("community_posts")
-        .update({
-          ...(patch.title !== undefined && { title: patch.title }),
-          ...(patch.body !== undefined && {
-            body: patch.body,
-            hashtags: extractHashtags(patch.body),
-          }),
-          ...(patch.images !== undefined && { images: patch.images }),
-          ...(patch.status !== undefined && { status: patch.status }),
-        })
+        .update(payload)
         .eq("id", postId);
       if (error) throw error;
       invalidate();
@@ -317,6 +365,11 @@ export function usePosts() {
         .eq("id", postId);
       if (error) throw error;
       invalidate();
+      // Gamification + notification when liked (not unliked)
+      if (!liked && post.authorId !== userId) {
+        onPostLiked(post.authorId).catch(() => {});
+        notifyPostLiked(postId, post.authorId, userId).catch(() => {});
+      }
     },
     [findPost, invalidate]
   );
@@ -339,14 +392,52 @@ export function usePosts() {
     [findPost, invalidate]
   );
 
+  const votePoll = useCallback(
+    async (postId: string, optionId: string, userId: string) => {
+      const post = findPost(postId);
+      if (!post?.poll) return;
+      // Already voted?
+      const hasVoted = post.poll.options.some((o) => o.votedBy.includes(userId));
+      if (hasVoted) return;
+      const newPoll = {
+        ...post.poll,
+        options: post.poll.options.map((o) =>
+          o.id === optionId ? { ...o, votedBy: [...o.votedBy, userId] } : o
+        ),
+      };
+      const { error } = await supabase
+        .from("community_posts")
+        .update({ poll: newPoll })
+        .eq("id", postId);
+      if (error) throw error;
+      invalidate();
+      // Gamification: award points for answering poll
+      onPollAnswered(userId, postId).catch(() => {});
+    },
+    [findPost, invalidate]
+  );
+
   const approvePost = useCallback(
-    async (postId: string) => updatePost(postId, { status: "published" }),
-    [updatePost]
+    async (postId: string) => {
+      const post = findPost(postId);
+      await updatePost(postId, { status: "published" });
+      if (post) {
+        notifyPostApproved(postId, post.authorId).catch(() => {});
+        onPostCreated(post.authorId).catch(() => {});
+      }
+    },
+    [findPost, updatePost]
   );
 
   const rejectPost = useCallback(
-    async (postId: string) => updatePost(postId, { status: "rejected" }),
-    [updatePost]
+    async (postId: string) => {
+      const post = findPost(postId);
+      await updatePost(postId, { status: "rejected" });
+      if (post) {
+        notifyPostRejected(postId, post.authorId).catch(() => {});
+      }
+    },
+    [findPost, updatePost]
   );
 
   // Called by useComments to keep commentsCount in sync
@@ -381,6 +472,7 @@ export function usePosts() {
     deletePost,
     toggleLike,
     toggleSave,
+    votePoll,
     approvePost,
     rejectPost,
     incrementCommentsCount,

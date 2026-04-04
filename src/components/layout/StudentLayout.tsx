@@ -1,4 +1,5 @@
-import { Outlet, Link, NavLink } from "react-router-dom";
+import { useEffect } from "react";
+import { Outlet, Link, NavLink, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   Home,
@@ -7,15 +8,52 @@ import {
   Search,
   X,
   Award,
+  Trophy,
+  User,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { SearchProvider, useSearchContext } from "@/hooks/useSearchContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useProfiles } from "@/hooks/useProfiles";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { onDailyLogin, onStreak7Days, onStreak30Days } from "@/lib/gamificationEngine";
+import { recordLoginStreak } from "@/lib/streakTracker";
+
+/** Tracks daily login + streak (fires once per day per user) */
+function DailyLoginTracker() {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const today = new Date().toDateString();
+    const key = `lumi-daily-login:${user.id}`;
+    if (localStorage.getItem(key) === today) return;
+    localStorage.setItem(key, today);
+
+    // Award daily login points
+    onDailyLogin(user.id).catch(() => {});
+
+    // Check streak
+    const { awardStreak7, awardStreak30 } = recordLoginStreak(user.id);
+    if (awardStreak7) onStreak7Days(user.id).catch(() => {});
+    if (awardStreak30) onStreak30Days(user.id).catch(() => {});
+  }, [user?.id]);
+
+  return null;
+}
 
 function HeaderSearchInput() {
   const { searchQuery, setSearchQuery } = useSearchContext();
@@ -81,31 +119,85 @@ function HeaderNavLink({
 function ProfileHeaderButton() {
   const { currentUserId } = useCurrentUser();
   const { findProfile } = useProfiles();
+  const { user, signOut, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const profile = findProfile(currentUserId);
   const fallbackLetter =
     profile?.displayName?.charAt(0).toUpperCase() ??
     profile?.username?.charAt(0).toUpperCase() ??
     "U";
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
   return (
-    <Link to="/meu-perfil" aria-label="Meu perfil" className="group">
-      <div className="flex items-center gap-2 rounded-full border border-border/80 bg-background px-1.5 py-1 shadow-sm transition-all duration-200 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md">
-        <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full ring-2 ring-primary/15">
-          {profile?.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt={profile.displayName}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center bg-primary/10 text-sm font-bold text-primary">
-              {fallbackLetter}
-            </span>
-          )}
-        </div>
-        <ChevronDown className="mr-1 hidden h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground sm:block" />
-      </div>
-    </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          aria-label="Menu do perfil"
+          className="group cursor-pointer outline-none"
+        >
+          <div className="flex items-center gap-2 rounded-full border border-border/80 bg-background px-1.5 py-1 shadow-sm transition-all duration-200 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md">
+            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full ring-2 ring-primary/15">
+              {profile?.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.displayName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center bg-primary/10 text-sm font-bold text-primary">
+                  {fallbackLetter}
+                </span>
+              )}
+            </div>
+            <ChevronDown className="mr-1 hidden h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground sm:block" />
+          </div>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">
+              {user?.name ?? profile?.displayName ?? "Usuário"}
+            </p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user?.email ?? ""}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="cursor-pointer gap-2"
+          onClick={() => navigate("/meu-perfil")}
+        >
+          <User className="h-4 w-4" />
+          Meu Perfil
+        </DropdownMenuItem>
+        {isAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="cursor-pointer gap-2"
+              onClick={() => navigate("/admin")}
+            >
+              <Settings className="h-4 w-4" />
+              Painel Admin
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+          onClick={handleSignOut}
+        >
+          <LogOut className="h-4 w-4" />
+          Sair
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -113,6 +205,7 @@ function MobileBottomNav() {
   const items = [
     { to: "/cursos", label: "Inicio", icon: Home, end: true },
     { to: "/comunidade", label: "Comunidade", icon: MessageSquare, end: false },
+    { to: "/ranking", label: "Ranking", icon: Trophy, end: true },
     { to: "/meus-certificados", label: "Certificados", icon: Award, end: true },
   ];
 
@@ -145,6 +238,7 @@ function MobileBottomNav() {
 export function StudentLayout() {
   return (
     <SearchProvider>
+      <DailyLoginTracker />
       <div className="min-h-screen bg-background">
         <nav className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border/70 bg-background/95 px-6 backdrop-blur-sm">
           <div className="flex h-full items-center justify-between gap-6">
@@ -159,6 +253,7 @@ export function StudentLayout() {
               <div className="hidden items-center gap-6 md:flex">
                 <HeaderNavLink to="/cursos" label="Inicio" />
                 <HeaderNavLink to="/comunidade" label="Comunidade" />
+                <HeaderNavLink to="/ranking" label="Ranking" />
                 <HeaderNavLink to="/meus-certificados" label="Certificados" />
               </div>
             </div>
@@ -168,12 +263,6 @@ export function StudentLayout() {
               <NotificationBell />
               <ProfileHeaderButton />
               <ThemeToggle />
-              <Link to="/admin/cursos">
-                <Button variant="ghost" className="gap-2 hidden sm:flex">
-                  <Settings className="h-4 w-4" />
-                  Admin
-                </Button>
-              </Link>
             </div>
           </div>
         </nav>

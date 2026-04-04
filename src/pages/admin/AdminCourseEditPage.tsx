@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { useCourses } from "@/hooks/useCourses";
 import { useCertificates } from "@/hooks/useCertificates";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useUpload } from "@/hooks/useUpload";
 import type { CourseAccess } from "@/types/course";
 import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
 
@@ -98,6 +99,7 @@ export default function AdminCourseEditPage() {
   );
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadFile } = useUpload();
 
   // Certificate config
   const [certTemplateId, setCertTemplateId] = useState<string>(
@@ -167,17 +169,21 @@ export default function AdminCourseEditPage() {
     setTimeout(() => setSaving(false), 400);
   }
 
-  // ---------- Banner file preview ----------
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  // ---------- Banner file upload to Supabase Storage ----------
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setBannerPreview(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    if (!file || !courseId) return;
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `courses/${courseId}/${Date.now()}.${ext}`;
+    const result = await uploadFile(file, {
+      bucket: "thumbnails",
+      path,
+      maxSizeBytes: 5 * 1024 * 1024,
+    });
+    if (result) {
+      setBannerPreview(result.url);
+    }
+    e.target.value = "";
   }
 
   // ---------- Module handlers ----------

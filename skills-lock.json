@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "skills": {
+    "Plugin Settings": {
+      "source": "anthropics/claude-code",
+      "sourceType": "github",
+      "computedHash": "b4be0bf62782da83e962aa759e7d5efb1d5934b81554f1d15801fdf5e01b18a4"
+    },
+    "Skill Development": {
+      "source": "anthropics/claude-code",
+      "sourceType": "github",
+      "computedHash": "8d262f08f33825947ea20204ebf5101e36056c98090251bd973a552ec8ef0c0c"
+    },
+    "claude-api": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "4acd957088485aa114b142cf2f7f30a36f30104d690b06a53eb03dab5bf622f0"
+    },
+    "claude-automation-recommender": {
+      "source": "anthropics/claude-plugins-official",
+      "sourceType": "github",
+      "computedHash": "47e672bfcaa399d473cb33f2f298263d8554774314a71ef8761bd8d040351ceb"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+    },
+    "memory-management": {
+      "source": "anthropics/knowledge-work-plugins",
+      "sourceType": "github",
+      "computedHash": "8178769b6efe5ef38b1e0eeea682b83ff79a1e3b93acb96aa203ebcfb96d9b98"
+    },
+    "pdf": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "cfbc539377088ca7e44a813b30c306327385bbd973cd7a721e1743f60837dd62"
+    },
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "b122f4d1e91aa1d83027e050b5b37c3156203ee85458d7b1360bc48167c9e02a"
+    },
+    "superpowers": {
+      "source": "founderjourney/claude-skills",
+      "sourceType": "github",
+      "computedHash": "5732c6239dae04ef5e36d22713f338552df717f1cd1d677a9561ec967e6851eb"
+    },
+    "task-management": {
+      "source": "anthropics/knowledge-work-plugins",
+      "sourceType": "github",
+      "computedHash": "a1f9389c1f06bb9c630001875e0801eb209b08818ba217f0114bc62d149eb056"
+    },
+    "theme-factory": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "93e78aa44f8fa00bb2c0608f400de1e1dcd6494611dd8ea27c867654240c7bcd"
+    }
+  }
+}

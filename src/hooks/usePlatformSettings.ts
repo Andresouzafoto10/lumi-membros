@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   logoUrl: "",
   defaultTheme: "dark",
   ratingsEnabled: true,
+  emailNotificationsEnabled: true,
   certificateBackgroundUrl: "",
   certificateDefaultText:
     "Certificamos que {{nome}} concluiu com êxito o curso {{curso}}, com carga horária de {{horas}} horas.",
@@ -29,6 +30,31 @@ const DEFAULT_SETTINGS: PlatformSettings = {
 
 const QK = ["platform-settings"] as const;
 
+function mergeTheme(
+  raw: unknown
+): PlatformSettings["theme"] {
+  const def = DEFAULT_SETTINGS.theme;
+  if (!raw || typeof raw !== "object") return { ...def };
+  const t = raw as Record<string, unknown>;
+  const mergeSide = (
+    side: unknown,
+    fallback: ThemeColors
+  ): ThemeColors => {
+    if (!side || typeof side !== "object") return { ...fallback };
+    const s = side as Record<string, unknown>;
+    return {
+      primary: (typeof s.primary === "string" && s.primary) || fallback.primary,
+      background: (typeof s.background === "string" && s.background) || fallback.background,
+      card: (typeof s.card === "string" && s.card) || fallback.card,
+      foreground: (typeof s.foreground === "string" && s.foreground) || fallback.foreground,
+    };
+  };
+  return {
+    dark: mergeSide(t.dark, def.dark),
+    light: mergeSide(t.light, def.light),
+  };
+}
+
 async function fetchSettings(): Promise<PlatformSettings> {
   const { data, error } = await supabase
     .from("platform_settings")
@@ -41,11 +67,12 @@ async function fetchSettings(): Promise<PlatformSettings> {
     logoUrl: (data.logo_url as string) ?? "",
     defaultTheme: (data.default_theme as "dark" | "light") ?? "dark",
     ratingsEnabled: (data.ratings_enabled as boolean) ?? true,
+    emailNotificationsEnabled: (data.email_notifications_enabled as boolean) ?? true,
     certificateBackgroundUrl: (data.certificate_background_url as string) ?? "",
     certificateDefaultText:
       (data.certificate_default_text as string) ??
       DEFAULT_SETTINGS.certificateDefaultText,
-    theme: (data.theme as PlatformSettings["theme"]) ?? DEFAULT_SETTINGS.theme,
+    theme: mergeTheme(data.theme),
   };
 }
 
@@ -74,6 +101,9 @@ export function usePlatformSettings() {
           }),
           ...(patch.ratingsEnabled !== undefined && {
             ratings_enabled: patch.ratingsEnabled,
+          }),
+          ...(patch.emailNotificationsEnabled !== undefined && {
+            email_notifications_enabled: patch.emailNotificationsEnabled,
           }),
           ...(patch.certificateBackgroundUrl !== undefined && {
             certificate_background_url: patch.certificateBackgroundUrl,
@@ -113,6 +143,7 @@ export function usePlatformSettings() {
         logo_url: DEFAULT_SETTINGS.logoUrl,
         default_theme: DEFAULT_SETTINGS.defaultTheme,
         ratings_enabled: DEFAULT_SETTINGS.ratingsEnabled,
+        email_notifications_enabled: DEFAULT_SETTINGS.emailNotificationsEnabled,
         certificate_background_url: DEFAULT_SETTINGS.certificateBackgroundUrl,
         certificate_default_text: DEFAULT_SETTINGS.certificateDefaultText,
         theme: DEFAULT_SETTINGS.theme,

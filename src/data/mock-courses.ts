@@ -23,6 +23,7 @@ export const mockCourses: Course[] = [
             title: "Bem-vindo ao curso",
             order: 1,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -33,6 +34,7 @@ export const mockCourses: Course[] = [
             title: "Entendendo sua câmera",
             order: 2,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -49,6 +51,7 @@ export const mockCourses: Course[] = [
             title: "Modos de disparo",
             order: 3,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -104,6 +107,7 @@ export const mockCourses: Course[] = [
             title: "Regra dos terços",
             order: 1,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -114,6 +118,7 @@ export const mockCourses: Course[] = [
             title: "Linhas guia e simetria",
             order: 2,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -124,6 +129,7 @@ export const mockCourses: Course[] = [
             title: "Exercício prático",
             order: 3,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "none",
             videoUrl: null,
             description:
@@ -182,6 +188,7 @@ export const mockCourses: Course[] = [
             title: "Importação e organização",
             order: 1,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -192,6 +199,7 @@ export const mockCourses: Course[] = [
             title: "Painel básico de revelação",
             order: 2,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -202,6 +210,7 @@ export const mockCourses: Course[] = [
             title: "Perfis e calibração",
             order: 3,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -220,6 +229,7 @@ export const mockCourses: Course[] = [
             title: "Máscaras e ajustes locais",
             order: 1,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -230,6 +240,7 @@ export const mockCourses: Course[] = [
             title: "Criando presets profissionais",
             order: 2,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -248,6 +259,7 @@ export const mockCourses: Course[] = [
             title: "Exportação para web e impressão",
             order: 3,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -279,6 +291,7 @@ export const mockCourses: Course[] = [
             title: "Briefing com o cliente",
             order: 1,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -289,6 +302,7 @@ export const mockCourses: Course[] = [
             title: "Escolha da locação",
             order: 2,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -299,6 +313,7 @@ export const mockCourses: Course[] = [
             title: "Equipamento essencial",
             order: 3,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "none",
             videoUrl: null,
             description:
@@ -317,6 +332,7 @@ export const mockCourses: Course[] = [
             title: "Direção de modelo",
             order: 1,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -327,6 +343,7 @@ export const mockCourses: Course[] = [
             title: "Aproveitando a luz natural",
             order: 2,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:
@@ -337,6 +354,7 @@ export const mockCourses: Course[] = [
             title: "Entrega e pós-produção",
             order: 3,
             isActive: true,
+            ratingsEnabled: true,
             videoType: "youtube",
             videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             description:

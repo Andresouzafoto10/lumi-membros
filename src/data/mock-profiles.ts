@@ -14,6 +14,8 @@ export const mockProfiles: StudentProfile[] = [
     createdAt: "2025-12-10T10:00:00Z",
     followers: ["aluno-002", "aluno-003", "aluno-005", "aluno-007"],
     following: ["aluno-002", "aluno-005", "aluno-008"],
+    cpf: "",
+    role: "student",
   },
   {
     id: "profile-002",
@@ -28,6 +30,8 @@ export const mockProfiles: StudentProfile[] = [
     createdAt: "2025-12-15T14:30:00Z",
     followers: ["aluno-001", "aluno-003"],
     following: ["aluno-001", "aluno-003", "aluno-007"],
+    cpf: "",
+    role: "student",
   },
   {
     id: "profile-003",
@@ -42,6 +46,8 @@ export const mockProfiles: StudentProfile[] = [
     createdAt: "2026-01-05T09:15:00Z",
     followers: ["aluno-002"],
     following: ["aluno-001", "aluno-002"],
+    cpf: "",
+    role: "student",
   },
   {
     id: "profile-004",
@@ -56,6 +62,8 @@ export const mockProfiles: StudentProfile[] = [
     createdAt: "2025-11-20T16:00:00Z",
     followers: [],
     following: ["aluno-001"],
+    cpf: "",
+    role: "student",
   },
   {
     id: "profile-005",
@@ -70,6 +78,8 @@ export const mockProfiles: StudentProfile[] = [
     createdAt: "2026-01-18T11:45:00Z",
     followers: ["aluno-001"],
     following: ["aluno-001", "aluno-007"],
+    cpf: "",
+    role: "student",
   },
   {
     id: "profile-006",
@@ -84,6 +94,8 @@ export const mockProfiles: StudentProfile[] = [
     createdAt: "2025-10-01T08:00:00Z",
     followers: [],
     following: [],
+    cpf: "",
+    role: "student",
   },
   {
     id: "profile-007",
@@ -98,6 +110,8 @@ export const mockProfiles: StudentProfile[] = [
     createdAt: "2026-02-03T13:20:00Z",
     followers: ["aluno-002", "aluno-005"],
     following: ["aluno-001", "aluno-002"],
+    cpf: "",
+    role: "student",
   },
   {
     id: "profile-008",
@@ -112,5 +126,7 @@ export const mockProfiles: StudentProfile[] = [
     createdAt: "2025-09-15T10:00:00Z",
     followers: ["aluno-001"],
     following: [],
+    cpf: "",
+    role: "admin",
   },
 ];

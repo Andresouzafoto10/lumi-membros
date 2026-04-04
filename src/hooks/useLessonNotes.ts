@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { onLessonNotes } from "@/lib/gamificationEngine";
 
 export function useLessonNotes(
   courseId: string | undefined,
@@ -8,6 +9,7 @@ export function useLessonNotes(
 ) {
   const { user } = useAuth();
   const [content, setContent] = useState("");
+  const pointsAwardedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!courseId || !lessonId || !user) {
@@ -39,6 +41,11 @@ export function useLessonNotes(
           },
           { onConflict: "lesson_id,student_id" }
         );
+        // Award points once per lesson note (per session)
+        if (pointsAwardedRef.current !== lessonId) {
+          pointsAwardedRef.current = lessonId;
+          onLessonNotes(user.id, lessonId).catch(() => {});
+        }
       } else {
         await supabase
           .from("lesson_notes")

@@ -1,73 +1,67 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { CertificateTemplate, EarnedCertificate } from "@/types/student";
-import {
-  mockCertificateTemplates,
-  mockEarnedCertificates,
-} from "@/data/mock-certificates";
+import { supabase } from "@/lib/supabase";
+import type {
+  CertificateTemplate,
+  CertificateBlock,
+  EarnedCertificate,
+} from "@/types/student";
 
 // ---------------------------------------------------------------------------
-// In-memory store with localStorage persistence
+// Query keys
 // ---------------------------------------------------------------------------
 
-const TEMPLATES_KEY = "lumi-membros:certificate-templates";
-const EARNED_KEY = "lumi-membros:earned-certificates";
+const QK_TEMPLATES = ["certificate-templates"] as const;
+const QK_EARNED = ["earned-certificates"] as const;
 
-type CertificatesState = {
-  templates: CertificateTemplate[];
-  earned: EarnedCertificate[];
-};
+// ---------------------------------------------------------------------------
+// Mappers
+// ---------------------------------------------------------------------------
 
-let state: CertificatesState = loadFromStorage();
-const listeners = new Set<() => void>();
-
-function loadFromStorage(): CertificatesState {
-  try {
-    const rawTemplates = localStorage.getItem(TEMPLATES_KEY);
-    const rawEarned = localStorage.getItem(EARNED_KEY);
-    const templates = rawTemplates
-      ? (JSON.parse(rawTemplates) as CertificateTemplate[])
-      : null;
-    const earned = rawEarned
-      ? (JSON.parse(rawEarned) as EarnedCertificate[])
-      : null;
-    if (templates && earned) return { templates, earned };
-  } catch {
-    // ignore
-  }
+function mapTemplate(r: Record<string, unknown>): CertificateTemplate {
   return {
-    templates: [...mockCertificateTemplates],
-    earned: [...mockEarnedCertificates],
+    id: r.id as string,
+    name: r.name as string,
+    backgroundUrl: (r.background_url as string) ?? "",
+    blocks: (r.blocks as CertificateBlock[]) ?? [],
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
   };
 }
 
-function persist() {
-  try {
-    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(state.templates));
-    localStorage.setItem(EARNED_KEY, JSON.stringify(state.earned));
-  } catch {
-    // ignore
-  }
+function mapEarned(r: Record<string, unknown>): EarnedCertificate {
+  return {
+    id: r.id as string,
+    studentId: r.student_id as string,
+    courseId: r.course_id as string,
+    templateId: r.template_id as string,
+    earnedAt: r.earned_at as string,
+    downloadedAt: (r.downloaded_at as string | null) ?? undefined,
+  };
 }
 
-function setState(next: CertificatesState) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
+// ---------------------------------------------------------------------------
+// Fetchers
+// ---------------------------------------------------------------------------
+
+async function fetchTemplates(): Promise<CertificateTemplate[]> {
+  const { data, error } = await supabase
+    .from("certificate_templates")
+    .select("*")
+    .order("created_at");
+  if (error) throw error;
+  return (data ?? []).map(mapTemplate);
 }
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-function uuid(): string {
-  return crypto.randomUUID();
+async function fetchEarned(): Promise<EarnedCertificate[]> {
+  const { data, error } = await supabase
+    .from("earned_certificates")
+    .select("*")
+    .order("earned_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(mapEarned);
 }
 
 // ---------------------------------------------------------------------------
@@ -75,106 +69,126 @@ function uuid(): string {
 // ---------------------------------------------------------------------------
 
 export function useCertificates() {
-  const store = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const queryClient = useQueryClient();
 
-  const templates = useMemo(() => store.templates, [store.templates]);
-  const earned = useMemo(() => store.earned, [store.earned]);
+  const { data: templates = [] } = useQuery({
+    queryKey: QK_TEMPLATES,
+    queryFn: fetchTemplates,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const { data: earned = [] } = useQuery({
+    queryKey: QK_EARNED,
+    queryFn: fetchEarned,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const invalidateTemplates = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK_TEMPLATES });
+  }, [queryClient]);
+
+  const invalidateEarned = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: QK_EARNED });
+  }, [queryClient]);
 
   // ---- Template CRUD (admin) ----
 
   const createTemplate = useCallback(
-    (
+    async (
       data: Omit<CertificateTemplate, "id" | "createdAt" | "updatedAt">
-    ): string => {
-      const now = new Date().toISOString();
-      const id = uuid();
-      const template: CertificateTemplate = {
-        ...data,
-        id,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setState({
-        ...state,
-        templates: [...state.templates, template],
-      });
-      return id;
+    ): Promise<string> => {
+      const { data: row, error } = await supabase
+        .from("certificate_templates")
+        .insert({
+          name: data.name,
+          background_url: data.backgroundUrl,
+          blocks: data.blocks,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidateTemplates();
+      return row.id as string;
     },
-    []
+    [invalidateTemplates]
   );
 
   const updateTemplate = useCallback(
-    (id: string, data: Partial<CertificateTemplate>) => {
-      setState({
-        ...state,
-        templates: state.templates.map((t) =>
-          t.id === id
-            ? { ...t, ...data, updatedAt: new Date().toISOString() }
-            : t
-        ),
-      });
+    async (id: string, data: Partial<CertificateTemplate>) => {
+      const { error } = await supabase
+        .from("certificate_templates")
+        .update({
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.backgroundUrl !== undefined && {
+            background_url: data.backgroundUrl,
+          }),
+          ...(data.blocks !== undefined && { blocks: data.blocks }),
+        })
+        .eq("id", id);
+      if (error) throw error;
+      invalidateTemplates();
     },
-    []
+    [invalidateTemplates]
   );
 
-  const deleteTemplate = useCallback((id: string) => {
-    setState({
-      ...state,
-      templates: state.templates.filter((t) => t.id !== id),
-    });
-  }, []);
+  const deleteTemplate = useCallback(
+    async (id: string) => {
+      const { error } = await supabase
+        .from("certificate_templates")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      invalidateTemplates();
+    },
+    [invalidateTemplates]
+  );
 
-  const getTemplates = useCallback(() => store.templates, [store.templates]);
+  const getTemplates = useCallback(() => templates, [templates]);
 
   const getTemplateById = useCallback(
     (id: string): CertificateTemplate | null =>
-      store.templates.find((t) => t.id === id) ?? null,
-    [store.templates]
+      templates.find((t) => t.id === id) ?? null,
+    [templates]
   );
 
   // ---- Earned certificates ----
 
   const getEarnedCertificates = useCallback(
     (studentId: string): EarnedCertificate[] =>
-      store.earned.filter((e) => e.studentId === studentId),
-    [store.earned]
+      earned.filter((e) => e.studentId === studentId),
+    [earned]
   );
 
   const hasEarnedCertificate = useCallback(
     (studentId: string, courseId: string): boolean =>
-      store.earned.some(
+      earned.some(
         (e) => e.studentId === studentId && e.courseId === courseId
       ),
-    [store.earned]
+    [earned]
   );
 
   const getEarnedCertificate = useCallback(
     (studentId: string, courseId: string): EarnedCertificate | null =>
-      store.earned.find(
+      earned.find(
         (e) => e.studentId === studentId && e.courseId === courseId
       ) ?? null,
-    [store.earned]
+    [earned]
   );
 
-  const markDownloaded = useCallback((certificateId: string) => {
-    setState({
-      ...state,
-      earned: state.earned.map((e) =>
-        e.id === certificateId
-          ? { ...e, downloadedAt: new Date().toISOString() }
-          : e
-      ),
-    });
-  }, []);
+  const markDownloaded = useCallback(
+    async (certificateId: string) => {
+      const { error } = await supabase
+        .from("earned_certificates")
+        .update({ downloaded_at: new Date().toISOString() })
+        .eq("id", certificateId);
+      if (error) throw error;
+      invalidateEarned();
+    },
+    [invalidateEarned]
+  );
 
-  /**
-   * Check if a student qualifies for a certificate and award it if so.
-   * Returns true if a new certificate was awarded.
-   *
-   * Requires course data and progress to be passed in (avoids circular hook deps).
-   */
   const checkAndAwardCertificate = useCallback(
-    (
+    async (
       studentId: string,
       courseId: string,
       course: {
@@ -191,11 +205,11 @@ export function useCertificates() {
       },
       completedLessons: Record<string, boolean>,
       quizScoreGetter?: (lessonIds: string[]) => number
-    ): boolean => {
+    ): Promise<boolean> => {
       if (!course.certificateConfig?.templateId) return false;
 
       if (
-        state.earned.some(
+        earned.some(
           (e) => e.studentId === studentId && e.courseId === courseId
         )
       )
@@ -210,7 +224,6 @@ export function useCertificates() {
 
       const reqType = course.certificateConfig.requirementType ?? "completion";
 
-      // Check completion
       let completionMet = true;
       if (reqType === "completion" || reqType === "completion_and_quiz") {
         const completedCount = allLessonIds.filter(
@@ -220,7 +233,6 @@ export function useCertificates() {
         completionMet = pct >= course.certificateConfig.completionThreshold;
       }
 
-      // Check quiz
       let quizMet = true;
       if (reqType === "quiz" || reqType === "completion_and_quiz") {
         const quizLessonIds = allLessons
@@ -238,27 +250,21 @@ export function useCertificates() {
 
       if (reqType === "completion" && !completionMet) return false;
       if (reqType === "quiz" && !quizMet) return false;
-      if (reqType === "completion_and_quiz" && (!completionMet || !quizMet)) return false;
+      if (reqType === "completion_and_quiz" && (!completionMet || !quizMet))
+        return false;
 
-      const cert: EarnedCertificate = {
-        id: uuid(),
-        studentId,
-        courseId,
-        templateId: course.certificateConfig.templateId,
-        earnedAt: new Date().toISOString(),
-      };
-      setState({
-        ...state,
-        earned: [...state.earned, cert],
+      const { error } = await supabase.from("earned_certificates").insert({
+        student_id: studentId,
+        course_id: courseId,
+        template_id: course.certificateConfig.templateId,
       });
+      if (error) throw error;
+      invalidateEarned();
       return true;
     },
-    []
+    [earned, invalidateEarned]
   );
 
-  /**
-   * Generate certificate display data for rendering.
-   */
   const generateCertificateData = useCallback(
     (
       studentName: string,
@@ -275,7 +281,7 @@ export function useCertificates() {
       platformName: string;
       template: CertificateTemplate;
     } | null => {
-      const template = store.templates.find((t) => t.id === templateId);
+      const template = templates.find((t) => t.id === templateId);
       if (!template) return null;
 
       const completionDate = format(
@@ -293,7 +299,7 @@ export function useCertificates() {
         template,
       };
     },
-    [store.templates]
+    [templates]
   );
 
   return {

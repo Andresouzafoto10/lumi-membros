@@ -19,7 +19,8 @@ import { useSearchContext } from "@/hooks/useSearchContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
-import { isStudentEnrolled, computeProgress } from "@/lib/accessControl";
+import { useLessonProgress } from "@/hooks/useLessonProgress";
+import { isStudentEnrolled } from "@/lib/accessControl";
 
 export default function CoursesPage() {
   const { sessions, activeBanners } = useCourses();
@@ -28,6 +29,7 @@ export default function CoursesPage() {
   const { currentUserId } = useCurrentUser();
   const { enrollments } = useStudents();
   const { classes } = useClasses();
+  const { getCourseProgress } = useLessonProgress();
 
   const [selectedSessionId, setSelectedSessionId] = useState("all");
 
@@ -44,7 +46,7 @@ export default function CoursesPage() {
     return ids;
   }, [sessions, currentUserId, enrollments, classes]);
 
-  // Read progress from localStorage for each course (per-user)
+  // Read progress from Supabase via useLessonProgress hook
   const courseProgress = useMemo(() => {
     const progress: Record<string, number> = {};
     const allCourses = sessions.flatMap((s) => s.courses);
@@ -54,15 +56,11 @@ export default function CoursesPage() {
         .filter((m) => m.isActive)
         .flatMap((m) => m.lessons.filter((l) => l.isActive))
         .map((l) => l.id);
-      progress[course.id] = computeProgress(
-        currentUserId,
-        course.id,
-        totalLessonIds
-      );
+      progress[course.id] = getCourseProgress(course.id, totalLessonIds).percentage;
     }
 
     return progress;
-  }, [sessions, currentUserId]);
+  }, [sessions, getCourseProgress]);
 
   const activeSessions = useMemo(() => {
     let filtered = sessions.filter(

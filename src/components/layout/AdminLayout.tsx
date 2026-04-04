@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -11,24 +11,49 @@ import {
   X,
   MessageSquare,
   Shield,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
+import { getPermissionsForRole } from "@/lib/permissions";
+import type { AdminPermission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-const navLinks = [
+const navLinks: {
+  to: string;
+  label: string;
+  icon: React.ElementType;
+  exact: boolean;
+  permission?: AdminPermission;
+}[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/admin/cursos", label: "Cursos", icon: GraduationCap, exact: false },
-  { to: "/admin/turmas", label: "Turmas", icon: UsersRound, exact: false },
-  { to: "/admin/alunos", label: "Alunos", icon: Users, exact: false },
-  { to: "/admin/comunidade", label: "Comunidade", icon: MessageSquare, exact: false },
-  { to: "/admin/comentarios", label: "Moderação", icon: Shield, exact: false },
-  { to: "/admin/configuracoes", label: "Configurações", icon: Settings, exact: false },
+  { to: "/admin/cursos", label: "Cursos", icon: GraduationCap, exact: false, permission: "courses" },
+  { to: "/admin/turmas", label: "Turmas", icon: UsersRound, exact: false, permission: "classes" },
+  { to: "/admin/alunos", label: "Alunos", icon: Users, exact: false, permission: "students" },
+  { to: "/admin/comunidade", label: "Comunidade", icon: MessageSquare, exact: false, permission: "community" },
+  { to: "/admin/comentarios", label: "Moderação", icon: Shield, exact: false, permission: "moderation" },
+  { to: "/admin/gamificacao", label: "Gamificação", icon: Trophy, exact: false, permission: "settings" },
+  { to: "/admin/configuracoes", label: "Configurações", icon: Settings, exact: false, permission: "settings" },
 ];
 
 export function AdminLayout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
+
+  const permissions = useMemo(
+    () => getPermissionsForRole(user?.role ?? "student"),
+    [user?.role]
+  );
+
+  const visibleLinks = useMemo(
+    () =>
+      navLinks.filter(
+        (link) => !link.permission || permissions[link.permission]
+      ),
+    [permissions]
+  );
 
   const isActive = (path: string, exact: boolean) =>
     exact ? location.pathname === path : location.pathname.startsWith(path);
@@ -45,7 +70,7 @@ export function AdminLayout() {
         </Link>
 
         <nav className="mt-2 flex flex-col gap-1 px-3">
-          {navLinks.map((link) => (
+          {visibleLinks.map((link) => (
             <Link
               key={link.to}
               to={link.to}

@@ -119,9 +119,9 @@ export function LessonQuiz({ quiz, passingScore, lessonId, onPass }: LessonQuizP
     setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!allAnswered) return;
-    const attempt = submitAttempt(currentUserId, lessonId, quiz, answers, passingScore);
+    const attempt = await submitAttempt(currentUserId, lessonId, quiz, answers, passingScore);
     setLastScore(attempt.score);
     setLastPassed(attempt.passed);
     setQuizState("submitted");

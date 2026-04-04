@@ -14,12 +14,15 @@ import {
   ThumbsUp,
   ThumbsDown,
   ClipboardCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
-import { getLessonRatingCounts } from "@/hooks/useLessonRatings";
+import { useAdminLessonRatings } from "@/hooks/useLessonRatings";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import type { CourseLesson, CourseVideoType, QuizQuestion } from "@/types/course";
+import { LessonMaterialsManager } from "@/components/admin/LessonMaterialsManager";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -68,6 +71,7 @@ type LessonFormState = {
   quiz: QuizQuestion[];
   quizPassingScore: number;
   quizRequiredToAdvance: boolean;
+  ratingsEnabled: boolean;
 };
 
 const emptyLessonForm: LessonFormState = {
@@ -80,6 +84,7 @@ const emptyLessonForm: LessonFormState = {
   quiz: [],
   quizPassingScore: 70,
   quizRequiredToAdvance: false,
+  ratingsEnabled: true,
 };
 
 function lessonToForm(lesson: CourseLesson): LessonFormState {
@@ -99,6 +104,7 @@ function lessonToForm(lesson: CourseLesson): LessonFormState {
     quiz: lesson.quiz ?? [],
     quizPassingScore: lesson.quizPassingScore ?? 70,
     quizRequiredToAdvance: lesson.quizRequiredToAdvance ?? false,
+    ratingsEnabled: lesson.ratingsEnabled,
   };
 }
 
@@ -134,6 +140,8 @@ export default function AdminModuleEditPage() {
     deleteLesson,
     moveLesson,
   } = useCourses();
+  const { getCounts: getLessonRatingCounts } = useAdminLessonRatings();
+  const { settings: platformSettings } = usePlatformSettings();
 
   const course = findCourse(courseId);
   const mod = findModule(courseId, moduleId);
@@ -224,6 +232,7 @@ export default function AdminModuleEditPage() {
         quiz,
         quizPassingScore,
         quizRequiredToAdvance,
+        ratingsEnabled: lessonForm.ratingsEnabled,
       });
       toast.success("Aula atualizada.");
     } else {
@@ -236,6 +245,7 @@ export default function AdminModuleEditPage() {
         quiz,
         quizPassingScore,
         quizRequiredToAdvance,
+        ratingsEnabled: lessonForm.ratingsEnabled,
       });
       toast.success("Aula criada.");
     }
@@ -532,6 +542,9 @@ export default function AdminModuleEditPage() {
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
+
+                {/* Materiais da aula */}
+                <LessonMaterialsManager lessonId={lesson.id} />
               </CardContent>
             </Card>
           ))}
@@ -658,6 +671,35 @@ export default function AdminModuleEditPage() {
                   updateLessonField("description", e.target.value)
                 }
               />
+            </div>
+
+            {/* Ratings toggle */}
+            <div className="space-y-3 rounded-lg border border-border/60 p-4">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <ThumbsUp className="h-4 w-4 text-primary" />
+                Avaliacoes
+              </h3>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="lesson-ratings-toggle">
+                    Permitir avaliacao nesta aula
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Quando desativado, os botoes de curtir/descurtir ficam ocultos apenas nesta aula.
+                  </p>
+                </div>
+                <Switch
+                  id="lesson-ratings-toggle"
+                  checked={lessonForm.ratingsEnabled}
+                  onCheckedChange={(v) => updateLessonField("ratingsEnabled", v)}
+                />
+              </div>
+              {!platformSettings.ratingsEnabled && (
+                <div className="flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  Avaliacoes desativadas globalmente em Configuracoes
+                </div>
+              )}
             </div>
 
             {/* Quiz editor */}

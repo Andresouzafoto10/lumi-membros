@@ -1,0 +1,1 @@
+- [Upload storage decision](project_storage_decision.md) — Supabase Storage for uploads, R2 later when configured

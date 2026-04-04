@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-03-29 22:00 | **Versão do Tracker:** 2.1.0
+**Última atualização:** 2026-04-04 | **Versão do Tracker:** 2.2.0
 
 ---
 
@@ -44,6 +44,7 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| FEAT-003 | Materiais de Aula com DRM Social — tabela lesson_materials, Edge Function download-material (pdf-lib watermark nome+email+CPF), bucket Supabase Storage privado, hook useLessonMaterials, componente admin LessonMaterialsManager, componente aluno LessonMaterials, coluna cpf em profiles, RLS corrigido via classes→enrollments | DEV | 2026-04-04 |
 | TASK-013 | Dev: Sistema de autenticação real (Supabase Auth) — login, cadastro, sessão persistente, proteção de rotas | DEV | 2026-03-29 |
 | TASK-011 | Dev: Migração completa mock→Supabase — 20+ hooks, SQL schema, RLS, build limpo sem erros | DEV | 2026-03-29 |
 | PERF-001 | Code-splitting com React.lazy: bundle principal de 1MB para 362KB, 85+ chunks separados | DEV | 2026-03-29 |
@@ -80,10 +81,10 @@
 
 | Métrica | Valor |
 |---------|-------|
-| Tasks criadas | 33 |
+| Tasks criadas | 34 |
 | Tasks em andamento | 0 |
 | Tasks aguardando aprovação | 0 |
-| Tasks concluídas | 17 |
+| Tasks concluídas | 18 |
 | Bugs críticos abertos | 0 |
 | Skills criadas | 0 |
 | Decisões registradas | 1 |

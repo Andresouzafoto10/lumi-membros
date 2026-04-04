@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   MapPin,
@@ -22,12 +22,22 @@ import { useCourses } from "@/hooks/useCourses";
 import { usePosts } from "@/hooks/usePosts";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useGamification } from "@/hooks/useGamification";
+import { useGamificationConfig } from "@/hooks/useGamificationConfig";
+import { LevelBadge } from "@/components/gamification/LevelBadge";
+import { GamificationGuide } from "@/components/gamification/GamificationGuide";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/courses/EmptyState";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +92,10 @@ export default function PublicProfilePage() {
   const { allCourses, findCourse } = useCourses();
   const { getPostsByAuthor } = usePosts();
   const { findCommunity } = useCommunities();
-  const { getPlayerData, getPlayerBadges } = useGamification();
+  const { getPlayerData, getPlayerMissions, getPlayerMissionsInProgress } = useGamification();
+  const { getLevelForPoints, levels } = useGamificationConfig();
+
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const profile = findProfile(id);
   const isOwnProfile = id === currentUserId;
@@ -90,7 +103,13 @@ export default function PublicProfilePage() {
 
   // Gamification
   const playerData = id ? getPlayerData(id) : { points: 0, badges: [] };
-  const playerBadges = id ? getPlayerBadges(id) : [];
+  const completedMissions = id ? getPlayerMissions(id) : [];
+  const inProgressMissions = id ? getPlayerMissionsInProgress(id) : [];
+  const currentLevel = getLevelForPoints(playerData.points);
+  const nextLevel = useMemo(() => {
+    const sorted = [...levels].sort((a, b) => a.pointsRequired - b.pointsRequired);
+    return sorted.find((l) => l.pointsRequired > playerData.points) ?? null;
+  }, [levels, playerData.points]);
 
   // Posts
   const authorPosts = useMemo(
@@ -186,9 +205,9 @@ export default function PublicProfilePage() {
               <h1 className="text-xl font-bold leading-tight tracking-[-0.02em] sm:truncate">
                 {profile.displayName}
               </h1>
-              {playerBadges.length > 0 && (
+              {completedMissions.length > 0 && (
                 <Badge variant="outline" className="text-xs shrink-0">
-                  {playerBadges[playerBadges.length - 1].name}
+                  {completedMissions[completedMissions.length - 1].name}
                 </Badge>
               )}
             </div>
@@ -273,7 +292,80 @@ export default function PublicProfilePage() {
             <span className="text-muted-foreground">pontos</span>
           </span>
         </div>
+
+        {/* Level Progress Card */}
+        {currentLevel && (
+          <div className="mt-4 rounded-xl border border-border/50 bg-card/50 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <LevelBadge
+                  iconName={currentLevel.iconName}
+                  iconColor={currentLevel.iconColor}
+                  levelName={currentLevel.name}
+                  size="md"
+                />
+                <span className="text-sm text-muted-foreground">
+                  Nivel {currentLevel.levelNumber}
+                </span>
+              </div>
+              {nextLevel && (
+                <span className="text-xs text-muted-foreground">
+                  {nextLevel.pointsRequired - playerData.points} pts para{" "}
+                  <span style={{ color: nextLevel.iconColor }} className="font-medium">
+                    {nextLevel.iconName} {nextLevel.name}
+                  </span>
+                </span>
+              )}
+            </div>
+            {nextLevel && (
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      ((playerData.points - currentLevel.pointsRequired) /
+                        (nextLevel.pointsRequired - currentLevel.pointsRequired)) *
+                        100
+                    )}%`,
+                    backgroundColor: currentLevel.iconColor,
+                  }}
+                />
+              </div>
+            )}
+            {!nextLevel && (
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: "100%", backgroundColor: currentLevel.iconColor }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Guide link */}
+        <button
+          onClick={() => setGuideOpen(true)}
+          className="mt-2 text-xs text-primary/70 hover:text-primary flex items-center gap-1 transition-colors"
+        >
+          <Info className="h-3 w-3" />
+          Como ganhar pontos e subir de nivel
+        </button>
       </div>
+
+      {/* Gamification Guide Dialog */}
+      <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Guia de Gamificacao</DialogTitle>
+            <DialogDescription>
+              Veja como ganhar pontos, subir de nivel e completar missões
+            </DialogDescription>
+          </DialogHeader>
+          {id && <GamificationGuide studentId={id} />}
+        </DialogContent>
+      </Dialog>
 
       {/* Tabs */}
       <div className="mt-6 px-4 sm:px-5">
@@ -352,19 +444,48 @@ export default function PublicProfilePage() {
                 </div>
               </div>
 
-              {/* Badges */}
-              {playerBadges.length > 0 && (
+              {/* Missões */}
+              {(completedMissions.length > 0 || inProgressMissions.length > 0) && (
                 <div>
-                  <h3 className="text-sm font-semibold mb-2">Conquistas</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {playerBadges.map((badge) => (
-                      <div key={badge.id} className="rounded-lg border border-border/50 bg-gradient-to-br from-primary/5 to-transparent p-3 text-center">
-                        <div className="text-2xl mb-1">{badge.icon}</div>
-                        <p className="text-xs font-semibold">{badge.name}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{badge.description}</p>
+                  <h3 className="text-sm font-semibold mb-2">Missões</h3>
+                  {completedMissions.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                      {completedMissions.map((m) => (
+                        <div key={m.id} className="p-3 rounded-lg border border-primary/20 bg-primary/5 text-center">
+                          <div className="text-2xl mb-1">{m.icon}</div>
+                          <p className="text-xs font-bold">{m.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{m.description}</p>
+                          <p className="text-[10px] text-primary mt-1">Concluída</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {inProgressMissions.length > 0 && (
+                    <>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">Em progresso</p>
+                      <div className="space-y-0">
+                        {inProgressMissions.map((m) => (
+                          <div key={m.id} className="flex items-center gap-3 py-2 border-b border-border/10">
+                            <span className="text-xl grayscale opacity-50">{m.icon}</span>
+                            <div className="flex-1">
+                              <p className="text-xs font-medium">{m.name}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary/60 rounded-full transition-all"
+                                    style={{ width: `${Math.min(100, (m.progress / m.conditionThreshold) * 100)}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {m.progress}/{m.conditionThreshold}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  )}
                 </div>
               )}
 

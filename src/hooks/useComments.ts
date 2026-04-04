@@ -1,6 +1,8 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { onCommentCreated, onCommentLiked } from "@/lib/gamificationEngine";
+import { notifyPostCommented, notifyCommentReply } from "@/lib/notificationTriggers";
 import type { PostComment } from "@/types/student";
 
 const QK_ALL = ["comments"] as const;
@@ -79,6 +81,24 @@ export function useComments() {
       }
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["posts"] });
+      // Gamification: award points for comment
+      onCommentCreated(data.authorId).catch(() => {});
+      // Notification: notify post author
+      const { data: postData } = await supabase
+        .from("community_posts")
+        .select("author_id")
+        .eq("id", data.postId)
+        .single();
+      if (postData) {
+        notifyPostCommented(data.postId, postData.author_id as string, data.authorId).catch(() => {});
+      }
+      // Notification: notify parent comment author if this is a reply
+      if (data.parentCommentId) {
+        const parent = allComments.find((c) => c.id === data.parentCommentId);
+        if (parent) {
+          notifyCommentReply(data.postId, parent.authorId, data.authorId).catch(() => {});
+        }
+      }
       return row.id as string;
     },
     [invalidate, queryClient]
@@ -127,6 +147,10 @@ export function useComments() {
         .eq("id", commentId);
       if (error) throw error;
       invalidate();
+      // Gamification: award points to comment author when liked (not unliked, not self-like)
+      if (!liked && comment.authorId !== userId) {
+        onCommentLiked(comment.authorId, commentId).catch(() => {});
+      }
     },
     [allComments, invalidate]
   );

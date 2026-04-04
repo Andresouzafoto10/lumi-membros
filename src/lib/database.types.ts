@@ -560,6 +560,84 @@ export interface Database {
       };
 
       // -----------------------------------------------------------------------
+      // missions (replaces achievements)
+      // -----------------------------------------------------------------------
+      missions: {
+        Row: {
+          id: string;
+          name: string;
+          description: string;
+          icon: string;
+          condition_type: string;
+          condition_action: string | null;
+          condition_threshold: number;
+          points_reward: number;
+          enabled: boolean;
+          is_secret: boolean;
+          is_default: boolean;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string;
+          icon?: string;
+          condition_type?: string;
+          condition_action?: string | null;
+          condition_threshold?: number;
+          points_reward?: number;
+          enabled?: boolean;
+          is_secret?: boolean;
+          is_default?: boolean;
+          sort_order?: number;
+        };
+        Update: {
+          name?: string;
+          description?: string;
+          icon?: string;
+          condition_type?: string;
+          condition_action?: string | null;
+          condition_threshold?: number;
+          points_reward?: number;
+          enabled?: boolean;
+          is_secret?: boolean;
+          sort_order?: number;
+        };
+      };
+
+      // -----------------------------------------------------------------------
+      // student_missions (replaces user_achievements)
+      // -----------------------------------------------------------------------
+      student_missions: {
+        Row: {
+          id: string;
+          mission_id: string;
+          student_id: string;
+          progress: number;
+          completed: boolean;
+          completed_at: string | null;
+          granted_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          mission_id: string;
+          student_id: string;
+          progress?: number;
+          completed?: boolean;
+          completed_at?: string | null;
+          granted_by?: string;
+        };
+        Update: {
+          progress?: number;
+          completed?: boolean;
+          completed_at?: string | null;
+          granted_by?: string;
+        };
+      };
+
+      // -----------------------------------------------------------------------
       // restrictions
       // -----------------------------------------------------------------------
       restrictions: {

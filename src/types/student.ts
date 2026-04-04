@@ -85,6 +85,7 @@ export type PlatformSettings = {
   logoUrl: string;
   defaultTheme: "dark" | "light";
   ratingsEnabled: boolean;
+  emailNotificationsEnabled: boolean;
   certificateBackgroundUrl: string;
   certificateDefaultText: string;
   theme: {
@@ -107,9 +108,11 @@ export type StudentProfile = {
   bio: string;
   link: string;
   location: string;
+  cpf: string;
   createdAt: string;
   followers: string[];
   following: string[];
+  role: StudentRole;
 };
 
 // ---------------------------------------------------------------------------
@@ -136,6 +139,11 @@ export type Community = {
   createdAt: string;
 };
 
+/** A community is public if it has no classIds (empty array) */
+export function isCommunityPublic(community: Community): boolean {
+  return community.classIds.length === 0;
+}
+
 // ---------------------------------------------------------------------------
 // Community Posts
 // ---------------------------------------------------------------------------
@@ -148,6 +156,26 @@ export type SystemEvent = {
   moduleId?: string;
 };
 
+export type PostAttachment = {
+  name: string;
+  size: number;
+  type: string;
+  dataUrl: string;
+};
+
+export type PollOption = {
+  id: string;
+  text: string;
+  votedBy: string[];
+};
+
+export type PostPoll = {
+  question: string;
+  options: PollOption[];
+  duration: "1d" | "3d" | "7d" | "14d";
+  endsAt: string;
+};
+
 export type CommunityPost = {
   id: string;
   communityId: string;
@@ -157,12 +185,14 @@ export type CommunityPost = {
   title: string;
   body: string;
   images: string[];
+  attachments: PostAttachment[];
   hashtags: string[];
   mentions: string[];
   likesCount: number;
   commentsCount: number;
   likedBy: string[];
   savedBy: string[];
+  poll?: PostPoll | null;
   status: "published" | "pending" | "rejected";
   createdAt: string;
   updatedAt: string;
@@ -226,6 +256,7 @@ export type AppNotification = {
 // Gamification
 // ---------------------------------------------------------------------------
 
+/** @deprecated Use Mission instead */
 export type Badge = {
   id: string;
   name: string;
@@ -238,6 +269,45 @@ export type GamificationData = {
   studentId: string;
   points: number;
   badges: string[];
+};
+
+// ---------------------------------------------------------------------------
+// Missões (unified mission system — replaces badges + achievements)
+// ---------------------------------------------------------------------------
+
+export type MissionConditionType =
+  | "action_count"     // fez X vezes uma ação (ex: curtiu 10 posts)
+  | "points_total"     // acumulou X pontos
+  | "streak_days"      // acessou X dias seguidos
+  | "course_complete"  // completou X cursos
+  | "lesson_complete"  // completou X aulas
+  | "manual";          // concedida manualmente pelo admin
+
+export type Mission = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  conditionType: MissionConditionType;
+  conditionAction: string | null;
+  conditionThreshold: number;
+  pointsReward: number;
+  enabled: boolean;
+  isSecret: boolean;
+  isDefault: boolean;
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type StudentMission = {
+  id: string;
+  missionId: string;
+  studentId: string;
+  progress: number;
+  completed: boolean;
+  completedAt: string | null;
+  grantedBy: string;
+  createdAt: string;
 };
 
 export type CommunitySidebarItem = {

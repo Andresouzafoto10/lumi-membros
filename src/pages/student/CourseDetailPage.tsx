@@ -32,14 +32,14 @@ import { useClasses } from "@/hooks/useClasses";
 import { useCertificates } from "@/hooks/useCertificates";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useQuizAttempts } from "@/hooks/useQuizAttempts";
+import { useLessonProgress } from "@/hooks/useLessonProgress";
 import { LessonQuiz } from "@/components/courses/LessonQuiz";
+import { LessonMaterials } from "@/components/courses/LessonMaterials";
 import { downloadCertificateAsPng } from "@/lib/generateCertificate";
 import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
 import { Progress } from "@/components/ui/progress";
 import {
   buildCourseAccessMap,
-  loadCompletedLessons,
-  saveCompletedLessons,
   blockReasonMessage,
 } from "@/lib/accessControl";
 import type { CourseLesson } from "@/types/course";
@@ -57,6 +57,13 @@ export default function CourseDetailPage() {
   const { hasEarnedCertificate, checkAndAwardCertificate, getTemplateById, generateCertificateData, markDownloaded, getEarnedCertificate } = useCertificates();
   const { settings: platformSettings } = usePlatformSettings();
   const { hasPassedQuiz, getQuizScoresForCourse } = useQuizAttempts();
+  const {
+    getCompletedForCourse,
+    markLessonComplete,
+    unmarkLessonComplete,
+    updateWatchPosition,
+    getLastPosition,
+  } = useLessonProgress();
   const course = findCourse(courseId);
   const lessonParam = searchParams.get("lesson");
 
@@ -79,7 +86,13 @@ export default function CourseDetailPage() {
     return activeModules.flatMap((module) => module.lessons);
   }, [activeModules]);
 
-  // Build access map for current student
+  // Completed lessons from Supabase via useLessonProgress hook
+  const completedLessons = useMemo(
+    () => (courseId ? getCompletedForCourse(courseId) : {}),
+    [courseId, getCompletedForCourse]
+  );
+
+  // Build access map for current student (passing Supabase-based completed lessons)
   const accessMap = useMemo(() => {
     if (!course || !courseId) return null;
     return buildCourseAccessMap(
@@ -90,17 +103,10 @@ export default function CourseDetailPage() {
         lessons: m.lessons.map((l) => ({ id: l.id })),
       })),
       enrollments,
-      classes
+      classes,
+      completedLessons
     );
-  }, [currentUserId, courseId, course, activeModules, enrollments, classes]);
-
-  // Load completed lessons from localStorage (per-user)
-  const [completedLessons, setCompletedLessons] = useState<
-    Record<string, boolean>
-  >(() => {
-    if (!courseId) return {};
-    return loadCompletedLessons(currentUserId, courseId);
-  });
+  }, [currentUserId, courseId, course, activeModules, enrollments, classes, completedLessons]);
 
   // Active lesson state
   const [activeLessonId, setActiveLessonId] = useState<string | null>(() => {
@@ -132,17 +138,7 @@ export default function CourseDetailPage() {
     );
   });
 
-  // Reload progress when user or course changes
-  useEffect(() => {
-    if (!courseId) return;
-    setCompletedLessons(loadCompletedLessons(currentUserId, courseId));
-  }, [currentUserId, courseId]);
-
-  // Persist completed lessons (per-user)
-  useEffect(() => {
-    if (!courseId) return;
-    saveCompletedLessons(currentUserId, courseId, completedLessons);
-  }, [completedLessons, currentUserId, courseId]);
+  // Progress is now managed by useLessonProgress hook (Supabase) — no localStorage sync needed
 
   // Current lesson and navigation — must be computed before callbacks that reference them
   const activeLesson: CourseLesson | undefined = allLessons.find(
@@ -200,21 +196,19 @@ export default function CourseDetailPage() {
     [course, allLessons, getModuleIdForLesson, setLastWatched]
   );
 
-  const handleToggleCompleteLesson = useCallback(() => {
-    if (!activeLessonId) return;
+  const handleToggleCompleteLesson = useCallback(async () => {
+    if (!activeLessonId || !courseId) return;
     const wasAlreadyCompleted = completedLessons[activeLessonId];
+    const moduleId = getModuleIdForLesson(activeLessonId);
     if (wasAlreadyCompleted) {
       // Unmark
-      setCompletedLessons((prev) => {
-        const next = { ...prev };
-        delete next[activeLessonId];
-        return next;
-      });
+      await unmarkLessonComplete(activeLessonId);
       toast.info("Aula desmarcada como concluída.");
     } else {
       // Mark complete
-      const nextCompleted = { ...completedLessons, [activeLessonId]: true };
-      setCompletedLessons(nextCompleted);
+      if (moduleId) {
+        await markLessonComplete(activeLessonId, courseId, moduleId);
+      }
       toast.success("Aula concluída!", {
         description: nextLesson
           ? "Avançando para a próxima aula..."
@@ -222,30 +216,32 @@ export default function CourseDetailPage() {
       });
 
       // Check certificate award
-      if (course && courseId) {
-        const awarded = checkAndAwardCertificate(
+      if (course) {
+        const nextCompleted = { ...completedLessons, [activeLessonId]: true };
+        checkAndAwardCertificate(
           currentUserId,
           courseId,
           course,
           nextCompleted,
           (lessonIds) => getQuizScoresForCourse(currentUserId, lessonIds)
-        );
-        if (awarded) {
-          setTimeout(() => {
-            toast.success("Parabéns! Você ganhou um certificado!", {
-              description:
-                "Acesse 'Meus Certificados' no seu perfil para baixar.",
-              duration: 6000,
-            });
-          }, 800);
-        }
+        ).then((awarded) => {
+          if (awarded) {
+            setTimeout(() => {
+              toast.success("Parabéns! Você ganhou um certificado!", {
+                description:
+                  "Acesse 'Meus Certificados' no seu perfil para baixar.",
+                duration: 6000,
+              });
+            }, 800);
+          }
+        });
       }
 
       if (nextLesson) {
         setTimeout(() => handleSelectLesson(nextLesson.id), 1200);
       }
     }
-  }, [activeLessonId, completedLessons, nextLesson, handleSelectLesson]);
+  }, [activeLessonId, courseId, completedLessons, nextLesson, handleSelectLesson, getModuleIdForLesson, markLessonComplete, unmarkLessonComplete]);
 
   useEffect(() => {
     if (allLessons.length === 0) {
@@ -528,7 +524,7 @@ export default function CourseDetailPage() {
                       )}
 
                       <div className="hidden sm:block w-px h-6 bg-border mx-1" />
-                      <LessonRating lessonId={activeLesson.id} />
+                      <LessonRating lessonId={activeLesson.id} ratingsEnabled={activeLesson.ratingsEnabled} />
                     </div>
 
                     {(() => {
@@ -562,28 +558,8 @@ export default function CourseDetailPage() {
                     </div>
                   )}
 
-                  {/* Lesson materials */}
-                  {activeLesson.materials && activeLesson.materials.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <FileText className="h-4 w-4" /> Materiais
-                      </h3>
-                      <div className="flex flex-col gap-1.5">
-                        {activeLesson.materials.map((m) => (
-                          <a
-                            key={m.id}
-                            href={m.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline flex items-center gap-1.5"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                            {m.title}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* Lesson materials (DRM-protected downloads via Edge Function) */}
+                  <LessonMaterials lessonId={activeLesson.id} />
 
                   {/* Lesson links */}
                   {activeLesson.links && activeLesson.links.length > 0 && (

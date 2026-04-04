@@ -18,8 +18,10 @@ import { usePosts } from "@/hooks/usePosts";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useSidebarConfig } from "@/hooks/useSidebarConfig";
 import { useCommunityLastSeen } from "@/hooks/useCommunityLastSeen";
+import { isCommunityPublic } from "@/types/student";
 
 import { Button } from "@/components/ui/button";
+import { GamificationRanking } from "@/components/community/GamificationRanking";
 import { cn } from "@/lib/utils";
 
 export function CommunityLayout() {
@@ -88,12 +90,13 @@ export function CommunityLayout() {
   const isFeed = isActive("/comunidade/feed") || isActive("/comunidade");
 
   // Build sidebar list: sidebar config items mapped to communities, in order
+  // Public communities (no classIds) are accessible to all authenticated users
   const sidebarList = useMemo(() => {
     return sidebarItems
       .map((item) => {
         const community = activeCommunities.find((c) => c.id === item.communityId);
         if (!community) return null;
-        const hasAccess = myCommIds.has(community.id);
+        const hasAccess = myCommIds.has(community.id) || isCommunityPublic(community);
         return { ...item, community, hasAccess };
       })
       .filter(Boolean) as Array<{
@@ -123,7 +126,12 @@ export function CommunityLayout() {
         community: c,
         hasAccess: true,
       }));
-    return [...sidebarList, ...extras];
+    // Sort: accessible communities first, then locked ones
+    const combined = [...sidebarList, ...extras];
+    return combined.sort((a, b) => {
+      if (a.hasAccess === b.hasAccess) return 0;
+      return a.hasAccess ? -1 : 1;
+    });
   }, [sidebarList, myCommunities]);
 
   function handleLockedClick(item: typeof fullSidebarList[number]) {
@@ -305,6 +313,17 @@ export function CommunityLayout() {
           </div>
         </div>
       )}
+
+      {/* Gamification Ranking */}
+      <div>
+        <div className="border-t border-border/20 pt-4 mb-3">
+          <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-[0.15em] flex items-center gap-1.5">
+            <TrendingUp className="h-3 w-3" />
+            Ranking de pontos
+          </p>
+        </div>
+        <GamificationRanking limit={5} compact />
+      </div>
     </div>
   );
 

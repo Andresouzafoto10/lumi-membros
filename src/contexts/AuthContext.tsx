@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
@@ -61,27 +62,38 @@ function fallbackUser(user: User): AuthUser {
   };
 }
 
-async function fetchProfile(user: User): Promise<AuthUser> {
+async function fetchProfile(
+  user: User,
+  lastKnown: AuthUser | null
+): Promise<AuthUser> {
+  const fb = lastKnown ?? fallbackUser(user);
   try {
     const timeout = new Promise<AuthUser>((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), 6000)
+      setTimeout(() => reject(new Error("timeout")), 5000)
     );
-    const fetch = supabase
+    // avatar_url is intentionally excluded here — it can be a large base64 string
+    // that would slow down auth. The avatar is loaded separately via useProfiles.
+    const query = supabase
       .from("profiles")
-      .select("name, role, status, avatar_url")
+      .select("name, role, status")
       .eq("id", user.id)
       .single()
-      .then(({ data }) => ({
-        id: user.id,
-        email: user.email ?? "",
-        name: (data as { name?: string } | null)?.name ?? user.email ?? "",
-        role: (data as { role?: string } | null)?.role ?? "student",
-        status: (data as { status?: string } | null)?.status ?? "active",
-        avatarUrl: (data as { avatar_url?: string } | null)?.avatar_url ?? "",
-      }));
-    return await Promise.race([fetch, timeout]);
+      .then(({ data, error }) => {
+        if (error || !data) return fb;
+        const d = data as { name?: string; role?: string; status?: string };
+        return {
+          id: user.id,
+          email: user.email ?? "",
+          name: d.name ?? user.email ?? "",
+          role: d.role ?? fb.role,
+          status: d.status ?? "active",
+          avatarUrl: "",
+        };
+      });
+    return await Promise.race([query, timeout]);
   } catch {
-    return fallbackUser(user);
+    // On failure keep the last known good profile so admin doesn't get demoted
+    return fb;
   }
 }
 
@@ -93,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastKnownProfile = useRef<AuthUser | null>(null);
 
   // Hydrate from persisted session on mount
   useEffect(() => {
@@ -100,12 +113,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // so this is the single source of truth for auth state.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       if (session?.user) {
-        const profile = await fetchProfile(session.user);
+        // On token refresh, keep the existing profile if the user hasn't changed
+        if (
+          event === "TOKEN_REFRESHED" &&
+          lastKnownProfile.current &&
+          lastKnownProfile.current.id === session.user.id
+        ) {
+          setLoading(false);
+          return;
+        }
+        const profile = await fetchProfile(
+          session.user,
+          lastKnownProfile.current
+        );
+        lastKnownProfile.current = profile;
         setUser(profile);
       } else {
+        lastKnownProfile.current = null;
         setUser(null);
       }
       setLoading(false);
@@ -159,6 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    lastKnownProfile.current = null;
     setUser(null);
     setSession(null);
   }, []);

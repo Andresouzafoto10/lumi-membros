@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { onLessonRated } from "@/lib/gamificationEngine";
 
 type RatingValue = "like" | "dislike";
 type RatingsMap = Record<string, RatingValue>;
@@ -48,6 +49,10 @@ export function useLessonRatings() {
         );
       }
       queryClient.invalidateQueries({ queryKey: QK });
+      // Award points when rating (like only, not removing or disliking)
+      if (rating === "like") {
+        onLessonRated(user.id, lessonId).catch(() => {});
+      }
     },
     [user, queryClient]
   );
@@ -60,13 +65,45 @@ export function useLessonRatings() {
   return { ratings, getRating, setRating };
 }
 
-// Stub for admin view — real aggregation would require a separate admin query
-export function getLessonRatingCounts(
-  _lessonId: string
-): { likes: number; dislikes: number } {
-  return { likes: 0, dislikes: 0 };
+// ---------------------------------------------------------------------------
+// Admin aggregation hook — fetches rating counts for all lessons
+// ---------------------------------------------------------------------------
+
+type LessonRatingCounts = Record<string, { likes: number; dislikes: number }>;
+
+const QK_ADMIN = ["lesson-ratings-admin"] as const;
+
+async function fetchAllRatingCounts(): Promise<LessonRatingCounts> {
+  const { data, error } = await supabase
+    .from("lesson_ratings")
+    .select("lesson_id, rating");
+  if (error) throw error;
+  const counts: LessonRatingCounts = {};
+  for (const row of data ?? []) {
+    const lid = row.lesson_id as string;
+    if (!counts[lid]) counts[lid] = { likes: 0, dislikes: 0 };
+    if (row.rating === "like") counts[lid].likes++;
+    else counts[lid].dislikes++;
+  }
+  return counts;
 }
 
-export function getAllLessonRatings(): RatingsMap {
-  return {};
+/**
+ * Hook for admin pages to get aggregated like/dislike counts per lesson.
+ * Returns a map of lessonId → { likes, dislikes }.
+ */
+export function useAdminLessonRatings() {
+  const { data: ratingCounts = {} } = useQuery({
+    queryKey: QK_ADMIN,
+    queryFn: fetchAllRatingCounts,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const getCounts = useCallback(
+    (lessonId: string): { likes: number; dislikes: number } =>
+      ratingCounts[lessonId] ?? { likes: 0, dislikes: 0 },
+    [ratingCounts]
+  );
+
+  return { ratingCounts, getCounts };
 }

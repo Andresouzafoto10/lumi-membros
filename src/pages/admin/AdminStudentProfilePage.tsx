@@ -13,6 +13,14 @@ import {
   Ban,
   MessageSquare,
   Award,
+  KeyRound,
+  VolumeX,
+  Plus,
+  Minus,
+  Trophy,
+  X,
+  ShieldBan,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -26,7 +34,10 @@ import { usePosts } from "@/hooks/usePosts";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useRestrictions } from "@/hooks/useRestrictions";
 import { useCertificates } from "@/hooks/useCertificates";
-import { computeProgress, progressKey } from "@/lib/accessControl";
+import { useStudentProgress } from "@/hooks/useLessonProgress";
+import { useGamification } from "@/hooks/useGamification";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import type { StudentStatus, StudentRole } from "@/types/student";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -35,6 +46,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -52,7 +67,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Separator } from "@/components/ui/separator";
 import { EmptyState } from "@/components/courses/EmptyState";
 
 // ---------------------------------------------------------------------------
@@ -74,7 +88,7 @@ const STATUS_VARIANTS: Record<
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  owner: "Proprietário",
+  owner: "Proprietario",
   admin: "Administrador",
   support: "Atendimento",
   moderator: "Moderador",
@@ -102,67 +116,44 @@ const ENROLLMENT_STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelada",
 };
 
-// Real progress: reads from per-user localStorage key
-function realProgress(studentId: string, course: { id: string; modules: { isActive: boolean; lessons: { id: string; isActive: boolean }[] }[] }): { pct: number; watched: number; total: number } {
-  const totalLessonIds = course.modules
-    .filter((m) => m.isActive)
-    .flatMap((m) => m.lessons.filter((l) => l.isActive))
-    .map((l) => l.id);
-  const pct = computeProgress(studentId, course.id, totalLessonIds);
-  const watched = Math.round((pct / 100) * totalLessonIds.length);
-  return { pct, watched, total: totalLessonIds.length };
-}
-
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminStudentProfilePage() {
   const { studentId } = useParams<{ studentId: string }>();
-  const { students, enrollments, updateStudent, revokeEnrollment } = useStudents();
-  const { findClass } = useClasses();
+  const { students, enrollments, updateStudent, revokeEnrollment, addEnrollment } =
+    useStudents();
+  const { classes, findClass } = useClasses();
   const { findCourse } = useCourses();
   const { findProfile } = useProfiles();
+  const { getProgressForCourse } = useStudentProgress(studentId);
   const { getPostsByAuthor } = usePosts();
   const { findCommunity } = useCommunities();
-  const { isRestricted, getRestriction, getRestrictionsForStudent, removeRestriction } = useRestrictions();
+  const {
+    isRestricted,
+    getRestriction,
+    getRestrictionsForStudent,
+    addRestriction,
+    removeRestriction,
+  } = useRestrictions();
   const { getEarnedCertificates, getTemplateById } = useCertificates();
+  const { getPlayerData, getPlayerMissions, missions, awardPoints, grantMission, revokeMission } =
+    useGamification();
+  const { user: adminUser, resetPassword } = useAuth();
 
-  const studentCerts = useMemo(
-    () => (studentId ? getEarnedCertificates(studentId) : []),
-    [getEarnedCertificates, studentId]
-  );
-
-  const profile = findProfile(studentId);
-  const studentPosts = useMemo(
-    () => (studentId ? getPostsByAuthor(studentId).slice(0, 5) : []),
-    [getPostsByAuthor, studentId]
-  );
-
+  // -- Derived data --
   const student = useMemo(
     () => (studentId ? students.find((s) => s.id === studentId) ?? null : null),
     [students, studentId]
   );
+
+  const profile = findProfile(studentId);
 
   const studentEnrollments = useMemo(
     () => enrollments.filter((e) => e.studentId === studentId),
     [enrollments, studentId]
   );
 
-  // Role edit
-  const [roleValue, setRoleValue] = useState<StudentRole>(
-    student?.role ?? "student"
-  );
-  const [roleChanged, setRoleChanged] = useState(false);
-
-  // Revoke enrollment
-  const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null);
-
-  // Reset progress
-  const [resetTargetCourseId, setResetTargetCourseId] = useState<string | null>(null);
-
-  // ---------------------------------------------------------------------------
-  // Derived enrollments with class + course resolved
-  // ---------------------------------------------------------------------------
   const enrichedEnrollments = useMemo(
     () =>
       studentEnrollments.map((e) => {
@@ -175,7 +166,6 @@ export default function AdminStudentProfilePage() {
     [studentEnrollments, findClass, findCourse]
   );
 
-  // Unique courses across all enrollments (for the progress section)
   const allEnrolledCourses = useMemo(() => {
     const seen = new Set<string>();
     const result: NonNullable<ReturnType<typeof findCourse>>[] = [];
@@ -189,6 +179,58 @@ export default function AdminStudentProfilePage() {
     }
     return result;
   }, [enrichedEnrollments]);
+
+  const studentCerts = useMemo(
+    () => (studentId ? getEarnedCertificates(studentId) : []),
+    [getEarnedCertificates, studentId]
+  );
+
+  const studentPosts = useMemo(
+    () => (studentId ? getPostsByAuthor(studentId).slice(0, 5) : []),
+    [getPostsByAuthor, studentId]
+  );
+
+  const playerData = studentId ? getPlayerData(studentId) : null;
+  const completedMissions = studentId ? getPlayerMissions(studentId) : [];
+
+  // Classes the student is NOT enrolled in (for add turma dropdown)
+  const enrolledClassIds = useMemo(
+    () => new Set(studentEnrollments.filter((e) => e.status === "active").map((e) => e.classId)),
+    [studentEnrollments]
+  );
+  const availableClasses = useMemo(
+    () => classes.filter((c) => c.status === "active" && !enrolledClassIds.has(c.id)),
+    [classes, enrolledClassIds]
+  );
+
+  // Missions the student does NOT have yet
+  const unownedMissions = useMemo(
+    () => missions.filter((m) => !completedMissions.some((cm) => cm.id === m.id)),
+    [missions, completedMissions]
+  );
+
+  // -- State --
+  const [roleValue, setRoleValue] = useState<StudentRole>(student?.role ?? "student");
+  const [roleChanged, setRoleChanged] = useState(false);
+  const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null);
+  const [resetTargetCourseId, setResetTargetCourseId] = useState<string | null>(null);
+
+  // Add turma
+  const [addClassId, setAddClassId] = useState("");
+
+  // Gamification
+  const [pointsInput, setPointsInput] = useState("");
+  const [pointsReason, setPointsReason] = useState("");
+  const [grantMissionId, setGrantMissionId] = useState("");
+
+  // Restriction inline
+  const [showAddRestriction, setShowAddRestriction] = useState(false);
+  const [restrictionReason, setRestrictionReason] = useState("");
+  const [restrictionDays, setRestrictionDays] = useState("");
+
+  // Loading states
+  const [resetPwLoading, setResetPwLoading] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -210,20 +252,156 @@ export default function AdminStudentProfilePage() {
   function handleRevoke() {
     if (!revokeTargetId) return;
     revokeEnrollment(revokeTargetId);
-    toast.success("Acesso à turma revogado.");
+    toast.success("Acesso a turma revogado.");
     setRevokeTargetId(null);
   }
 
-  function handleResetProgress() {
+  async function handleResetProgress() {
     if (!resetTargetCourseId || !student) return;
     try {
-      localStorage.removeItem(progressKey(student.id, resetTargetCourseId));
+      await supabase
+        .from("lesson_progress")
+        .delete()
+        .eq("student_id", student.id)
+        .eq("course_id", resetTargetCourseId);
     } catch {
       // ignore
     }
     toast.success("Progresso do curso resetado.");
     setResetTargetCourseId(null);
   }
+
+  // SUPERPOWER 1: Reset password
+  async function handleResetPassword() {
+    if (!student) return;
+    setResetPwLoading(true);
+    try {
+      const { error } = await resetPassword(student.email);
+      if (error) {
+        toast.error(error);
+      } else {
+        toast.success(`Email de redefinicao enviado para ${student.email}`);
+      }
+    } catch {
+      toast.error("Erro ao enviar email de redefinicao.");
+    }
+    setResetPwLoading(false);
+  }
+
+  // SUPERPOWER 3: Add class enrollment
+  async function handleAddClass() {
+    if (!addClassId || !studentId) return;
+    try {
+      await addEnrollment({
+        studentId,
+        classId: addClassId,
+        type: "individual",
+        expiresAt: null,
+        status: "active",
+      });
+      toast.success("Turma vinculada com sucesso.");
+      setAddClassId("");
+    } catch {
+      toast.error("Erro ao vincular turma.");
+    }
+  }
+
+  // SUPERPOWER 4: Manual points
+  async function handleAwardPoints(positive: boolean) {
+    if (!studentId || !pointsInput) return;
+    const pts = parseInt(pointsInput, 10);
+    if (isNaN(pts) || pts <= 0) {
+      toast.error("Informe um numero valido de pontos.");
+      return;
+    }
+    const actualPts = positive ? pts : -pts;
+    const reason = pointsReason.trim() || (positive ? "Ajuste manual (admin)" : "Deducao manual (admin)");
+    try {
+      await awardPoints(studentId, actualPts, reason);
+      toast.success(`${positive ? "+" : "-"}${pts} pontos aplicados.`);
+      setPointsInput("");
+      setPointsReason("");
+    } catch {
+      toast.error("Erro ao ajustar pontos.");
+    }
+  }
+
+  // SUPERPOWER 5: Block access
+  async function handleBlockAccess() {
+    if (!student) return;
+    setBlockLoading(true);
+    const newStatus: StudentStatus = student.status === "inactive" ? "active" : "inactive";
+    try {
+      await updateStudent(student.id, { status: newStatus });
+      toast.success(newStatus === "inactive" ? "Acesso bloqueado." : "Acesso liberado.");
+    } catch {
+      toast.error("Erro ao alterar status.");
+    }
+    setBlockLoading(false);
+  }
+
+  // Grant mission manually
+  async function handleGrantMission() {
+    if (!studentId || !grantMissionId) return;
+    try {
+      await grantMission(studentId, grantMissionId);
+      toast.success("Missão concedida manualmente.");
+      setGrantMissionId("");
+    } catch {
+      toast.error("Erro ao conceder missão.");
+    }
+  }
+
+  // SUPERPOWER 8: Add restriction inline
+  async function handleAddRestriction() {
+    if (!studentId || !restrictionReason.trim()) {
+      toast.error("Informe o motivo da restricao.");
+      return;
+    }
+    try {
+      await addRestriction({
+        studentId,
+        reason: restrictionReason.trim(),
+        appliedBy: adminUser?.id ?? "admin",
+        durationDays: restrictionDays ? parseInt(restrictionDays, 10) : null,
+      });
+      toast.success("Restricao aplicada.");
+      setRestrictionReason("");
+      setRestrictionDays("");
+      setShowAddRestriction(false);
+    } catch {
+      toast.error("Erro ao aplicar restricao.");
+    }
+  }
+
+  // SUPERPOWER 8: Silence in community
+  async function handleToggleSilence() {
+    if (!student) return;
+    // We use a restriction with reason "Silenciado na comunidade" as a convention
+    const silenceRestriction = getRestrictionsForStudent(student.id).find(
+      (r) => r.active && r.reason === "Silenciado na comunidade"
+    );
+    if (silenceRestriction) {
+      await removeRestriction(silenceRestriction.id);
+      toast.success("Silenciamento removido.");
+    } else {
+      await addRestriction({
+        studentId: student.id,
+        reason: "Silenciado na comunidade",
+        appliedBy: adminUser?.id ?? "admin",
+        durationDays: null,
+      });
+      toast.success("Aluno silenciado na comunidade.");
+    }
+  }
+
+  // Check if currently silenced
+  const isSilenced = useMemo(() => {
+    if (!studentId) return false;
+    return getRestrictionsForStudent(studentId).some(
+      (r) => r.active && r.reason === "Silenciado na comunidade" && (!r.endsAt || new Date(r.endsAt) > new Date())
+    );
+  }, [studentId, getRestrictionsForStudent]);
 
   // ---------------------------------------------------------------------------
   // Not found
@@ -235,13 +413,13 @@ export default function AdminStudentProfilePage() {
           items={[
             { label: "Admin", to: "/admin" },
             { label: "Alunos", to: "/admin/alunos" },
-            { label: "Aluno não encontrado" },
+            { label: "Aluno nao encontrado" },
           ]}
         />
         <EmptyState
           icon={Users}
-          title="Aluno não encontrado"
-          description="O aluno que você está procurando não existe ou foi removido."
+          title="Aluno nao encontrado"
+          description="O aluno que voce esta procurando nao existe ou foi removido."
           action={
             <Button asChild variant="outline">
               <Link to="/admin/alunos">Voltar para Alunos</Link>
@@ -266,10 +444,12 @@ export default function AdminStudentProfilePage() {
         ]}
       />
 
-      {/* Header */}
+      {/* ================================================================= */}
+      {/* HEADER — Avatar grande + info + action bar                        */}
+      {/* ================================================================= */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 shrink-0 rounded-full overflow-hidden bg-primary/10">
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 shrink-0 rounded-full overflow-hidden bg-primary/10 ring-2 ring-primary/20 shadow-lg">
             {profile?.avatarUrl ? (
               <img
                 src={profile.avatarUrl}
@@ -277,7 +457,7 @@ export default function AdminStudentProfilePage() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-primary font-bold text-lg">
+              <div className="flex h-full w-full items-center justify-center text-primary font-bold text-2xl">
                 {student.name.charAt(0).toUpperCase()}
               </div>
             )}
@@ -286,7 +466,7 @@ export default function AdminStudentProfilePage() {
             <h1 className="text-2xl font-bold tracking-tight">
               {profile?.displayName ?? student.name}
             </h1>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex flex-wrap items-center gap-2 mt-0.5">
               {profile && (
                 <span className="text-sm text-muted-foreground">
                   @{profile.username}
@@ -295,34 +475,71 @@ export default function AdminStudentProfilePage() {
               <Badge variant={STATUS_VARIANTS[student.status]}>
                 {STATUS_LABELS[student.status]}
               </Badge>
-              <span className="text-sm text-muted-foreground">
+              <Badge variant="outline" className="text-xs">
                 {ROLE_LABELS[student.role] ?? student.role}
-              </span>
+              </Badge>
+              {playerData && playerData.points > 0 && (
+                <Badge variant="outline" className="text-xs border-yellow-500/30 text-yellow-600">
+                  <Trophy className="h-3 w-3 mr-1" />
+                  {playerData.points} pts
+                </Badge>
+              )}
+              {isSilenced && (
+                <Badge variant="destructive" className="text-xs">
+                  <VolumeX className="h-3 w-3 mr-1" />
+                  Silenciado
+                </Badge>
+              )}
             </div>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleToggleStatus}
-        >
-          {student.status === "active" ? (
-            <><UserX className="mr-1.5 h-4 w-4 text-yellow-500" />Desativar</>
-          ) : (
-            <><UserCheck className="mr-1.5 h-4 w-4 text-emerald-500" />Ativar</>
-          )}
-        </Button>
+
+        {/* Quick action bar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResetPassword}
+            disabled={resetPwLoading}
+          >
+            <KeyRound className="mr-1.5 h-4 w-4" />
+            {resetPwLoading ? "Enviando..." : "Redefinir senha"}
+          </Button>
+          <Button
+            variant={student.status === "active" ? "outline" : "default"}
+            size="sm"
+            onClick={handleBlockAccess}
+            disabled={blockLoading}
+          >
+            {student.status === "active" ? (
+              <><ShieldBan className="mr-1.5 h-4 w-4 text-destructive" />Bloquear acesso</>
+            ) : (
+              <><UserCheck className="mr-1.5 h-4 w-4 text-emerald-500" />Liberar acesso</>
+            )}
+          </Button>
+          <Button
+            variant={isSilenced ? "default" : "outline"}
+            size="sm"
+            onClick={handleToggleSilence}
+          >
+            <VolumeX className="mr-1.5 h-4 w-4" />
+            {isSilenced ? "Remover silencio" : "Silenciar"}
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left column — info + role */}
-        <div className="space-y-4">
-          {/* Info card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Informações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
+      {/* ================================================================= */}
+      {/* GRID — 2-column card layout                                       */}
+      {/* ================================================================= */}
+      <div className="grid gap-6 lg:grid-cols-2">
+
+        {/* ---- Card: Identidade & Acesso ---- */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Identidade & Acesso</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 text-sm">
               <div className="flex items-start gap-2">
                 <Mail className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                 <span className="break-all">{student.email}</span>
@@ -331,26 +548,23 @@ export default function AdminStudentProfilePage() {
                 <CalendarDays className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                 <span>
                   Cadastrado em{" "}
-                  {format(parseISO(student.createdAt), "dd/MM/yyyy", {
-                    locale: ptBR,
-                  })}
+                  {format(parseISO(student.createdAt), "dd/MM/yyyy", { locale: ptBR })}
                 </span>
               </div>
               <div className="flex items-start gap-2">
                 <ShieldCheck className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                 <span>{ROLE_LABELS[student.role] ?? student.role}</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Role editor */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Perfil de acesso</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="role-select">Perfil</Label>
+            <Separator />
+
+            {/* Role editor */}
+            <div className="space-y-2">
+              <Label htmlFor="role-select" className="text-xs font-medium text-muted-foreground">
+                Perfil de acesso
+              </Label>
+              <div className="flex items-center gap-2">
                 <Select
                   value={roleValue}
                   onValueChange={(v) => {
@@ -358,7 +572,7 @@ export default function AdminStudentProfilePage() {
                     setRoleChanged(v !== student.role);
                   }}
                 >
-                  <SelectTrigger id="role-select">
+                  <SelectTrigger id="role-select" className="flex-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -368,319 +582,500 @@ export default function AdminStudentProfilePage() {
                     <SelectItem value="admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>
+                {roleChanged && (
+                  <Button size="sm" onClick={handleSaveRole}>
+                    Salvar
+                  </Button>
+                )}
               </div>
-              {roleChanged && (
-                <Button size="sm" onClick={handleSaveRole} className="w-full">
-                  Salvar perfil
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ---- Card: Turmas Vinculadas ---- */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <UsersRound className="h-4 w-4 text-primary" />
+              Turmas vinculadas ({studentEnrollments.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Add turma inline */}
+            {availableClasses.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Select value={addClassId} onValueChange={setAddClassId}>
+                  <SelectTrigger className="flex-1 text-sm">
+                    <SelectValue placeholder="Vincular turma..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableClasses.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  onClick={handleAddClass}
+                  disabled={!addClassId}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Vincular
                 </Button>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
 
-          {/* Restrictions */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Ban className="h-4 w-4 text-yellow-500" />
-                Restricoes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {studentId && isRestricted(studentId) ? (
-                (() => {
-                  const active = getRestriction(studentId);
-                  return active ? (
-                    <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="destructive" className="text-xs">Restrito</Badge>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs"
-                          onClick={() => {
-                            removeRestriction(active.id);
-                            toast.success("Restricao removida.");
-                          }}
-                        >
-                          Remover
-                        </Button>
-                      </div>
-                      <p className="text-sm"><span className="font-medium">Motivo:</span> {active.reason}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Inicio: {format(parseISO(active.startsAt), "dd/MM/yyyy", { locale: ptBR })}
-                        {" · "}
-                        Fim: {active.endsAt ? format(parseISO(active.endsAt), "dd/MM/yyyy", { locale: ptBR }) : "Permanente"}
+            {enrichedEnrollments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma turma vinculada.</p>
+            ) : (
+              <div className="divide-y -mx-6">
+                {enrichedEnrollments.map(({ enrollment, cls, courses }) => (
+                  <div
+                    key={enrollment.id}
+                    className="flex items-center justify-between gap-3 px-6 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {cls?.name ?? enrollment.classId}
                       </p>
-                    </div>
-                  ) : null;
-                })()
-              ) : (
-                <p className="text-sm text-muted-foreground">Sem restricao ativa.</p>
-              )}
-
-              {/* History */}
-              {studentId && (() => {
-                const history = getRestrictionsForStudent(studentId).filter(
-                  (r) => !r.active || (r.endsAt && new Date(r.endsAt) < new Date())
-                );
-                if (history.length === 0) return null;
-                return (
-                  <div className="pt-2">
-                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Historico</p>
-                    <div className="space-y-1.5">
-                      {history.map((r) => (
-                        <div key={r.id} className="text-xs text-muted-foreground">
-                          {format(parseISO(r.startsAt), "dd/MM/yyyy", { locale: ptBR })} — {r.reason}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right column — enrollments + progress */}
-        <div className="space-y-4 lg:col-span-2">
-          {/* Turmas */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <UsersRound className="h-4 w-4 text-primary" />
-                Turmas vinculadas ({studentEnrollments.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {enrichedEnrollments.length === 0 ? (
-                <p className="px-6 pb-4 text-sm text-muted-foreground">
-                  Nenhuma turma vinculada.
-                </p>
-              ) : (
-                <div className="divide-y">
-                  {enrichedEnrollments.map(({ enrollment, cls, courses }) => (
-                    <div
-                      key={enrollment.id}
-                      className="flex items-center justify-between gap-3 px-6 py-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {cls?.name ?? enrollment.classId}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                        <span className="text-xs text-muted-foreground">
+                          {ENROLLMENT_TYPE_LABELS[enrollment.type] ?? enrollment.type}
+                        </span>
+                        {courses.length > 0 && (
                           <span className="text-xs text-muted-foreground">
-                            {ENROLLMENT_TYPE_LABELS[enrollment.type] ?? enrollment.type}
+                            · {courses.length === 1 ? courses[0]?.title ?? "Curso" : `${courses.length} cursos`}
                           </span>
-                          {courses.length > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              · {courses.length === 1
-                                  ? courses[0]?.title ?? "Curso"
-                                  : `${courses.length} cursos`}
-                            </span>
-                          )}
-                          {enrollment.expiresAt && (
-                            <span className="text-xs text-muted-foreground">
-                              · Expira{" "}
-                              {format(parseISO(enrollment.expiresAt), "dd/MM/yyyy", {
-                                locale: ptBR,
-                              })}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge
-                          variant={
-                            ENROLLMENT_STATUS_VARIANTS[enrollment.status] ??
-                            "outline"
-                          }
-                          className="text-xs"
-                        >
-                          {ENROLLMENT_STATUS_LABELS[enrollment.status] ??
-                            enrollment.status}
-                        </Badge>
-                        {enrollment.status === "active" && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            title="Revogar acesso"
-                            onClick={() => setRevokeTargetId(enrollment.id)}
-                          >
-                            <Ban className="h-4 w-4 text-destructive" />
-                          </Button>
+                        )}
+                        {enrollment.expiresAt && (
+                          <span className="text-xs text-muted-foreground">
+                            · Expira {format(parseISO(enrollment.expiresAt), "dd/MM/yyyy", { locale: ptBR })}
+                          </span>
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Community posts */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <MessageSquare className="h-4 w-4 text-primary" />
-                Posts na comunidade ({studentPosts.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {studentPosts.length === 0 ? (
-                <p className="px-6 pb-4 text-sm text-muted-foreground">
-                  Nenhum post publicado.
-                </p>
-              ) : (
-                <div className="divide-y">
-                  {studentPosts.map((post) => (
-                    <div key={post.id} className="px-6 py-3">
-                      {post.title && (
-                        <p className="text-sm font-medium leading-snug">
-                          {post.title}
-                        </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge
+                        variant={ENROLLMENT_STATUS_VARIANTS[enrollment.status] ?? "outline"}
+                        className="text-xs"
+                      >
+                        {ENROLLMENT_STATUS_LABELS[enrollment.status] ?? enrollment.status}
+                      </Badge>
+                      {enrollment.status === "active" && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Revogar acesso"
+                          className="h-7 w-7"
+                          onClick={() => setRevokeTargetId(enrollment.id)}
+                        >
+                          <X className="h-4 w-4 text-destructive" />
+                        </Button>
                       )}
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {post.body}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ---- Card: Gamificacao ---- */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Trophy className="h-4 w-4 text-yellow-500" />
+              Gamificacao
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Current points */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{playerData?.points ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Pontos acumulados</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium">{completedMissions.length} / {missions.length}</p>
+                <p className="text-xs text-muted-foreground">Missões concluídas</p>
+              </div>
+            </div>
+
+            {/* Completed missions */}
+            {completedMissions.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {completedMissions.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs"
+                  >
+                    <span>{m.icon}</span>
+                    <span>{m.name}</span>
+                    <button
+                      className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
+                      title="Revogar missão"
+                      onClick={async () => {
+                        if (!studentId) return;
+                        await revokeMission(studentId, m.id);
+                        toast.success(`Missão "${m.name}" revogada.`);
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Separator />
+
+            {/* Manual points */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Ajustar pontos manualmente
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="Pontos"
+                  value={pointsInput}
+                  onChange={(e) => setPointsInput(e.target.value)}
+                  className="w-24"
+                />
+                <Input
+                  placeholder="Motivo (opcional)"
+                  value={pointsReason}
+                  onChange={(e) => setPointsReason(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  title="Adicionar pontos"
+                  className="shrink-0"
+                  disabled={!pointsInput}
+                  onClick={() => handleAwardPoints(true)}
+                >
+                  <Plus className="h-4 w-4 text-emerald-500" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  title="Remover pontos"
+                  className="shrink-0"
+                  disabled={!pointsInput}
+                  onClick={() => handleAwardPoints(false)}
+                >
+                  <Minus className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Grant mission */}
+            {unownedMissions.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Conceder missão manualmente
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Select value={grantMissionId} onValueChange={setGrantMissionId}>
+                    <SelectTrigger className="flex-1 text-sm">
+                      <SelectValue placeholder="Selecionar missão..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unownedMissions.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.icon} {m.name} — {m.description}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    onClick={handleGrantMission}
+                    disabled={!grantMissionId}
+                  >
+                    <Award className="h-4 w-4 mr-1" />
+                    Conceder
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ---- Card: Moderacao & Restricoes ---- */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Ban className="h-4 w-4 text-yellow-500" />
+              Moderacao & Restricoes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Active restriction */}
+            {studentId && isRestricted(studentId) ? (
+              (() => {
+                const active = getRestriction(studentId);
+                return active ? (
+                  <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="destructive" className="text-xs">Restrito</Badge>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          removeRestriction(active.id);
+                          toast.success("Restricao removida.");
+                        }}
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                    <p className="text-sm">
+                      <span className="font-medium">Motivo:</span> {active.reason}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Inicio: {format(parseISO(active.startsAt), "dd/MM/yyyy", { locale: ptBR })}
+                      {" · "}
+                      Fim: {active.endsAt ? format(parseISO(active.endsAt), "dd/MM/yyyy", { locale: ptBR }) : "Permanente"}
+                    </p>
+                  </div>
+                ) : null;
+              })()
+            ) : (
+              <p className="text-sm text-muted-foreground">Sem restricao ativa.</p>
+            )}
+
+            {/* Add restriction inline */}
+            {!showAddRestriction ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setShowAddRestriction(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Adicionar restricao
+              </Button>
+            ) : (
+              <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Nova restricao</Label>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    onClick={() => setShowAddRestriction(false)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <Textarea
+                  placeholder="Motivo da restricao..."
+                  value={restrictionReason}
+                  onChange={(e) => setRestrictionReason(e.target.value)}
+                  rows={2}
+                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="Dias (vazio = permanente)"
+                    value={restrictionDays}
+                    onChange={(e) => setRestrictionDays(e.target.value)}
+                    className="w-48"
+                  />
+                  <Button size="sm" onClick={handleAddRestriction}>
+                    Aplicar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
+            {/* History */}
+            {studentId && (() => {
+              const history = getRestrictionsForStudent(studentId).filter(
+                (r) => !r.active || (r.endsAt && new Date(r.endsAt) < new Date())
+              );
+              if (history.length === 0) return null;
+              return (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    <Clock className="h-3 w-3 inline mr-1" />
+                    Historico de restricoes
+                  </p>
+                  <div className="space-y-1.5">
+                    {history.map((r) => (
+                      <div key={r.id} className="text-xs text-muted-foreground">
+                        {format(parseISO(r.startsAt), "dd/MM/yyyy", { locale: ptBR })} — {r.reason}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* ---- Card: Progresso por curso (full width) ---- */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BookOpen className="h-4 w-4 text-primary" />
+              Progresso por curso
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {allEnrolledCourses.length === 0 ? (
+              <p className="px-6 pb-4 text-sm text-muted-foreground">
+                Nenhum curso vinculado.
+              </p>
+            ) : (
+              <div className="divide-y">
+                {allEnrolledCourses.map((course) => {
+                  const totalLessonIds = course.modules
+                    .filter((m: { isActive: boolean }) => m.isActive)
+                    .flatMap((m: { lessons: { id: string; isActive: boolean }[] }) =>
+                      m.lessons.filter((l) => l.isActive).map((l) => l.id)
+                    );
+                  const {
+                    completed: watched,
+                    total: totalLessons,
+                    percentage: pct,
+                  } = getProgressForCourse(course.id, totalLessonIds);
+
+                  return (
+                    <div key={course.id} className="px-6 py-4 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{course.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {watched} de {totalLessons} aula
+                            {totalLessons !== 1 ? "s" : ""} assistida
+                            {watched !== 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-sm font-semibold w-10 text-right">
+                            {pct}%
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Resetar progresso"
+                            className="h-7 w-7"
+                            onClick={() => setResetTargetCourseId(course.id)}
+                          >
+                            <RotateCcw className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      </div>
+                      <Progress value={pct} className="h-1.5" />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ---- Card: Posts na comunidade ---- */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              Posts na comunidade ({studentPosts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {studentPosts.length === 0 ? (
+              <p className="px-6 pb-4 text-sm text-muted-foreground">
+                Nenhum post publicado.
+              </p>
+            ) : (
+              <div className="divide-y">
+                {studentPosts.map((post) => (
+                  <div key={post.id} className="px-6 py-3">
+                    {post.title && (
+                      <p className="text-sm font-medium leading-snug">{post.title}</p>
+                    )}
+                    <p className="text-sm text-muted-foreground line-clamp-2">{post.body}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+                      <span>{findCommunity(post.communityId)?.name ?? post.communityId}</span>
+                      <span>·</span>
+                      <span>{post.likesCount} curtida{post.likesCount !== 1 ? "s" : ""}</span>
+                      <span>·</span>
+                      <span>{post.commentsCount} comentario{post.commentsCount !== 1 ? "s" : ""}</span>
+                      <span>·</span>
+                      <span>{format(parseISO(post.createdAt), "dd/MM/yyyy", { locale: ptBR })}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ---- Card: Certificados ---- */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Award className="h-4 w-4 text-yellow-500" />
+              Certificados ({studentCerts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {studentCerts.length === 0 ? (
+              <p className="px-6 pb-4 text-sm text-muted-foreground">
+                Nenhum certificado emitido.
+              </p>
+            ) : (
+              <div className="divide-y">
+                {studentCerts.map((cert) => {
+                  const certCourse = findCourse(cert.courseId);
+                  const tpl = getTemplateById(cert.templateId);
+                  return (
+                    <div key={cert.id} className="px-6 py-3">
+                      <p className="text-sm font-medium">
+                        {certCourse?.title ?? cert.courseId}
                       </p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
                         <span>
-                          {findCommunity(post.communityId)?.name ??
-                            post.communityId}
+                          Concluido em{" "}
+                          {format(parseISO(cert.earnedAt), "dd/MM/yyyy", { locale: ptBR })}
                         </span>
-                        <span>·</span>
-                        <span>
-                          {post.likesCount} curtida
-                          {post.likesCount !== 1 ? "s" : ""}
-                        </span>
-                        <span>·</span>
-                        <span>
-                          {post.commentsCount} comentario
-                          {post.commentsCount !== 1 ? "s" : ""}
-                        </span>
-                        <span>·</span>
-                        <span>
-                          {format(parseISO(post.createdAt), "dd/MM/yyyy", {
-                            locale: ptBR,
-                          })}
-                        </span>
+                        {certCourse?.certificateConfig?.hoursLoad ? (
+                          <>
+                            <span>·</span>
+                            <span>{certCourse.certificateConfig.hoursLoad}h</span>
+                          </>
+                        ) : null}
+                        {tpl && (
+                          <>
+                            <span>·</span>
+                            <span>Modelo: {tpl.name}</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Certificates */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Award className="h-4 w-4 text-yellow-500" />
-                Certificados ({studentCerts.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {studentCerts.length === 0 ? (
-                <p className="px-6 pb-4 text-sm text-muted-foreground">
-                  Nenhum certificado emitido.
-                </p>
-              ) : (
-                <div className="divide-y">
-                  {studentCerts.map((cert) => {
-                    const certCourse = findCourse(cert.courseId);
-                    const tpl = getTemplateById(cert.templateId);
-                    return (
-                      <div key={cert.id} className="px-6 py-3">
-                        <p className="text-sm font-medium">
-                          {certCourse?.title ?? cert.courseId}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
-                          <span>
-                            Concluído em{" "}
-                            {format(parseISO(cert.earnedAt), "dd/MM/yyyy", {
-                              locale: ptBR,
-                            })}
-                          </span>
-                          {certCourse?.certificateConfig?.hoursLoad ? (
-                            <>
-                              <span>·</span>
-                              <span>
-                                {certCourse.certificateConfig.hoursLoad}h
-                              </span>
-                            </>
-                          ) : null}
-                          {tpl && (
-                            <>
-                              <span>·</span>
-                              <span>Modelo: {tpl.name}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Course progress */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <BookOpen className="h-4 w-4 text-primary" />
-                Progresso por curso
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {allEnrolledCourses.length === 0 ? (
-                <p className="px-6 pb-4 text-sm text-muted-foreground">
-                  Nenhum curso vinculado.
-                </p>
-              ) : (
-                <div className="divide-y">
-                  {allEnrolledCourses.map((course) => {
-                      const { pct, watched, total: totalLessons } = realProgress(student.id, course);
-
-                      return (
-                        <div key={course.id} className="px-6 py-4 space-y-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">
-                                {course.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {watched} de {totalLessons} aula
-                                {totalLessons !== 1 ? "s" : ""} assistida
-                                {watched !== 1 ? "s" : ""}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-sm font-semibold w-10 text-right">
-                                {pct}%
-                              </span>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                title="Resetar progresso"
-                                onClick={() =>
-                                  setResetTargetCourseId(course.id)
-                                }
-                              >
-                                <RotateCcw className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </div>
-                          </div>
-                          <Progress value={pct} className="h-1.5" />
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* ================================================================= */}
+      {/* DIALOGS                                                            */}
+      {/* ================================================================= */}
 
       {/* Revoke enrollment dialog */}
       <AlertDialog
@@ -689,10 +1084,9 @@ export default function AdminStudentProfilePage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revogar acesso à turma?</AlertDialogTitle>
+            <AlertDialogTitle>Revogar acesso a turma?</AlertDialogTitle>
             <AlertDialogDescription>
-              O aluno perderá o acesso a esta turma. Esta ação não pode ser
-              desfeita.
+              O aluno perdera o acesso a esta turma. Esta acao nao pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -711,15 +1105,12 @@ export default function AdminStudentProfilePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Resetar progresso?</AlertDialogTitle>
             <AlertDialogDescription>
-              Todo o progresso deste aluno no curso será zerado. Esta ação não
-              pode ser desfeita.
+              Todo o progresso deste aluno no curso sera zerado. Esta acao nao pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleResetProgress}>
-              Resetar
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleResetProgress}>Resetar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

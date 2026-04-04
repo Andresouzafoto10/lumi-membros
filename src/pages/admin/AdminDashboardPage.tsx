@@ -10,6 +10,9 @@ import {
   UsersRound,
   UserPlus,
   CalendarDays,
+  Award,
+  MessageSquare,
+  Trophy,
 } from "lucide-react";
 import { format, subDays, isAfter, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -17,6 +20,7 @@ import { ptBR } from "date-fns/locale";
 import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
 import { useCourses } from "@/hooks/useCourses";
+import { useAdminDashboard } from "@/hooks/useAdminDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -75,6 +79,7 @@ export default function AdminDashboardPage() {
   const { students, enrollments } = useStudents();
   const { activeClasses } = useClasses();
   const { allCourses } = useCourses();
+  const { metrics } = useAdminDashboard();
 
   const thirtyDaysAgo = useMemo(() => subDays(new Date(), 30), []);
 
@@ -185,6 +190,25 @@ export default function AdminDashboardPage() {
             icon={UserPlus}
             iconClass="text-primary bg-primary/10"
             description="cadastros nos últimos 30 dias"
+          />
+          <MetricCard
+            label="Certificados emitidos"
+            value={metrics.totalCertificates}
+            icon={Award}
+            iconClass="text-amber-500 bg-amber-500/10"
+          />
+          <MetricCard
+            label="Posts na comunidade"
+            value={metrics.totalPosts}
+            icon={MessageSquare}
+            iconClass="text-indigo-500 bg-indigo-500/10"
+            description={`${metrics.postsThisWeek} esta semana`}
+          />
+          <MetricCard
+            label="Missões concluídas"
+            value={metrics.badgesAwarded}
+            icon={Trophy}
+            iconClass="text-orange-500 bg-orange-500/10"
           />
         </div>
       </section>
