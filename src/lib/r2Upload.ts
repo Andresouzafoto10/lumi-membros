@@ -4,17 +4,42 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } fro
 // R2 Client (singleton)
 // ---------------------------------------------------------------------------
 
-const R2_BUCKET = import.meta.env.VITE_R2_BUCKET_NAME as string;
-const R2_PUBLIC_URL = (import.meta.env.VITE_R2_PUBLIC_URL as string).replace(/\/$/, "");
+const R2_BUCKET = import.meta.env.VITE_R2_BUCKET_NAME as string | undefined;
+const R2_PUBLIC_URL = (import.meta.env.VITE_R2_PUBLIC_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+const R2_ENDPOINT = import.meta.env.VITE_R2_ENDPOINT as string | undefined;
+const R2_ACCESS_KEY_ID = import.meta.env.VITE_R2_ACCESS_KEY_ID as string | undefined;
+const R2_SECRET_ACCESS_KEY = import.meta.env.VITE_R2_SECRET_ACCESS_KEY as string | undefined;
 
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: import.meta.env.VITE_R2_ENDPOINT as string,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID as string,
-    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY as string,
-  },
-});
+const isR2Configured = Boolean(
+  R2_BUCKET && R2_PUBLIC_URL && R2_ENDPOINT && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY
+);
+
+let s3: S3Client | null = null;
+
+function getS3Client(): S3Client {
+  if (!isR2Configured) {
+    throw new Error(
+      "Cloudflare R2 não configurado. Defina VITE_R2_BUCKET_NAME, VITE_R2_PUBLIC_URL, VITE_R2_ENDPOINT, VITE_R2_ACCESS_KEY_ID e VITE_R2_SECRET_ACCESS_KEY."
+    );
+  }
+
+  if (!s3) {
+    const endpoint = R2_ENDPOINT as string;
+    const accessKeyId = R2_ACCESS_KEY_ID as string;
+    const secretAccessKey = R2_SECRET_ACCESS_KEY as string;
+
+    s3 = new S3Client({
+      region: "auto",
+      endpoint,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+    });
+  }
+
+  return s3;
+}
 
 // ---------------------------------------------------------------------------
 // Image optimisation presets
@@ -69,6 +94,12 @@ export async function uploadToR2(
   folder: string,
   options?: { oldUrl?: string; preset?: ImagePreset }
 ): Promise<string> {
+  if (!isR2Configured) {
+    throw new Error(
+      "Cloudflare R2 não configurado para upload no ambiente atual."
+    );
+  }
+
   const { oldUrl, preset } = options ?? {};
 
   // Optimise images
@@ -80,7 +111,7 @@ export async function uploadToR2(
   const uid = crypto.randomUUID();
   const key = `${folder}/${uid}-${Date.now()}.${ext}`;
 
-  await s3.send(
+  await getS3Client().send(
     new PutObjectCommand({
       Bucket: R2_BUCKET,
       Key: key,
@@ -103,13 +134,13 @@ export async function uploadToR2(
 // ---------------------------------------------------------------------------
 
 export async function deleteFromR2(url: string): Promise<void> {
-  if (!url || !url.startsWith(R2_PUBLIC_URL)) return;
+  if (!isR2Configured || !url || !url.startsWith(R2_PUBLIC_URL)) return;
 
   const key = url.replace(`${R2_PUBLIC_URL}/`, "");
   if (!key) return;
 
   try {
-    await s3.send(
+    await getS3Client().send(
       new DeleteObjectCommand({
         Bucket: R2_BUCKET,
         Key: key,
@@ -126,7 +157,7 @@ export async function deleteFromR2(url: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export function isR2Url(url: string): boolean {
-  return !!url && url.startsWith(R2_PUBLIC_URL);
+  return isR2Configured && !!url && url.startsWith(R2_PUBLIC_URL);
 }
 
 // ---------------------------------------------------------------------------
@@ -135,10 +166,13 @@ export function isR2Url(url: string): boolean {
 // ---------------------------------------------------------------------------
 
 export async function fetchR2AsDataUrl(publicUrl: string): Promise<string> {
+  if (!isR2Configured) {
+    throw new Error("Cloudflare R2 não configurado no ambiente atual.");
+  }
   if (!isR2Url(publicUrl)) throw new Error("Not an R2 URL");
 
   const key = publicUrl.replace(`${R2_PUBLIC_URL}/`, "");
-  const { Body, ContentType } = await s3.send(
+  const { Body, ContentType } = await getS3Client().send(
     new GetObjectCommand({ Bucket: R2_BUCKET, Key: key })
   );
 

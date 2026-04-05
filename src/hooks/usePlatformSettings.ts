@@ -60,8 +60,15 @@ async function fetchSettings(): Promise<PlatformSettings> {
     .from("platform_settings")
     .select("*")
     .eq("id", "default")
-    .single();
-  if (error || !data) return { ...DEFAULT_SETTINGS };
+    .maybeSingle();
+
+  if (error) {
+    console.error("[platform_settings] Falha ao carregar configurações:", error.message);
+    return { ...DEFAULT_SETTINGS };
+  }
+
+  if (!data) return { ...DEFAULT_SETTINGS };
+
   return {
     name: (data.name as string) ?? DEFAULT_SETTINGS.name,
     logoUrl: (data.logo_url as string) ?? "",

@@ -141,7 +141,7 @@ export default function App() {
       <ThemeApplicator />
       <Routes>
         {/* Root redirect */}
-        <Route path="/" element={<Navigate to="/cursos" replace />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Public auth routes */}
         <Route path="/login" element={<LoginPage />} />
