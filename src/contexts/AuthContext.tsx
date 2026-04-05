@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,6 +47,8 @@ type AuthContextValue = {
 // ---------------------------------------------------------------------------
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const missingSupabaseConfigMessage =
+  "Configuração de autenticação ausente no ambiente (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).";
 
 // ---------------------------------------------------------------------------
 // Helper: map Supabase user + profile → AuthUser
@@ -112,6 +114,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      initializedRef.current = true;
+      return () => {
+        mounted = false;
+      };
+    }
+
     // Primary initialization — fetch persisted session once
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
@@ -125,6 +135,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         lastKnownProfile.current = null;
         setUser(null);
       }
+      setLoading(false);
+      initializedRef.current = true;
+    }).catch(() => {
+      if (!mounted) return;
+      setSession(null);
+      setUser(null);
       setLoading(false);
       initializedRef.current = true;
     });
@@ -164,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
+      if (!isSupabaseConfigured) return { error: missingSupabaseConfigMessage };
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return { error: translateAuthError(error.message) };
       return { error: null };
@@ -173,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(
     async (email: string, password: string, name: string, cpf?: string) => {
+      if (!isSupabaseConfigured) return { error: missingSupabaseConfigMessage };
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -207,6 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
     lastKnownProfile.current = null;
     setUser(null);
@@ -214,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
+    if (!isSupabaseConfigured) return { error: missingSupabaseConfigMessage };
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/redefinir-senha`,
     });
@@ -222,6 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendMagicLink = useCallback(async (email: string) => {
+    if (!isSupabaseConfigured) return { error: missingSupabaseConfigMessage };
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${window.location.origin}/cursos` },
@@ -231,6 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updatePassword = useCallback(async (newPassword: string) => {
+    if (!isSupabaseConfigured) return { error: missingSupabaseConfigMessage };
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) return { error: translateAuthError(error.message) };
     return { error: null };
