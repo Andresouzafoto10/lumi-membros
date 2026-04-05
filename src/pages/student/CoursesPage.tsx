@@ -20,6 +20,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
 import { useLessonProgress } from "@/hooks/useLessonProgress";
+import { useAuth } from "@/contexts/AuthContext";
 import { isStudentEnrolled } from "@/lib/accessControl";
 
 export default function CoursesPage() {
@@ -30,6 +31,7 @@ export default function CoursesPage() {
   const { enrollments } = useStudents();
   const { classes } = useClasses();
   const { getCourseProgress } = useLessonProgress();
+  const { isAdmin } = useAuth();
 
   const [selectedSessionId, setSelectedSessionId] = useState("all");
 
@@ -102,7 +104,7 @@ export default function CoursesPage() {
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-10">
       <Helmet>
-        <title>Cursos | Lumi Membros</title>
+        <title>Cursos</title>
       </Helmet>
 
       {/* Banner carousel */}
@@ -172,7 +174,7 @@ export default function CoursesPage() {
       {/* Sessions with courses */}
       {activeSessions.map((session) => {
         const activeCourses = session.courses
-          .filter((c) => c.isActive && enrolledCourseIds.has(c.id))
+          .filter((c) => c.isActive)
           .sort((a, b) => a.order - b.order);
 
         if (activeCourses.length === 0) return null;
@@ -199,22 +201,28 @@ export default function CoursesPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {activeCourses.map((course, idx) => (
-                <div
-                  key={course.id}
-                  className="animate-fade-in-up"
-                  style={{ animationDelay: `${idx * 60}ms` }}
-                >
-                  <CourseCard
-                    to={`/cursos/${course.id}`}
-                    title={course.title}
-                    description={course.description}
-                    bannerUrl={course.bannerUrl}
-                    progressPercent={courseProgress[course.id]}
-                    isDisabled={!course.isActive}
-                  />
-                </div>
-              ))}
+              {activeCourses.map((course, idx) => {
+                const hasAccess = isAdmin || enrolledCourseIds.has(course.id);
+
+                return (
+                  <div
+                    key={course.id}
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${idx * 60}ms` }}
+                  >
+                    <CourseCard
+                      to={`/cursos/${course.id}`}
+                      title={course.title}
+                      description={course.description}
+                      bannerUrl={course.bannerUrl}
+                      progressPercent={hasAccess ? courseProgress[course.id] : undefined}
+                      isDisabled={!course.isActive}
+                      locked={!hasAccess}
+                      access={course.access}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </section>
         );

@@ -2,7 +2,11 @@ import { useRef, useState, useEffect } from "react";
 import type { CertificateTemplate, CertificateBlock } from "@/types/student";
 import { cn } from "@/lib/utils";
 
-const REFERENCE_WIDTH = 1920;
+// A4 landscape at 150 DPI: 1754 x 1240
+const REFERENCE_WIDTH = 1754;
+
+// A4 landscape ratio: 297mm / 210mm ≈ 1.414
+const A4_ASPECT_RATIO = "1.414 / 1";
 
 export type CertificateData = {
   studentName: string;
@@ -55,6 +59,9 @@ export function CertificateRenderer({
   const [fontScale, setFontScale] = useState(1);
   const hasBackground = !!template.backgroundUrl;
 
+  const bgFit = template.backgroundConfig?.fit ?? "cover";
+  const bgPosition = template.backgroundConfig?.position ?? "50% 50%";
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -77,9 +84,14 @@ export function CertificateRenderer({
     <div
       id={containerId}
       ref={containerRef}
-      className={cn("relative overflow-hidden", className)}
+      className={cn("relative", className)}
       style={{
-        aspectRatio: "16 / 9",
+        aspectRatio: A4_ASPECT_RATIO,
+        overflow: "hidden",
+        borderRadius: 0,
+        border: "none",
+        boxShadow: "none",
+        backgroundColor: "#1a1a2e",
         ...(scale
           ? { transform: `scale(${scale})`, transformOrigin: "top left" }
           : {}),
@@ -89,11 +101,26 @@ export function CertificateRenderer({
         <img
           src={template.backgroundUrl}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          crossOrigin="anonymous"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: bgFit,
+            objectPosition: bgPosition,
+            borderRadius: 0,
+            display: "block",
+          }}
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900" />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+          }}
+        />
       )}
 
       {template.blocks.map((block) => (

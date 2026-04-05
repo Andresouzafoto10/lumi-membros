@@ -35,6 +35,7 @@ import { useQuizAttempts } from "@/hooks/useQuizAttempts";
 import { useLessonProgress } from "@/hooks/useLessonProgress";
 import { LessonQuiz } from "@/components/courses/LessonQuiz";
 import { LessonMaterials } from "@/components/courses/LessonMaterials";
+import { LessonComments } from "@/components/courses/LessonComments";
 import { downloadCertificateAsPng } from "@/lib/generateCertificate";
 import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
 import { Progress } from "@/components/ui/progress";
@@ -304,7 +305,7 @@ export default function CourseDetailPage() {
   return (
     <div className="mx-auto max-w-[1240px] px-5 pb-10 pt-6 sm:px-6 lg:px-8">
       <Helmet>
-        <title>{course ? `${course.title} | Lumi Membros` : "Curso | Lumi Membros"}</title>
+        <title>{course ? course.title : "Curso"}</title>
       </Helmet>
 
       {/* Breadcrumb */}
@@ -611,6 +612,13 @@ export default function CourseDetailPage() {
 
                   {/* Lesson notes */}
                   <LessonNotes content={noteContent} onChange={saveNote} />
+
+                  {/* Lesson comments */}
+                  <LessonComments
+                    lessonId={activeLesson.id}
+                    courseId={course.id}
+                    commentsEnabled={course.commentsEnabled !== false && activeLesson.commentsEnabled !== false}
+                  />
                 </>
               )}
             </div>

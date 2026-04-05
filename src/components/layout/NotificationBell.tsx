@@ -1,11 +1,23 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Bell, Heart, MessageCircle, UserPlus, AtSign, Info } from "lucide-react";
+import {
+  Bell,
+  Heart,
+  MessageCircle,
+  UserPlus,
+  AtSign,
+  Info,
+  Check,
+  CheckCheck,
+  Trash2,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useNotifications } from "@/hooks/useNotifications";
+import type { GroupedNotification } from "@/hooks/useNotifications";
 import { useProfiles } from "@/hooks/useProfiles";
 
 import { Button } from "@/components/ui/button";
@@ -19,17 +31,32 @@ const TYPE_ICONS = {
   system: Info,
 };
 
+type Filter = "all" | "unread" | "mentions";
+
 export function NotificationBell() {
   const { currentUserId } = useCurrentUser();
-  const { getNotificationsForUser, unreadCount, markAsRead, markAllAsRead } =
-    useNotifications();
+  const {
+    getGroupedForUser,
+    unreadCount,
+    markGroupAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+  } = useNotifications();
   const { findProfile } = useProfiles();
 
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState<Filter>("all");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const notifications = getNotificationsForUser(currentUserId).slice(0, 15);
+  const allGroups = getGroupedForUser(currentUserId);
   const count = unreadCount(currentUserId);
+
+  const filteredGroups = allGroups.filter((g) => {
+    if (filter === "unread") return g.hasUnread;
+    if (filter === "mentions") return g.primary.type === "mention";
+    return true;
+  });
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -40,6 +67,17 @@ export function NotificationBell() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  const handleMarkAllRead = useCallback(() => {
+    markAllAsRead(currentUserId);
+    toast.success("Todas marcadas como lidas");
+  }, [markAllAsRead, currentUserId]);
+
+  const handleClearAll = useCallback(() => {
+    clearAll(currentUserId);
+    toast.success("Notificacoes limpas");
+    setOpen(false);
+  }, [clearAll, currentUserId]);
 
   return (
     <div className="relative" ref={containerRef}>
@@ -58,82 +96,232 @@ export function NotificationBell() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-50 w-80 max-h-96 overflow-y-auto rounded-lg border bg-popover shadow-lg animate-fade-in">
+        <div className="absolute right-0 top-10 z-50 w-80 sm:w-96 max-h-[28rem] flex flex-col rounded-lg border bg-popover shadow-lg animate-fade-in">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b">
-            <p className="text-sm font-semibold">Notificacoes</p>
-            {count > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => markAllAsRead(currentUserId)}
-              >
-                Marcar todas
-              </Button>
-            )}
+          <div className="px-4 py-2.5 border-b shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold">Notificacoes</p>
+              <div className="flex gap-1">
+                {count > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={handleMarkAllRead}
+                    title="Marcar todas como lidas"
+                  >
+                    <CheckCheck className="h-3 w-3" />
+                    Ler todas
+                  </Button>
+                )}
+                {allGroups.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                    onClick={handleClearAll}
+                    title="Limpar todas"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            {/* Filter tabs */}
+            <div className="flex gap-1">
+              {([
+                ["all", "Todas"],
+                ["unread", "Nao lidas"],
+                ["mentions", "Mencoes"],
+              ] as [Filter, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors",
+                    filter === key
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:bg-muted/50"
+                  )}
+                >
+                  {label}
+                  {key === "unread" && count > 0 && (
+                    <span className="ml-1 text-[10px]">({count})</span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* List */}
-          {notifications.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-              Nenhuma notificacao.
-            </p>
-          ) : (
-            <div>
-              {notifications.map((n) => {
-                const Icon = TYPE_ICONS[n.type] ?? Info;
-                const actor = n.actorId ? findProfile(n.actorId) : null;
-
-                const linkTo =
-                  n.targetType === "profile"
-                    ? `/perfil/${n.targetId}`
-                    : `/comunidade/feed`;
-
-                return (
-                  <Link
-                    key={n.id}
-                    to={linkTo}
-                    onClick={() => {
-                      if (!n.read) markAsRead(n.id);
-                      setOpen(false);
+          <div className="flex-1 overflow-y-auto">
+            {filteredGroups.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                {filter === "unread"
+                  ? "Nenhuma notificacao nao lida."
+                  : filter === "mentions"
+                    ? "Nenhuma mencao."
+                    : "Nenhuma notificacao."}
+              </p>
+            ) : (
+              <div>
+                {filteredGroups.map((group) => (
+                  <NotificationGroupItem
+                    key={group.primary.id}
+                    group={group}
+                    findProfile={findProfile}
+                    onMarkRead={() => markGroupAsRead(group)}
+                    onDelete={() => {
+                      for (const item of group.items) {
+                        deleteNotification(item.id);
+                      }
                     }}
-                    className={cn(
-                      "flex items-start gap-3 px-4 py-3 hover:bg-accent transition-colors",
-                      !n.read && "bg-primary/5 border-l-2 border-primary"
-                    )}
-                  >
-                    <div className="h-8 w-8 rounded-full overflow-hidden bg-muted shrink-0">
-                      {actor?.avatarUrl ? (
-                        <img
-                          src={actor.avatarUrl}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary/20">
-                          <Icon className="h-3.5 w-3.5 text-primary" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm leading-snug">{n.message}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDistanceToNow(new Date(n.createdAt), {
-                          addSuffix: true,
-                          locale: ptBR,
-                        })}
-                      </p>
-                    </div>
-                    {!n.read && (
-                      <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />
-                    )}
-                  </Link>
-                );
-              })}
+                    onClose={() => setOpen(false)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          {allGroups.length > 0 && (
+            <div className="px-4 py-2 border-t shrink-0">
+              <p className="text-[10px] text-muted-foreground text-center">
+                {allGroups.length} notificacao{allGroups.length !== 1 ? "es" : ""}
+              </p>
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Individual grouped notification item
+// ---------------------------------------------------------------------------
+
+function NotificationGroupItem({
+  group,
+  findProfile,
+  onMarkRead,
+  onDelete,
+  onClose,
+}: {
+  group: GroupedNotification;
+  findProfile: (id: string) => { avatarUrl?: string } | null | undefined;
+  onMarkRead: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const n = group.primary;
+  const Icon = TYPE_ICONS[n.type] ?? Info;
+  const actor = n.actorId ? findProfile(n.actorId) : null;
+
+  const linkTo =
+    n.targetType === "profile"
+      ? `/perfil/${n.targetId}`
+      : `/comunidade/feed`;
+
+  // Build grouped message
+  let message = n.message;
+  if (group.count > 1) {
+    const otherCount = group.count - 1;
+    const verb =
+      n.type === "like"
+        ? "curtiram"
+        : n.type === "comment"
+          ? "comentaram"
+          : n.type === "follow"
+            ? "seguiram voce"
+            : "";
+    if (verb) {
+      const firstName = n.message.split(" ")[0];
+      message = `${firstName} e +${otherCount} ${verb}`;
+    }
+  }
+
+  return (
+    <div
+      className={cn(
+        "group relative flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors border-b border-border/20 last:border-0",
+        group.hasUnread && "bg-primary/5"
+      )}
+    >
+      {/* Avatar */}
+      <Link
+        to={linkTo}
+        onClick={() => {
+          if (group.hasUnread) onMarkRead();
+          onClose();
+        }}
+        className="h-8 w-8 rounded-full overflow-hidden bg-muted shrink-0"
+      >
+        {actor?.avatarUrl ? (
+          <img src={actor.avatarUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-primary/20">
+            <Icon className="h-3.5 w-3.5 text-primary" />
+          </div>
+        )}
+      </Link>
+
+      {/* Content */}
+      <Link
+        to={linkTo}
+        onClick={() => {
+          if (group.hasUnread) onMarkRead();
+          onClose();
+        }}
+        className="flex-1 min-w-0"
+      >
+        <p className="text-sm leading-snug">
+          {message}
+          {group.count > 1 && (
+            <span className="ml-1 text-[10px] text-muted-foreground font-medium bg-muted/50 px-1.5 py-0.5 rounded-full">
+              {group.count}
+            </span>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {formatDistanceToNow(new Date(n.createdAt), {
+            addSuffix: true,
+            locale: ptBR,
+          })}
+        </p>
+      </Link>
+
+      {/* Actions */}
+      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        {group.hasUnread && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onMarkRead();
+            }}
+            className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-primary transition-colors"
+            title="Marcar como lida"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-destructive transition-colors"
+          title="Remover"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Unread dot */}
+      {group.hasUnread && (
+        <div className="absolute right-3 top-3 h-2 w-2 rounded-full bg-primary shrink-0" />
       )}
     </div>
   );

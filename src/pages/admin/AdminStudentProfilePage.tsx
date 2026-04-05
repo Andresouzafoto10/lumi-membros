@@ -21,12 +21,18 @@ import {
   X,
   ShieldBan,
   Clock,
+  Bell,
+  Pencil,
+  Check,
+  GraduationCap,
+  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { useStudents } from "@/hooks/useStudents";
+import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import { useClasses } from "@/hooks/useClasses";
 import { useCourses } from "@/hooks/useCourses";
 import { useProfiles } from "@/hooks/useProfiles";
@@ -43,6 +49,7 @@ import type { StudentStatus, StudentRole } from "@/types/student";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
@@ -117,14 +124,102 @@ const ENROLLMENT_STATUS_LABELS: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
+// Notification Preferences Card (admin view)
+// ---------------------------------------------------------------------------
+
+const ADMIN_PREF_ROWS: { label: string; emailField?: string; notifField?: string }[] = [
+  { label: "Comentarios", emailField: "email_comments", notifField: "notif_comments" },
+  { label: "Respostas a comentarios", emailField: "email_comment_replies", notifField: "notif_comment_replies" },
+  { label: "Mencoes", emailField: "email_mentions", notifField: "notif_mentions" },
+  { label: "Curtidas", emailField: "email_likes", notifField: "notif_likes" },
+  { label: "Seguidores", emailField: "email_follows", notifField: "notif_follows" },
+  { label: "Novo curso", emailField: "email_new_course", notifField: "notif_new_course" },
+  { label: "Nova aula", emailField: "email_new_lesson", notifField: "notif_new_lesson" },
+  { label: "Certificado", emailField: "email_certificate", notifField: "notif_certificate" },
+  { label: "Missao concluida", emailField: "email_mission_complete", notifField: "notif_mission_complete" },
+  { label: "Badge", emailField: "email_badge_earned", notifField: "notif_badge_earned" },
+  { label: "Resposta no post", emailField: "email_post_reply", notifField: "notif_post_reply" },
+  { label: "Resumo semanal", emailField: "email_weekly_digest" },
+  { label: "Marco seguidores", emailField: "email_follower_milestone" },
+];
+
+function AdminNotificationPrefsCard({ userId }: { userId: string }) {
+  const { preferences, isLoading, updatePreference, emailActiveCount, emailTotalCount, notifActiveCount, notifTotalCount } =
+    useNotificationPreferences(userId);
+
+  if (isLoading || !preferences) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Bell className="h-4 w-4 text-blue-400" />
+            Preferencias de Notificacao
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-20 animate-pulse bg-muted/30 rounded" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Bell className="h-4 w-4 text-blue-400" />
+            Preferencias de Notificacao
+          </CardTitle>
+          <div className="flex gap-2">
+            <Badge variant="outline" className="text-[10px]">Email: {emailActiveCount}/{emailTotalCount}</Badge>
+            <Badge variant="outline" className="text-[10px]">Plataforma: {notifActiveCount}/{notifTotalCount}</Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="grid grid-cols-[1fr_60px_60px] gap-1 px-6 pb-1">
+          <span className="text-[10px] text-muted-foreground" />
+          <span className="text-[10px] text-muted-foreground text-center">Email</span>
+          <span className="text-[10px] text-muted-foreground text-center">App</span>
+        </div>
+        <div className="divide-y px-6 pb-4">
+          {ADMIN_PREF_ROWS.map((row) => (
+            <div key={row.label} className="grid grid-cols-[1fr_60px_60px] gap-1 items-center py-1.5">
+              <span className="text-xs">{row.label}</span>
+              <div className="flex justify-center">
+                {row.emailField ? (
+                  <Checkbox
+                    checked={preferences[row.emailField as keyof typeof preferences] as boolean}
+                    onCheckedChange={(v) => { updatePreference.mutate({ field: row.emailField!, value: !!v }); toast.success("Preferencia atualizada"); }}
+                  />
+                ) : <span className="text-muted-foreground/30 text-xs">—</span>}
+              </div>
+              <div className="flex justify-center">
+                {row.notifField ? (
+                  <Checkbox
+                    checked={preferences[row.notifField as keyof typeof preferences] as boolean}
+                    onCheckedChange={(v) => { updatePreference.mutate({ field: row.notifField!, value: !!v }); toast.success("Preferencia atualizada"); }}
+                  />
+                ) : <span className="text-muted-foreground/30 text-xs">—</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminStudentProfilePage() {
   const { studentId } = useParams<{ studentId: string }>();
-  const { students, enrollments, updateStudent, revokeEnrollment, addEnrollment } =
+  const { students, enrollments, updateStudent, revokeEnrollment, addEnrollment, updateEnrollment } =
     useStudents();
   const { classes, findClass } = useClasses();
-  const { findCourse } = useCourses();
+  const { findCourse, allCourses } = useCourses();
   const { findProfile } = useProfiles();
   const { getProgressForCourse } = useStudentProgress(studentId);
   const { getPostsByAuthor } = usePosts();
@@ -218,6 +313,10 @@ export default function AdminStudentProfilePage() {
   // Add turma
   const [addClassId, setAddClassId] = useState("");
 
+  // Edit enrollment expiration
+  const [editingEnrollmentId, setEditingEnrollmentId] = useState<string | null>(null);
+  const [editExpiresAt, setEditExpiresAt] = useState("");
+
   // Gamification
   const [pointsInput, setPointsInput] = useState("");
   const [pointsReason, setPointsReason] = useState("");
@@ -291,12 +390,20 @@ export default function AdminStudentProfilePage() {
   // SUPERPOWER 3: Add class enrollment
   async function handleAddClass() {
     if (!addClassId || !studentId) return;
+    const cls = findClass(addClassId);
+    const enrollType = cls?.enrollmentType ?? "individual";
+    let expiresAt: string | null = null;
+    if (cls?.accessDurationDays) {
+      const d = new Date();
+      d.setDate(d.getDate() + cls.accessDurationDays);
+      expiresAt = d.toISOString();
+    }
     try {
       await addEnrollment({
         studentId,
         classId: addClassId,
-        type: "individual",
-        expiresAt: null,
+        type: enrollType,
+        expiresAt,
         status: "active",
       });
       toast.success("Turma vinculada com sucesso.");
@@ -597,7 +704,7 @@ export default function AdminStudentProfilePage() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <UsersRound className="h-4 w-4 text-primary" />
-              Turmas vinculadas ({studentEnrollments.length})
+              Turmas vinculadas ({studentEnrollments.filter((e) => e.status === "active").length})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -612,6 +719,10 @@ export default function AdminStudentProfilePage() {
                     {availableClasses.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
+                        <span className="text-muted-foreground ml-1">
+                          ({ENROLLMENT_TYPE_LABELS[c.enrollmentType] ?? c.enrollmentType}
+                          {c.accessDurationDays ? ` · ${c.accessDurationDays} dias` : " · Ilimitado"})
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -631,52 +742,227 @@ export default function AdminStudentProfilePage() {
               <p className="text-sm text-muted-foreground">Nenhuma turma vinculada.</p>
             ) : (
               <div className="divide-y -mx-6">
-                {enrichedEnrollments.map(({ enrollment, cls, courses }) => (
-                  <div
-                    key={enrollment.id}
-                    className="flex items-center justify-between gap-3 px-6 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {cls?.name ?? enrollment.classId}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                        <span className="text-xs text-muted-foreground">
-                          {ENROLLMENT_TYPE_LABELS[enrollment.type] ?? enrollment.type}
-                        </span>
-                        {courses.length > 0 && (
-                          <span className="text-xs text-muted-foreground">
-                            · {courses.length === 1 ? courses[0]?.title ?? "Curso" : `${courses.length} cursos`}
-                          </span>
-                        )}
-                        {enrollment.expiresAt && (
-                          <span className="text-xs text-muted-foreground">
-                            · Expira {format(parseISO(enrollment.expiresAt), "dd/MM/yyyy", { locale: ptBR })}
-                          </span>
+                {enrichedEnrollments.map(({ enrollment, cls, courses }) => {
+                  const isEditing = editingEnrollmentId === enrollment.id;
+                  const isActive = enrollment.status === "active";
+                  const durationLabel = cls?.accessDurationDays
+                    ? `${cls.accessDurationDays} dias`
+                    : "Ilimitado";
+
+                  return (
+                    <div key={enrollment.id} className="px-6 py-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {cls?.name ?? enrollment.classId}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                            <span className="text-xs text-muted-foreground">
+                              {ENROLLMENT_TYPE_LABELS[enrollment.type] ?? enrollment.type}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              · Duracao: {durationLabel}
+                            </span>
+                            {courses.length > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                · {courses.length} {courses.length === 1 ? "curso" : "cursos"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge
+                            variant={ENROLLMENT_STATUS_VARIANTS[enrollment.status] ?? "outline"}
+                            className="text-xs"
+                          >
+                            {ENROLLMENT_STATUS_LABELS[enrollment.status] ?? enrollment.status}
+                          </Badge>
+                          {isActive && (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Editar acesso"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  if (isEditing) {
+                                    setEditingEnrollmentId(null);
+                                  } else {
+                                    setEditingEnrollmentId(enrollment.id);
+                                    setEditExpiresAt(
+                                      enrollment.expiresAt
+                                        ? enrollment.expiresAt.slice(0, 10)
+                                        : ""
+                                    );
+                                  }
+                                }}
+                              >
+                                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Revogar acesso"
+                                className="h-7 w-7"
+                                onClick={() => setRevokeTargetId(enrollment.id)}
+                              >
+                                <X className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Expiration info */}
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <CalendarClock className="h-3 w-3 shrink-0" />
+                        {enrollment.expiresAt ? (
+                          <>
+                            Acesso ate {format(parseISO(enrollment.expiresAt), "dd/MM/yyyy", { locale: ptBR })}
+                            {new Date(enrollment.expiresAt) < new Date() && (
+                              <Badge variant="destructive" className="text-[9px] ml-1 px-1 py-0">Expirado</Badge>
+                            )}
+                          </>
+                        ) : (
+                          <span>Acesso sem prazo de expiracao</span>
                         )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge
-                        variant={ENROLLMENT_STATUS_VARIANTS[enrollment.status] ?? "outline"}
-                        className="text-xs"
-                      >
-                        {ENROLLMENT_STATUS_LABELS[enrollment.status] ?? enrollment.status}
-                      </Badge>
-                      {enrollment.status === "active" && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          title="Revogar acesso"
-                          className="h-7 w-7"
-                          onClick={() => setRevokeTargetId(enrollment.id)}
-                        >
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
+
+                      {/* Inline expiration editor */}
+                      {isEditing && (
+                        <div className="flex items-center gap-2 rounded-md border border-border/60 p-2.5 bg-muted/20">
+                          <Label className="text-xs shrink-0">Expiracao:</Label>
+                          <Input
+                            type="date"
+                            value={editExpiresAt}
+                            onChange={(e) => setEditExpiresAt(e.target.value)}
+                            className="w-44 h-8 text-xs"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            onClick={() => {
+                              setEditExpiresAt("");
+                            }}
+                          >
+                            Sem prazo
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={async () => {
+                              try {
+                                await updateEnrollment(enrollment.id, {
+                                  expiresAt: editExpiresAt
+                                    ? new Date(editExpiresAt + "T23:59:59").toISOString()
+                                    : null,
+                                });
+                                toast.success("Prazo de acesso atualizado.");
+                                setEditingEnrollmentId(null);
+                              } catch {
+                                toast.error("Erro ao atualizar prazo.");
+                              }
+                            }}
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1" />
+                            Salvar
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Course list for this enrollment */}
+                      {courses.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {courses.map((c) => c && (
+                            <span
+                              key={c.id}
+                              className="inline-flex items-center gap-1 rounded-md bg-muted/50 border border-border/30 px-2 py-0.5 text-[10px] text-muted-foreground"
+                            >
+                              <GraduationCap className="h-2.5 w-2.5" />
+                              {c.title}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ---- Card: Cursos com acesso ---- */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <GraduationCap className="h-4 w-4 text-primary" />
+              Cursos com acesso
+              {student && ["owner", "admin", "support"].includes(student.role) && (
+                <Badge variant="outline" className="text-[10px] ml-1">Acesso total</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {student && ["owner", "admin", "support"].includes(student.role) ? (
+              <div className="px-6 pb-4 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Administradores tem acesso a todos os cursos da plataforma.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {allCourses.map((c) => (
+                    <span
+                      key={c.id}
+                      className="inline-flex items-center gap-1 rounded-md bg-primary/5 border border-primary/20 px-2 py-0.5 text-[10px]"
+                    >
+                      <GraduationCap className="h-2.5 w-2.5 text-primary" />
+                      {c.title}
+                    </span>
+                  ))}
+                  {allCourses.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Nenhum curso cadastrado.</p>
+                  )}
+                </div>
+              </div>
+            ) : allEnrolledCourses.length === 0 ? (
+              <p className="px-6 pb-4 text-sm text-muted-foreground">
+                Nenhum curso vinculado. Adicione uma turma para conceder acesso a cursos.
+              </p>
+            ) : (
+              <div className="divide-y">
+                {allEnrolledCourses.map((course) => {
+                  // Find which turmas give access to this course
+                  const turmasForCourse = enrichedEnrollments
+                    .filter(({ enrollment, cls }) =>
+                      enrollment.status === "active" && cls?.courseIds.includes(course.id)
+                    )
+                    .map(({ cls }) => cls?.name)
+                    .filter(Boolean);
+
+                  return (
+                    <div key={course.id} className="px-6 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{course.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {course.modules.filter((m) => m.isActive).length} modulo{course.modules.filter((m) => m.isActive).length !== 1 ? "s" : ""}
+                            {" · "}
+                            {course.modules.filter((m) => m.isActive).flatMap((m) => m.lessons.filter((l) => l.isActive)).length} aula{course.modules.filter((m) => m.isActive).flatMap((m) => m.lessons.filter((l) => l.isActive)).length !== 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <Badge variant="default" className="text-[10px] shrink-0">
+                          Ativo
+                        </Badge>
+                      </div>
+                      {turmasForCourse.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Via: {turmasForCourse.join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -1072,6 +1358,9 @@ export default function AdminStudentProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ---- Card: Preferencias de Notificacao ---- */}
+      {/* TODO: AdminNotificationPrefsCard */}
 
       {/* ================================================================= */}
       {/* DIALOGS                                                            */}

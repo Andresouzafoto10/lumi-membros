@@ -1,40 +1,21 @@
 import { useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
-type EmailNotificationType =
-  | "comment"
-  | "like"
-  | "follow"
-  | "mention"
-  | "new_post"
-  | "badge_earned";
-
-interface EmailNotificationPayload {
-  type: EmailNotificationType;
-  recipient_email: string;
-  recipient_name: string;
-  actor_name: string;
-  context: {
-    post_title?: string;
-    community_name?: string;
-    badge_name?: string;
-    action_url: string;
-  };
-}
-
 /**
  * Send an email notification via the notify-email Edge Function.
- * Silently fails if the function is not deployed or returns an error.
+ * Uses the new unified payload format with recipient_id resolution.
  */
-async function sendEmailNotification(
-  payload: EmailNotificationPayload
-): Promise<void> {
+async function sendEmailNotification(payload: {
+  type: string;
+  recipient_id?: string;
+  recipient_email?: string;
+  recipient_name?: string;
+  actor_name?: string;
+  context?: Record<string, string | number | undefined>;
+}): Promise<void> {
   try {
-    await supabase.functions.invoke("notify-email", {
-      body: payload,
-    });
+    await supabase.functions.invoke("notify-email", { body: payload });
   } catch {
-    // Silently fail — email notifications are best-effort
     console.warn("Failed to send email notification:", payload.type);
   }
 }
@@ -73,21 +54,18 @@ async function resolveActorName(actorId: string): Promise<string> {
 /**
  * Hook providing email notification trigger functions.
  * Each function checks if the recipient has email notifications enabled.
+ * The Edge Function also checks automation is_active and global toggle.
  */
 export function useEmailNotifications() {
+  // ---- Existing triggers (backward-compatible) ----
+
   const notifyCommentEmail = useCallback(
     async (postId: string, postAuthorId: string, commenterId: string, postTitle: string) => {
-      const [recipient, actorName] = await Promise.all([
-        resolveRecipient(postAuthorId),
-        resolveActorName(commenterId),
-      ]);
-      if (!recipient || !recipient.emailEnabled) return;
       if (postAuthorId === commenterId) return;
-
+      const actorName = await resolveActorName(commenterId);
       await sendEmailNotification({
         type: "comment",
-        recipient_email: recipient.email,
-        recipient_name: recipient.name,
+        recipient_id: postAuthorId,
         actor_name: actorName,
         context: {
           post_title: postTitle,
@@ -100,17 +78,11 @@ export function useEmailNotifications() {
 
   const notifyLikeEmail = useCallback(
     async (postId: string, postAuthorId: string, likerId: string, postTitle: string) => {
-      const [recipient, actorName] = await Promise.all([
-        resolveRecipient(postAuthorId),
-        resolveActorName(likerId),
-      ]);
-      if (!recipient || !recipient.emailEnabled) return;
       if (postAuthorId === likerId) return;
-
+      const actorName = await resolveActorName(likerId);
       await sendEmailNotification({
         type: "like",
-        recipient_email: recipient.email,
-        recipient_name: recipient.name,
+        recipient_id: postAuthorId,
         actor_name: actorName,
         context: {
           post_title: postTitle,
@@ -123,16 +95,10 @@ export function useEmailNotifications() {
 
   const notifyFollowEmail = useCallback(
     async (targetStudentId: string, followerId: string) => {
-      const [recipient, actorName] = await Promise.all([
-        resolveRecipient(targetStudentId),
-        resolveActorName(followerId),
-      ]);
-      if (!recipient || !recipient.emailEnabled) return;
-
+      const actorName = await resolveActorName(followerId);
       await sendEmailNotification({
         type: "follow",
-        recipient_email: recipient.email,
-        recipient_name: recipient.name,
+        recipient_id: targetStudentId,
         actor_name: actorName,
         context: {
           action_url: `${window.location.origin}/perfil/${followerId}`,
@@ -149,16 +115,10 @@ export function useEmailNotifications() {
       authorId: string,
       communityName: string
     ) => {
-      const [recipient, actorName] = await Promise.all([
-        resolveRecipient(mentionedStudentId),
-        resolveActorName(authorId),
-      ]);
-      if (!recipient || !recipient.emailEnabled) return;
-
+      const actorName = await resolveActorName(authorId);
       await sendEmailNotification({
-        type: "mention",
-        recipient_email: recipient.email,
-        recipient_name: recipient.name,
+        type: "mention_community",
+        recipient_id: mentionedStudentId,
         actor_name: actorName,
         context: {
           community_name: communityName,
@@ -170,29 +130,153 @@ export function useEmailNotifications() {
   );
 
   const notifyMissionCompletedEmail = useCallback(
-    async (studentId: string, missionName: string) => {
-      const recipient = await resolveRecipient(studentId);
-      if (!recipient || !recipient.emailEnabled) return;
-
+    async (studentId: string, missionName: string, points?: number) => {
       await sendEmailNotification({
-        type: "badge_earned",
-        recipient_email: recipient.email,
-        recipient_name: recipient.name,
-        actor_name: "Lumi Membros",
+        type: "mission_complete",
+        recipient_id: studentId,
         context: {
-          badge_name: missionName,
-          action_url: `${window.location.origin}/meu-perfil`,
+          mission_name: missionName,
+          points: points ?? 0,
         },
       });
     },
     []
   );
 
+  // ---- New triggers ----
+
+  const notifyWelcome = useCallback(async (userId: string) => {
+    await sendEmailNotification({
+      type: "welcome",
+      recipient_id: userId,
+    });
+  }, []);
+
+  const notifyNewCourse = useCallback(
+    async (userIds: string[], courseId: string, courseName: string) => {
+      for (const userId of userIds) {
+        await sendEmailNotification({
+          type: "new_course",
+          recipient_id: userId,
+          context: {
+            course_name: courseName,
+            action_url: `${window.location.origin}/cursos/${courseId}`,
+          },
+        });
+      }
+    },
+    []
+  );
+
+  const notifyNewLesson = useCallback(
+    async (userIds: string[], courseId: string, courseName: string, lessonName: string) => {
+      for (const userId of userIds) {
+        await sendEmailNotification({
+          type: "new_lesson",
+          recipient_id: userId,
+          context: {
+            course_name: courseName,
+            lesson_name: lessonName,
+            action_url: `${window.location.origin}/cursos/${courseId}`,
+          },
+        });
+      }
+    },
+    []
+  );
+
+  const notifyCertificateEarned = useCallback(
+    async (userId: string, courseId: string, courseName: string) => {
+      await sendEmailNotification({
+        type: "certificate_earned",
+        recipient_id: userId,
+        context: {
+          course_name: courseName,
+          action_url: `${window.location.origin}/meus-certificados`,
+        },
+      });
+    },
+    []
+  );
+
+  const notifyPostReply = useCallback(
+    async (authorId: string, postId: string, replierName: string) => {
+      await sendEmailNotification({
+        type: "post_reply",
+        recipient_id: authorId,
+        actor_name: replierName,
+        context: {
+          action_url: `${window.location.origin}/comunidade/feed#${postId}`,
+        },
+      });
+    },
+    []
+  );
+
+  const notifyFollowerMilestone = useCallback(
+    async (userId: string, followerCount: number) => {
+      await sendEmailNotification({
+        type: "follower_milestone_10",
+        recipient_id: userId,
+        context: { follower_count: followerCount },
+      });
+    },
+    []
+  );
+
+  const notifyCommentMilestone = useCallback(
+    async (userId: string, commentCount: number) => {
+      await sendEmailNotification({
+        type: "comment_milestone",
+        recipient_id: userId,
+        context: { comment_count: commentCount },
+      });
+    },
+    []
+  );
+
+  const notifyCommunityPost = useCallback(
+    async (userId: string, postId: string) => {
+      await sendEmailNotification({
+        type: "community_post",
+        recipient_id: userId,
+        context: {
+          action_url: `${window.location.origin}/comunidade/feed#${postId}`,
+        },
+      });
+    },
+    []
+  );
+
+  const resendAccessEmail = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("resend-access-email", {
+        body: { userId },
+      });
+      if (error) throw error;
+      return data as { success: boolean; message: string };
+    } catch (err) {
+      console.error("Failed to resend access email:", err);
+      throw err;
+    }
+  }, []);
+
   return {
+    // Existing (backward-compatible)
     notifyCommentEmail,
     notifyLikeEmail,
     notifyFollowEmail,
     notifyMentionEmail,
     notifyMissionCompletedEmail,
+    // New
+    notifyWelcome,
+    notifyNewCourse,
+    notifyNewLesson,
+    notifyCertificateEarned,
+    notifyPostReply,
+    notifyFollowerMilestone,
+    notifyCommentMilestone,
+    notifyCommunityPost,
+    resendAccessEmail,
   };
 }

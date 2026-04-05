@@ -31,7 +31,7 @@ export default function RankingPage() {
   return (
     <div className="mx-auto max-w-6xl pb-20 sm:pb-12 px-4">
       <Helmet>
-        <title>Ranking | Lumi Membros</title>
+        <title>Ranking</title>
       </Helmet>
 
       {/* Header */}

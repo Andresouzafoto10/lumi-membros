@@ -34,6 +34,7 @@ import { useCommunities } from "@/hooks/useCommunities";
 import { usePosts } from "@/hooks/usePosts";
 import { useRestrictions } from "@/hooks/useRestrictions";
 import { useProfiles } from "@/hooks/useProfiles";
+import { uploadToR2, deleteFromR2, isR2Url } from "@/lib/r2Upload";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -624,25 +625,34 @@ export function CreatePostDialog({
   // Image handling
   // ---------------------------------------------------------------------------
 
-  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files) return;
-    const remaining = 6 - images.length;
+    const remaining = 4 - images.length;
     const toProcess = Array.from(files).slice(0, remaining);
     for (const file of toProcess) {
-      const reader = new FileReader();
-      reader.onload = () => {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`"${file.name}" excede 5 MB.`);
+        continue;
+      }
+      try {
+        const url = await uploadToR2(file, "posts/images", { preset: "banner" });
         setImages((prev) => {
-          if (prev.length >= 6) return prev;
-          return [...prev, reader.result as string];
+          if (prev.length >= 4) return prev;
+          return [...prev, url];
         });
-      };
-      reader.readAsDataURL(file);
+      } catch {
+        toast.error(`Erro ao enviar "${file.name}".`);
+      }
     }
     e.target.value = "";
   }
 
   function removeImage(index: number) {
+    const url = images[index];
+    if (url && isR2Url(url)) {
+      deleteFromR2(url).catch(() => {});
+    }
     setImages((prev) => prev.filter((_, i) => i !== index));
   }
 
@@ -650,7 +660,7 @@ export function CreatePostDialog({
   // Attachment handling
   // ---------------------------------------------------------------------------
 
-  function handleAttachmentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAttachmentUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files) return;
     const remaining = MAX_ATTACHMENTS - attachments.length;
@@ -660,19 +670,24 @@ export function CreatePostDialog({
         toast.error(`"${file.name}" excede 10 MB.`);
         continue;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
+      try {
+        const url = await uploadToR2(file, "posts/attachments");
         setAttachments((prev) => {
           if (prev.length >= MAX_ATTACHMENTS) return prev;
-          return [...prev, { name: file.name, size: file.size, type: file.type, dataUrl: reader.result as string }];
+          return [...prev, { name: file.name, size: file.size, type: file.type, dataUrl: url }];
         });
-      };
-      reader.readAsDataURL(file);
+      } catch {
+        toast.error(`Erro ao enviar "${file.name}".`);
+      }
     }
     e.target.value = "";
   }
 
   function removeAttachment(index: number) {
+    const att = attachments[index];
+    if (att?.dataUrl && isR2Url(att.dataUrl)) {
+      deleteFromR2(att.dataUrl).catch(() => {});
+    }
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   }
 

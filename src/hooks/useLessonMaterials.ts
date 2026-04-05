@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { uploadToR2, deleteFromR2 } from "@/lib/r2Upload";
 import type { LessonMaterial } from "@/types/course";
 
 export function useLessonMaterials(lessonId: string | undefined) {
@@ -40,27 +41,22 @@ export function useLessonMaterials(lessonId: string | undefined) {
               ? "image"
               : "other";
 
-      const safeName = file.name.replace(/\s/g, "_");
-      const path = `${lessonId}/${Date.now()}_${safeName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("lesson-materials")
-        .upload(path, file);
-      if (uploadError) throw uploadError;
+      // Upload to R2 (no image optimisation for documents)
+      const url = await uploadToR2(file, `materials/${lessonId}`);
 
       const { error: dbError } = await supabase
         .from("lesson_materials")
         .insert({
           lesson_id: lessonId,
           title,
-          file_path: path,
+          file_path: url,
           file_type: fileType,
           file_size_bytes: file.size,
           drm_enabled: drmEnabled && fileType === "pdf",
         });
       if (dbError) {
-        // Rollback: remove arquivo do storage se o insert no banco falhar
-        await supabase.storage.from("lesson-materials").remove([path]);
+        // Rollback: remove arquivo do R2 se o insert no banco falhar
+        await deleteFromR2(url);
         throw dbError;
       }
     },
@@ -70,9 +66,7 @@ export function useLessonMaterials(lessonId: string | undefined) {
 
   const deleteMaterial = useMutation({
     mutationFn: async (material: LessonMaterial) => {
-      await supabase.storage
-        .from("lesson-materials")
-        .remove([material.file_path]);
+      await deleteFromR2(material.file_path);
       const { error } = await supabase
         .from("lesson_materials")
         .delete()

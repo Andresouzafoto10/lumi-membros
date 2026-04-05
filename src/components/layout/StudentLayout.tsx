@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Outlet, Link, NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useMemo } from "react";
+import { Outlet, Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   ChevronDown,
   Home,
@@ -11,7 +11,9 @@ import {
   Trophy,
   User,
   LogOut,
+  type LucideIcon,
 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,8 +31,13 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { Footer } from "@/components/layout/Footer";
 import { onDailyLogin, onStreak7Days, onStreak30Days } from "@/lib/gamificationEngine";
 import { recordLoginStreak } from "@/lib/streakTracker";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useActiveScriptInjections } from "@/hooks/useScriptInjections";
+import { useNavMenuItems } from "@/hooks/useNavMenuItems";
+import { injectScripts } from "@/lib/injectScripts";
 
 /** Tracks daily login + streak (fires once per day per user) */
 function DailyLoginTracker() {
@@ -201,13 +208,42 @@ function ProfileHeaderButton() {
   );
 }
 
+const FALLBACK_ICON_MAP: Record<string, LucideIcon> = {
+  Home,
+  MessageSquare,
+  Trophy,
+  Award,
+};
+
+const FALLBACK_NAV = [
+  { to: "/cursos", label: "Inicio", icon: Home, end: true },
+  { to: "/comunidade/feed", label: "Comunidade", icon: MessageSquare, end: false },
+  { to: "/ranking", label: "Ranking", icon: Trophy, end: true },
+  { to: "/meus-certificados", label: "Certificados", icon: Award, end: true },
+];
+
+function getLucideIcon(name: string | null): LucideIcon {
+  if (!name) return Home;
+  if (name in FALLBACK_ICON_MAP) return FALLBACK_ICON_MAP[name];
+  const icon = (LucideIcons as Record<string, unknown>)[name];
+  if (typeof icon === "function") return icon as LucideIcon;
+  return Home;
+}
+
 function MobileBottomNav() {
-  const items = [
-    { to: "/cursos", label: "Inicio", icon: Home, end: true },
-    { to: "/comunidade", label: "Comunidade", icon: MessageSquare, end: false },
-    { to: "/ranking", label: "Ranking", icon: Trophy, end: true },
-    { to: "/meus-certificados", label: "Certificados", icon: Award, end: true },
-  ];
+  const { items: menuItems } = useNavMenuItems("student");
+
+  const items = useMemo(() => {
+    if (menuItems.length === 0) return FALLBACK_NAV;
+    return menuItems
+      .filter((i) => i.visible && !i.is_external)
+      .map((i) => ({
+        to: i.url ?? "/cursos",
+        label: i.label,
+        icon: getLucideIcon(i.icon),
+        end: i.url === "/cursos" || i.url === "/ranking" || i.url === "/meus-certificados",
+      }));
+  }, [menuItems]);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 md:hidden">
@@ -235,27 +271,95 @@ function MobileBottomNav() {
   );
 }
 
+function StudentScriptInjector() {
+  const { scripts } = useActiveScriptInjections("student");
+  const location = useLocation();
+
+  useEffect(() => {
+    if (scripts.length > 0) {
+      injectScripts(scripts, "student");
+    }
+  }, [scripts, location.pathname]);
+
+  return null;
+}
+
+type DesktopNavItem = {
+  to: string;
+  label: string;
+  isExternal: boolean;
+  target: string;
+};
+
+function DesktopNav() {
+  const { items: menuItems } = useNavMenuItems("student");
+
+  const navItems = useMemo((): DesktopNavItem[] => {
+    if (menuItems.length === 0) {
+      return FALLBACK_NAV.map((i) => ({
+        to: i.to,
+        label: i.label,
+        isExternal: false,
+        target: "_self",
+      }));
+    }
+    return menuItems
+      .filter((i) => i.visible)
+      .map((i) => ({
+        to: i.url ?? "/cursos",
+        label: i.label,
+        isExternal: i.is_external,
+        target: i.target,
+      }));
+  }, [menuItems]);
+
+  return (
+    <div className="hidden items-center gap-6 md:flex">
+      {navItems.map((item) =>
+        item.isExternal ? (
+          <a
+            key={item.to}
+            href={item.to}
+            target={item.target}
+            rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+            className="text-sm font-semibold tracking-[-0.01em] text-muted-foreground hover:text-foreground transition-colors duration-200"
+          >
+            {item.label}
+          </a>
+        ) : (
+          <HeaderNavLink key={item.to} to={item.to} label={item.label} />
+        ),
+      )}
+    </div>
+  );
+}
+
 export function StudentLayout() {
+  const { settings } = usePlatformSettings();
+  const logoSrc = settings.logoUploadUrl || settings.logoUrl || null;
+
   return (
     <SearchProvider>
       <DailyLoginTracker />
-      <div className="min-h-screen bg-background">
+      <StudentScriptInjector />
+      <div className="flex min-h-screen flex-col bg-background">
         <nav className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border/70 bg-background/95 px-6 backdrop-blur-sm">
           <div className="flex h-full items-center justify-between gap-6">
             <div className="flex min-w-0 items-center gap-6 lg:gap-10">
               <Link
                 to="/cursos"
-                className="shrink-0 text-lg font-bold tracking-[-0.02em] text-primary transition-opacity hover:opacity-90"
+                className="shrink-0 flex items-center gap-2 transition-opacity hover:opacity-90"
               >
-                Lumi Membros
+                {logoSrc ? (
+                  <img src={logoSrc} alt={settings.name} className="h-8 object-contain" />
+                ) : (
+                  <span className="text-lg font-bold tracking-[-0.02em] text-primary">
+                    {settings.name || "Lumi Membros"}
+                  </span>
+                )}
               </Link>
 
-              <div className="hidden items-center gap-6 md:flex">
-                <HeaderNavLink to="/cursos" label="Inicio" />
-                <HeaderNavLink to="/comunidade" label="Comunidade" />
-                <HeaderNavLink to="/ranking" label="Ranking" />
-                <HeaderNavLink to="/meus-certificados" label="Certificados" />
-              </div>
+              <DesktopNav />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
@@ -267,8 +371,11 @@ export function StudentLayout() {
           </div>
         </nav>
 
-        <main className="w-full pb-20 pt-16 md:pb-0">
-          <Outlet />
+        <main className="flex w-full flex-1 flex-col pb-20 pt-16 md:pb-0">
+          <div className="flex-1">
+            <Outlet />
+          </div>
+          <Footer />
         </main>
 
         <MobileBottomNav />

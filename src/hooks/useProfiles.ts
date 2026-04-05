@@ -14,10 +14,17 @@ function mapRow(p: Record<string, unknown>): StudentProfile {
     displayName: (p.display_name as string) ?? (p.name as string) ?? "",
     avatarUrl: (p.avatar_url as string) ?? "",
     coverUrl: (p.cover_url as string) ?? "",
+    coverPosition: (p.cover_position as string) ?? "50% 50%",
     bio: (p.bio as string) ?? "",
     link: (p.link as string) ?? "",
     location: (p.location as string) ?? "",
     cpf: (p.cpf as string) ?? "",
+    socialInstagram: (p.social_instagram as string) ?? "",
+    socialYoutube: (p.social_youtube as string) ?? "",
+    socialTiktok: (p.social_tiktok as string) ?? "",
+    socialTwitter: (p.social_twitter as string) ?? "",
+    socialLinkedin: (p.social_linkedin as string) ?? "",
+    socialWebsite: (p.social_website as string) ?? "",
     createdAt: p.created_at as string,
     followers: (p.followers as string[]) ?? [],
     following: (p.following as string[]) ?? [],
@@ -69,6 +76,19 @@ export function useProfiles() {
     [profiles]
   );
 
+  const checkUsernameAvailable = useCallback(
+    async (username: string, currentUserId: string): Promise<boolean> => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", username)
+        .neq("id", currentUserId)
+        .limit(1);
+      return !data || data.length === 0;
+    },
+    []
+  );
+
   const updateProfile = useCallback(
     async (
       profileId: string,
@@ -79,10 +99,17 @@ export function useProfiles() {
           | "displayName"
           | "avatarUrl"
           | "coverUrl"
+          | "coverPosition"
           | "bio"
           | "link"
           | "location"
           | "cpf"
+          | "socialInstagram"
+          | "socialYoutube"
+          | "socialTiktok"
+          | "socialTwitter"
+          | "socialLinkedin"
+          | "socialWebsite"
         >
       >
     ) => {
@@ -93,10 +120,17 @@ export function useProfiles() {
           ...(patch.displayName !== undefined && { display_name: patch.displayName }),
           ...(patch.avatarUrl !== undefined && { avatar_url: patch.avatarUrl }),
           ...(patch.coverUrl !== undefined && { cover_url: patch.coverUrl }),
+          ...(patch.coverPosition !== undefined && { cover_position: patch.coverPosition }),
           ...(patch.bio !== undefined && { bio: patch.bio }),
           ...(patch.link !== undefined && { link: patch.link }),
           ...(patch.location !== undefined && { location: patch.location }),
           ...(patch.cpf !== undefined && { cpf: patch.cpf }),
+          ...(patch.socialInstagram !== undefined && { social_instagram: patch.socialInstagram }),
+          ...(patch.socialYoutube !== undefined && { social_youtube: patch.socialYoutube }),
+          ...(patch.socialTiktok !== undefined && { social_tiktok: patch.socialTiktok }),
+          ...(patch.socialTwitter !== undefined && { social_twitter: patch.socialTwitter }),
+          ...(patch.socialLinkedin !== undefined && { social_linkedin: patch.socialLinkedin }),
+          ...(patch.socialWebsite !== undefined && { social_website: patch.socialWebsite }),
         })
         .eq("id", profileId);
       if (error) throw error;
@@ -199,6 +233,7 @@ export function useProfiles() {
     findProfile,
     findProfileByUsername,
     updateProfile,
+    checkUsernameAvailable,
     isFollowing,
     follow,
     unfollow,

@@ -22,6 +22,7 @@ import { isCommunityPublic } from "@/types/student";
 
 import { Button } from "@/components/ui/button";
 import { GamificationRanking } from "@/components/community/GamificationRanking";
+import { renderCommunityIcon } from "@/lib/communityIcon";
 import { cn } from "@/lib/utils";
 
 export function CommunityLayout() {
@@ -185,7 +186,7 @@ export function CommunityLayout() {
                     className="relative flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm text-muted-foreground/55 transition-all duration-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-transparent before:transition-colors hover:border-border/30 hover:bg-muted/45 hover:text-foreground/80 hover:before:bg-border"
                     title="Você não tem acesso a esta comunidade"
                   >
-                    <span className="text-base shrink-0 grayscale opacity-50">{item.emoji}</span>
+                    <span className="text-base shrink-0 grayscale opacity-50">{renderCommunityIcon(item.community.iconUrl || item.emoji, 18)}</span>
                     <span className="truncate">{item.community.name}</span>
                     <Lock className="h-3 w-3 ml-auto shrink-0 opacity-50" />
                   </button>
@@ -204,7 +205,7 @@ export function CommunityLayout() {
                       : "font-normal text-muted-foreground hover:border-border/40 hover:bg-muted/55 hover:text-foreground hover:before:bg-primary/35"
                   )}
                 >
-                  <span className="text-base shrink-0">{item.emoji}</span>
+                  <span className="text-base shrink-0">{renderCommunityIcon(item.community.iconUrl || item.emoji, 18)}</span>
                   <span className="truncate">{item.community.name}</span>
                   {unread > 0 && !active && (
                     <span className="ml-auto shrink-0 flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold tabular-nums">

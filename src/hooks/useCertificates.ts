@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import type {
   CertificateTemplate,
   CertificateBlock,
+  BackgroundConfig,
   EarnedCertificate,
 } from "@/types/student";
 
@@ -20,11 +21,23 @@ const QK_EARNED = ["earned-certificates"] as const;
 // Mappers
 // ---------------------------------------------------------------------------
 
+const DEFAULT_BG_CONFIG: BackgroundConfig = {
+  fit: "cover",
+  position: "50% 50%",
+};
+
 function mapTemplate(r: Record<string, unknown>): CertificateTemplate {
+  const rawBg = r.background_config as Record<string, unknown> | null;
   return {
     id: r.id as string,
     name: r.name as string,
     backgroundUrl: (r.background_url as string) ?? "",
+    backgroundConfig: rawBg
+      ? {
+          fit: (rawBg.fit as BackgroundConfig["fit"]) ?? "cover",
+          position: (rawBg.position as string) ?? "50% 50%",
+        }
+      : { ...DEFAULT_BG_CONFIG },
     blocks: (r.blocks as CertificateBlock[]) ?? [],
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
@@ -102,6 +115,7 @@ export function useCertificates() {
         .insert({
           name: data.name,
           background_url: data.backgroundUrl,
+          background_config: data.backgroundConfig ?? DEFAULT_BG_CONFIG,
           blocks: data.blocks,
         })
         .select()
@@ -121,6 +135,9 @@ export function useCertificates() {
           ...(data.name !== undefined && { name: data.name }),
           ...(data.backgroundUrl !== undefined && {
             background_url: data.backgroundUrl,
+          }),
+          ...(data.backgroundConfig !== undefined && {
+            background_config: data.backgroundConfig,
           }),
           ...(data.blocks !== undefined && { blocks: data.blocks }),
         })

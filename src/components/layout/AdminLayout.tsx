@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Shield,
   Trophy,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -19,6 +20,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getPermissionsForRole } from "@/lib/permissions";
 import type { AdminPermission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
+import { Footer } from "@/components/layout/Footer";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useActiveScriptInjections } from "@/hooks/useScriptInjections";
+import { useNavMenuItems } from "@/hooks/useNavMenuItems";
+import { injectScripts } from "@/lib/injectScripts";
 
 const navLinks: {
   to: string;
@@ -33,6 +39,7 @@ const navLinks: {
   { to: "/admin/alunos", label: "Alunos", icon: Users, exact: false, permission: "students" },
   { to: "/admin/comunidade", label: "Comunidade", icon: MessageSquare, exact: false, permission: "community" },
   { to: "/admin/comentarios", label: "Moderação", icon: Shield, exact: false, permission: "moderation" },
+  { to: "/admin/emails", label: "Emails", icon: Mail, exact: false, permission: "settings" },
   { to: "/admin/gamificacao", label: "Gamificação", icon: Trophy, exact: false, permission: "settings" },
   { to: "/admin/configuracoes", label: "Configurações", icon: Settings, exact: false, permission: "settings" },
 ];
@@ -41,6 +48,23 @@ export function AdminLayout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user } = useAuth();
+  const { settings } = usePlatformSettings();
+  const logoSrc = settings.logoUploadUrl || settings.logoUrl || null;
+
+  // Script injection
+  const { scripts } = useActiveScriptInjections("admin");
+  useEffect(() => {
+    if (scripts.length > 0) {
+      injectScripts(scripts, "admin");
+    }
+  }, [scripts, location.pathname]);
+
+  // External admin nav items
+  const { items: adminExtraItems } = useNavMenuItems("admin");
+  const externalAdminLinks = useMemo(
+    () => adminExtraItems.filter((i) => i.is_external && i.visible),
+    [adminExtraItems],
+  );
 
   const permissions = useMemo(
     () => getPermissionsForRole(user?.role ?? "student"),
@@ -63,10 +87,16 @@ export function AdminLayout() {
       <div>
         <Link
           to="/admin"
-          className="block px-6 py-5 text-lg font-bold text-primary"
+          className="flex items-center gap-2 px-6 py-5"
           onClick={() => setMobileMenuOpen(false)}
         >
-          Lumi Admin
+          {logoSrc ? (
+            <img src={logoSrc} alt={settings.name} className="h-7 object-contain" />
+          ) : (
+            <span className="text-lg font-bold text-primary">
+              {settings.name ? `${settings.name} Admin` : "Lumi Admin"}
+            </span>
+          )}
         </Link>
 
         <nav className="mt-2 flex flex-col gap-1 px-3">
@@ -86,6 +116,24 @@ export function AdminLayout() {
               {link.label}
             </Link>
           ))}
+
+          {externalAdminLinks.length > 0 && (
+            <>
+              <div className="my-2 border-t border-border/30" />
+              {externalAdminLinks.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.url ?? "#"}
+                  target={item.target}
+                  rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-200"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {item.label}
+                </a>
+              ))}
+            </>
+          )}
         </nav>
       </div>
 
@@ -111,8 +159,14 @@ export function AdminLayout() {
 
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4 lg:hidden">
-        <Link to="/admin" className="text-lg font-bold text-primary">
-          Lumi Admin
+        <Link to="/admin" className="flex items-center gap-2">
+          {logoSrc ? (
+            <img src={logoSrc} alt={settings.name} className="h-7 object-contain" />
+          ) : (
+            <span className="text-lg font-bold text-primary">
+              {settings.name ? `${settings.name} Admin` : "Lumi Admin"}
+            </span>
+          )}
         </Link>
 
         <div className="flex items-center gap-2">
@@ -146,8 +200,11 @@ export function AdminLayout() {
       )}
 
       {/* Main content */}
-      <main className="ml-0 lg:ml-64 p-6">
-        <Outlet />
+      <main className="ml-0 flex min-h-screen flex-col lg:ml-64">
+        <div className="flex-1 p-6">
+          <Outlet />
+        </div>
+        <Footer />
       </main>
     </div>
   );

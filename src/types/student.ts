@@ -92,6 +92,14 @@ export type PlatformSettings = {
     dark: ThemeColors;
     light: ThemeColors;
   };
+  faviconUrl?: string | null;
+  logoUploadUrl?: string | null;
+  pwaEnabled?: boolean;
+  pwaName?: string | null;
+  pwaShortName?: string | null;
+  pwaIconUrl?: string | null;
+  pwaThemeColor?: string | null;
+  pwaBackgroundColor?: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -105,10 +113,17 @@ export type StudentProfile = {
   displayName: string;
   avatarUrl: string;
   coverUrl: string;
+  coverPosition: string;
   bio: string;
   link: string;
   location: string;
   cpf: string;
+  socialInstagram: string;
+  socialYoutube: string;
+  socialTiktok: string;
+  socialTwitter: string;
+  socialLinkedin: string;
+  socialWebsite: string;
   createdAt: string;
   followers: string[];
   following: string[];
@@ -345,10 +360,18 @@ export type CertificateBlock = {
   width: number;
 };
 
+export type BackgroundFit = "cover" | "contain" | "fill";
+
+export type BackgroundConfig = {
+  fit: BackgroundFit;
+  position: string; // e.g. "50% 50%"
+};
+
 export type CertificateTemplate = {
   id: string;
   name: string;
   backgroundUrl: string;
+  backgroundConfig: BackgroundConfig;
   blocks: CertificateBlock[];
   createdAt: string;
   updatedAt: string;

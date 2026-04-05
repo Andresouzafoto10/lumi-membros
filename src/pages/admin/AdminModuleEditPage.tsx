@@ -15,6 +15,7 @@ import {
   ThumbsDown,
   ClipboardCheck,
   AlertTriangle,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -72,6 +73,7 @@ type LessonFormState = {
   quizPassingScore: number;
   quizRequiredToAdvance: boolean;
   ratingsEnabled: boolean;
+  commentsEnabled: boolean;
 };
 
 const emptyLessonForm: LessonFormState = {
@@ -85,6 +87,7 @@ const emptyLessonForm: LessonFormState = {
   quizPassingScore: 70,
   quizRequiredToAdvance: false,
   ratingsEnabled: true,
+  commentsEnabled: true,
 };
 
 function lessonToForm(lesson: CourseLesson): LessonFormState {
@@ -105,6 +108,7 @@ function lessonToForm(lesson: CourseLesson): LessonFormState {
     quizPassingScore: lesson.quizPassingScore ?? 70,
     quizRequiredToAdvance: lesson.quizRequiredToAdvance ?? false,
     ratingsEnabled: lesson.ratingsEnabled,
+    commentsEnabled: lesson.commentsEnabled ?? true,
   };
 }
 
@@ -233,6 +237,7 @@ export default function AdminModuleEditPage() {
         quizPassingScore,
         quizRequiredToAdvance,
         ratingsEnabled: lessonForm.ratingsEnabled,
+        commentsEnabled: lessonForm.commentsEnabled,
       });
       toast.success("Aula atualizada.");
     } else {
@@ -246,6 +251,7 @@ export default function AdminModuleEditPage() {
         quizPassingScore,
         quizRequiredToAdvance,
         ratingsEnabled: lessonForm.ratingsEnabled,
+        commentsEnabled: lessonForm.commentsEnabled,
       });
       toast.success("Aula criada.");
     }
@@ -700,6 +706,29 @@ export default function AdminModuleEditPage() {
                   Avaliacoes desativadas globalmente em Configuracoes
                 </div>
               )}
+            </div>
+
+            {/* Comments toggle */}
+            <div className="space-y-2 rounded-lg border border-border/60 p-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-primary" />
+                Comentarios
+              </h3>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="lesson-comments-toggle">
+                    Permitir comentarios nesta aula
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Quando desativado, os comentarios ficam ocultos apenas nesta aula (se o curso tiver comentarios habilitados).
+                  </p>
+                </div>
+                <Switch
+                  id="lesson-comments-toggle"
+                  checked={lessonForm.commentsEnabled}
+                  onCheckedChange={(v) => updateLessonField("commentsEnabled", v)}
+                />
+              </div>
             </div>
 
             {/* Quiz editor */}

@@ -24,7 +24,7 @@ async function fetchNotifications(): Promise<AppNotification[]> {
     .from("notifications")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(50);
   if (error) throw error;
   return (data ?? []).map(mapRow);
 }
@@ -49,6 +49,54 @@ export async function addNotification(data: {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Grouped notification type for UI display
+// ---------------------------------------------------------------------------
+
+export interface GroupedNotification {
+  /** First (newest) notification in the group */
+  primary: AppNotification;
+  /** All notifications in this group */
+  items: AppNotification[];
+  /** Count of notifications grouped together */
+  count: number;
+  /** Whether the group has any unread items */
+  hasUnread: boolean;
+}
+
+/**
+ * Groups notifications by target_id + type within 24h windows.
+ * E.g. 3 likes on the same post → one group with count=3.
+ */
+function groupNotifications(notifications: AppNotification[]): GroupedNotification[] {
+  const groups: GroupedNotification[] = [];
+  const keyMap = new Map<string, GroupedNotification>();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  for (const n of notifications) {
+    const dateKey = Math.floor(new Date(n.createdAt).getTime() / DAY_MS);
+    const key = `${n.type}:${n.targetId}:${dateKey}`;
+
+    const existing = keyMap.get(key);
+    if (existing) {
+      existing.items.push(n);
+      existing.count = existing.items.length;
+      if (!n.read) existing.hasUnread = true;
+    } else {
+      const group: GroupedNotification = {
+        primary: n,
+        items: [n],
+        count: 1,
+        hasUnread: !n.read,
+      };
+      keyMap.set(key, group);
+      groups.push(group);
+    }
+  }
+
+  return groups;
+}
+
 export function useNotifications() {
   const queryClient = useQueryClient();
 
@@ -67,6 +115,16 @@ export function useNotifications() {
       notifications
         .filter((n) => n.recipientId === recipientId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [notifications]
+  );
+
+  const getGroupedForUser = useCallback(
+    (recipientId: string) => {
+      const userNotifs = notifications
+        .filter((n) => n.recipientId === recipientId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return groupNotifications(userNotifs);
+    },
     [notifications]
   );
 
@@ -98,6 +156,19 @@ export function useNotifications() {
     [invalidate]
   );
 
+  const markGroupAsRead = useCallback(
+    async (group: GroupedNotification) => {
+      const unreadIds = group.items.filter((n) => !n.read).map((n) => n.id);
+      if (unreadIds.length === 0) return;
+      await supabase
+        .from("notifications")
+        .update({ read: true })
+        .in("id", unreadIds);
+      invalidate();
+    },
+    [invalidate]
+  );
+
   const markAllAsRead = useCallback(
     async (recipientId: string) => {
       await supabase
@@ -110,13 +181,52 @@ export function useNotifications() {
     [invalidate]
   );
 
+  const deleteNotification = useCallback(
+    async (notificationId: string) => {
+      await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", notificationId);
+      invalidate();
+    },
+    [invalidate]
+  );
+
+  const deleteAllRead = useCallback(
+    async (recipientId: string) => {
+      await supabase
+        .from("notifications")
+        .delete()
+        .eq("recipient_id", recipientId)
+        .eq("read", true);
+      invalidate();
+    },
+    [invalidate]
+  );
+
+  const clearAll = useCallback(
+    async (recipientId: string) => {
+      await supabase
+        .from("notifications")
+        .delete()
+        .eq("recipient_id", recipientId);
+      invalidate();
+    },
+    [invalidate]
+  );
+
   return {
     notifications,
     loading: isLoading,
     getNotificationsForUser,
+    getGroupedForUser,
     unreadCount,
     unreadCountMemo,
     markAsRead,
+    markGroupAsRead,
     markAllAsRead,
+    deleteNotification,
+    deleteAllRead,
+    clearAll,
   };
 }

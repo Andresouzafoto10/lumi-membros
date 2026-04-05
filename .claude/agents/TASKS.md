@@ -30,7 +30,9 @@
 
 ## 🟡 EM ANDAMENTO
 
-*Nenhuma task em andamento*
+| ID | Descrição | Agente | Prioridade | Criado |
+|----|-----------|--------|-----------|--------|
+| TASK-012 | Migração uploads Supabase Storage → R2 (Fases 1-3 concluídas, Fase 4-5 pendente) | DEV | ALTA | 2026-03-29 |
 
 ---
 
@@ -44,6 +46,14 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| FEAT-008 | Gestão de turmas e cursos no perfil do aluno — updateEnrollment no useStudents, card Turmas melhorado (vincular com tipo/duração automáticos da turma, editar expiração inline, mostrar cursos por turma, duração/tipo visíveis), novo card Cursos com Acesso (lista cursos derivados das turmas ativas, indica "Via: turma X", admins veem todos com badge "Acesso total"), filtro Restritos na lista de alunos | DEV | 2026-04-04 |
+| FEAT-007 | Melhorias na Moderação — Tab Aulas: "Ver na aula" (link nova aba), "Responder" inline (adminAddComment), replies agrupadas com collapse (>2). Tab Posts: "Ver na comunidade" (link nova aba), "Responder" inline (createPostComment), comentários aninhados com replies e ações moderação (excluir/restringir em cada reply). Delete dialog unificado (post/post-comment/lesson-comment). AvatarSmall helper. Separadores visuais border-l-2. | DEV | 2026-04-04 |
+| FEAT-006 | Moderação de Comentários de Aulas — useAllLessonCommentsAdmin (join profiles+lessons+courses), adminDeleteComment mutation, tab "Comentários de Aulas" na AdminModerationPage com filtros (busca, curso, aula), cards com avatar/badges/contexto reply/truncate expandível, ações excluir + restringir autor (reusa dialog existente), paginação "Carregar mais" (50 por vez) | DEV | 2026-04-04 |
+| FEAT-005 | Comentários nas Aulas — tabela lesson_comments (RLS, indexes, trigger), comments_enabled em courses e course_lessons, tipo LessonComment, hook useLessonComments (React Query + join profiles + replies + likes + gamificação), componente LessonComments (markdown, likes, replies colapsáveis, highlight mais curtido), toggle admin por curso (AdminCourseEditPage) e por aula (AdminModuleEditPage), integrado em CourseDetailPage, action_type lesson_comment na gamificação | DEV | 2026-04-04 |
+| FEAT-004 | Controle de acesso a cursos — banner compacto (160px) no admin, config "Sem acesso" no jsonb access (no_access_action/redirect_url/support_url), CourseCard com grayscale+cadeado para cursos sem matricula, modal "Acesso restrito" ou redirect externo, admins sempre veem normal, CoursesPage mostra todos os cursos (enrolled+locked) | DEV | 2026-04-04 |
+| EMAIL-002 | Preferencias de notificacao por usuario — tabela notification_preferences (25 campos email+notif), trigger auto-create, hook useNotificationPreferences (optimistic updates), tab Notificacoes no MyProfilePage (checkboxes email/in-app), card no AdminStudentProfilePage, notify-email verifica preferencias antes de enviar, notificationTriggers verifica notif_* para in-app | TIME BETA | 2026-04-04 |
+| EMAIL-001 | Sistema completo de Email Marketing & Automacoes — tabela email_automations (12 automacoes seed), template HTML base com paleta Master (#ff7b00), notify-email expandido (18 tipos), email-scheduler (inatividade 7d/30d), resend-access-email (magic link admin), useEmailAutomations hook, useEmailNotifications expandido (14 funcoes), AdminEmailsPage com 4 tabs (Automacoes/Historico/Reenviar Acesso/Configuracoes), rota /admin/emails, link no sidebar | TIME BETA | 2026-04-04 |
+| DOC-001 | Auditoria completa e atualização do CLAUDE.md — leitura de 100+ arquivos, 65+ divergências identificadas e corrigidas, backend ativo documentado, 30+ tabelas Supabase, Edge Functions, gamificação, certificados, quiz system, DRM | DOCS | 2026-04-04 |
 | FEAT-003 | Materiais de Aula com DRM Social — tabela lesson_materials, Edge Function download-material (pdf-lib watermark nome+email+CPF), bucket Supabase Storage privado, hook useLessonMaterials, componente admin LessonMaterialsManager, componente aluno LessonMaterials, coluna cpf em profiles, RLS corrigido via classes→enrollments | DEV | 2026-04-04 |
 | TASK-013 | Dev: Sistema de autenticação real (Supabase Auth) — login, cadastro, sessão persistente, proteção de rotas | DEV | 2026-03-29 |
 | TASK-011 | Dev: Migração completa mock→Supabase — 20+ hooks, SQL schema, RLS, build limpo sem erros | DEV | 2026-03-29 |
@@ -81,10 +91,10 @@
 
 | Métrica | Valor |
 |---------|-------|
-| Tasks criadas | 34 |
+| Tasks criadas | 36 |
 | Tasks em andamento | 0 |
 | Tasks aguardando aprovação | 0 |
-| Tasks concluídas | 18 |
+| Tasks concluídas | 22 |
 | Bugs críticos abertos | 0 |
 | Skills criadas | 0 |
 | Decisões registradas | 1 |

@@ -5,8 +5,15 @@ import { toast } from "sonner";
 
 import { useCommunities } from "@/hooks/useCommunities";
 import { useClasses } from "@/hooks/useClasses";
+import {
+  AVAILABLE_EMOJIS,
+  AVAILABLE_LUCIDE_ICONS,
+  detectIconType,
+  getLucideIcon,
+} from "@/lib/communityIcon";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { FileUpload } from "@/components/ui/FileUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -174,22 +182,110 @@ export default function AdminCommunityEditPage() {
               />
             </div>
             <div>
-              <Label htmlFor="comm-cover">URL da capa</Label>
-              <Input
-                id="comm-cover"
-                placeholder="https://..."
+              <Label>Capa da comunidade</Label>
+              <FileUpload
                 value={coverUrl}
-                onChange={(e) => setCoverUrl(e.target.value)}
+                onChange={setCoverUrl}
+                folder="communities/covers"
+                imagePreset="banner"
+                allowUrl={true}
+                aspectRatio="3/1"
+                placeholder="Arraste ou clique para enviar a capa"
               />
             </div>
             <div>
-              <Label htmlFor="comm-icon">URL do icone</Label>
-              <Input
-                id="comm-icon"
-                placeholder="https://..."
-                value={iconUrl}
-                onChange={(e) => setIconUrl(e.target.value)}
-              />
+              <Label>Icone da comunidade</Label>
+              <Tabs
+                defaultValue={
+                  detectIconType(iconUrl) === "lucide"
+                    ? "lucide"
+                    : detectIconType(iconUrl) === "image"
+                      ? "upload"
+                      : "emoji"
+                }
+                className="mt-1"
+              >
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="emoji">Emoji</TabsTrigger>
+                  <TabsTrigger value="lucide">Icone</TabsTrigger>
+                  <TabsTrigger value="upload">Upload</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="emoji" className="mt-3">
+                  <div className="grid grid-cols-10 gap-1.5">
+                    {AVAILABLE_EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setIconUrl(emoji)}
+                        className={`h-9 w-9 flex items-center justify-center rounded-md text-lg transition-all hover:bg-accent ${
+                          iconUrl === emoji
+                            ? "ring-2 ring-primary bg-primary/10"
+                            : "hover:scale-110"
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="lucide" className="mt-3">
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {AVAILABLE_LUCIDE_ICONS.map((name) => {
+                      const Icon = getLucideIcon(name);
+                      const isSelected = iconUrl === `icon:${name}`;
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() => setIconUrl(`icon:${name}`)}
+                          className={`h-9 w-9 flex items-center justify-center rounded-md transition-all hover:bg-accent ${
+                            isSelected
+                              ? "ring-2 ring-primary bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:text-foreground hover:scale-110"
+                          }`}
+                          title={name}
+                        >
+                          <Icon className="h-4.5 w-4.5" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="upload" className="mt-3">
+                  <FileUpload
+                    value={detectIconType(iconUrl) === "image" ? iconUrl : ""}
+                    onChange={setIconUrl}
+                    folder="communities/icons"
+                    imagePreset="avatar"
+                    allowUrl={true}
+                    aspectRatio="1/1"
+                    placeholder="Arraste ou clique para enviar o icone"
+                    className="max-w-[200px]"
+                  />
+                </TabsContent>
+              </Tabs>
+
+              {/* Preview */}
+              {iconUrl && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Selecionado:</span>
+                  <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-muted overflow-hidden">
+                    {detectIconType(iconUrl) === "emoji" && (
+                      <span className="text-xl">{iconUrl}</span>
+                    )}
+                    {detectIconType(iconUrl) === "lucide" && (() => {
+                      const Icon = getLucideIcon(iconUrl.replace("icon:", ""));
+                      return <Icon className="h-5 w-5 text-primary" />;
+                    })()}
+                    {detectIconType(iconUrl) === "image" && (
+                      <img src={iconUrl} alt="" className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             {!isNew && (
               <div>

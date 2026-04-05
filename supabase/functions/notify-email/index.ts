@@ -1,147 +1,388 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildEmailHtml } from "../_shared/email-template.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const FROM_EMAIL = "Lumi Membros <noreply@lumimembros.com>";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const PLATFORM_URL = Deno.env.get("PLATFORM_URL") ?? "https://app.membrosmaster.com.br";
+const PLATFORM_NAME = Deno.env.get("PLATFORM_NAME") ?? "Membros Master";
+const FROM_EMAIL = `${PLATFORM_NAME} <enviar@membrosmaster.com.br>`;
 
-type NotificationType =
+// All supported email types
+type EmailType =
   | "comment"
   | "like"
   | "follow"
   | "mention"
   | "new_post"
-  | "badge_earned";
+  | "badge_earned"
+  | "welcome"
+  | "access_reminder_7d"
+  | "community_post"
+  | "community_inactive_30d"
+  | "new_course"
+  | "new_lesson"
+  | "certificate_earned"
+  | "mention_community"
+  | "follower_milestone_10"
+  | "post_reply"
+  | "mission_complete"
+  | "comment_milestone";
 
 interface NotifyEmailPayload {
-  type: NotificationType;
-  recipient_email: string;
-  recipient_name: string;
-  actor_name: string;
-  context: {
-    post_title?: string;
-    community_name?: string;
-    badge_name?: string;
-    action_url: string;
-  };
+  type: EmailType;
+  recipient_email?: string;
+  recipient_name?: string;
+  recipient_id?: string;
+  actor_name?: string;
+  context?: Record<string, string | number | undefined>;
 }
 
-function getSubject(type: NotificationType, payload: NotifyEmailPayload): string {
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function jsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
+}
+
+function buildSubject(type: EmailType, payload: NotifyEmailPayload): string {
+  const ctx = payload.context ?? {};
+  const actor = payload.actor_name ?? "";
   switch (type) {
     case "comment":
-      return `${payload.actor_name} comentou no seu post`;
+      return `${actor} comentou no seu post`;
     case "like":
-      return `${payload.actor_name} curtiu seu post`;
+      return `${actor} curtiu seu post`;
     case "follow":
-      return `${payload.actor_name} comecou a te seguir`;
+      return `${actor} comecou a te seguir`;
     case "mention":
-      return `${payload.actor_name} te mencionou`;
+    case "mention_community":
+      return `${actor} te mencionou na comunidade`;
     case "new_post":
-      return `Novo post em ${payload.context.community_name ?? "comunidade"}`;
+      return `Novo post em ${ctx.community_name ?? "comunidade"}`;
     case "badge_earned":
-      return `Voce conquistou o badge "${payload.context.badge_name}"!`;
+      return `Voce conquistou o badge "${ctx.badge_name}"!`;
+    case "welcome":
+      return `Bem-vindo(a) a ${PLATFORM_NAME}! 🎉`;
+    case "access_reminder_7d":
+      return `Sentimos sua falta, ${payload.recipient_name ?? ""}! 👋`;
+    case "community_post":
+      return `Sua publicacao esta no ar! 🚀`;
+    case "community_inactive_30d":
+      return `Tem novidades na comunidade, ${payload.recipient_name ?? ""}! 💬`;
+    case "new_course":
+      return `Novo curso disponivel: ${ctx.course_name ?? ""} 🎓`;
+    case "new_lesson":
+      return `Nova aula em ${ctx.course_name ?? ""}: ${ctx.lesson_name ?? ""} ▶️`;
+    case "certificate_earned":
+      return `Parabens! Seu certificado esta disponivel 🏆`;
+    case "follower_milestone_10":
+      return `Voce tem ${ctx.follower_count ?? ""} seguidores! 🌟`;
+    case "post_reply":
+      return `${actor} respondeu seu post 💬`;
+    case "mission_complete":
+      return `Missao concluida: ${ctx.mission_name ?? ""} ⚡`;
+    case "comment_milestone":
+      return `Voce fez ${ctx.comment_count ?? ""} comentarios! 🗣️`;
   }
 }
 
-function getMessage(type: NotificationType, payload: NotifyEmailPayload): string {
-  const { actor_name, context } = payload;
+function buildBody(type: EmailType, payload: NotifyEmailPayload): { heading: string; bodyHtml: string; ctaText: string; ctaUrl: string; previewText: string } {
+  const name = payload.recipient_name ?? "Membro";
+  const actor = payload.actor_name ?? "Alguem";
+  const ctx = payload.context ?? {};
+  const baseUrl = PLATFORM_URL;
+
   switch (type) {
+    case "welcome":
+      return {
+        heading: `Bem-vindo(a), ${name}!`,
+        bodyHtml: `<p style="margin:0 0 16px 0;">Estamos muito felizes em ter voce conosco na <strong>${PLATFORM_NAME}</strong>!</p>
+          <p style="margin:0 0 16px 0;">Aqui voce vai encontrar cursos exclusivos, uma comunidade incrivel e muito conteudo para sua evolucao.</p>
+          <p style="margin:0;">Comece agora explorando os cursos disponiveis.</p>`,
+        ctaText: "Explorar cursos",
+        ctaUrl: `${baseUrl}/cursos`,
+        previewText: "Sua jornada comeca agora",
+      };
+
+    case "access_reminder_7d":
+      return {
+        heading: `Sentimos sua falta, ${name}!`,
+        bodyHtml: `<p style="margin:0 0 16px 0;">Faz um tempo que voce nao aparece por aqui. Seus cursos estao esperando por voce!</p>
+          <p style="margin:0;">A comunidade tambem esta ativa — entre e veja as novidades.</p>`,
+        ctaText: "Voltar a plataforma",
+        ctaUrl: `${baseUrl}/cursos`,
+        previewText: "Voce tem cursos esperando por voce",
+      };
+
+    case "community_post":
+      return {
+        heading: "Sua publicacao esta no ar!",
+        bodyHtml: `<p style="margin:0;">Ola, ${name}! Sua publicacao na comunidade foi aprovada e ja esta visivel para todos os membros.</p>`,
+        ctaText: "Ver publicacao",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/comunidade/feed`,
+        previewText: "A comunidade ja pode ver seu post",
+      };
+
+    case "community_inactive_30d":
+      return {
+        heading: `Tem novidades na comunidade!`,
+        bodyHtml: `<p style="margin:0 0 16px 0;">Ola, ${name}! Faz um tempo que voce nao participa da comunidade.</p>
+          <p style="margin:0;">Tem muita coisa nova acontecendo — entre e confira as publicacoes recentes.</p>`,
+        ctaText: "Ver comunidade",
+        ctaUrl: `${baseUrl}/comunidade/feed`,
+        previewText: "Veja o que esta acontecendo",
+      };
+
+    case "new_course":
+      return {
+        heading: `Novo curso: ${ctx.course_name ?? ""}`,
+        bodyHtml: `<p style="margin:0;">Um novo curso foi publicado na plataforma: <strong>${ctx.course_name ?? ""}</strong>. Acesse agora e comece a aprender!</p>`,
+        ctaText: "Acessar curso",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/cursos`,
+        previewText: "Acesse agora e comece a aprender",
+      };
+
+    case "new_lesson":
+      return {
+        heading: `Nova aula: ${ctx.lesson_name ?? ""}`,
+        bodyHtml: `<p style="margin:0;">Uma nova aula foi adicionada ao curso <strong>${ctx.course_name ?? ""}</strong>: <strong>${ctx.lesson_name ?? ""}</strong>.</p>`,
+        ctaText: "Assistir aula",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/cursos`,
+        previewText: "Assista agora",
+      };
+
+    case "certificate_earned":
+      return {
+        heading: "Parabens! Certificado disponivel!",
+        bodyHtml: `<p style="margin:0 0 16px 0;">Ola, ${name}! Voce concluiu o curso <strong>${ctx.course_name ?? ""}</strong> e seu certificado esta pronto para download!</p>
+          <p style="margin:0;">Acesse sua area de certificados para visualizar e baixar.</p>`,
+        ctaText: "Ver certificado",
+        ctaUrl: `${baseUrl}/meus-certificados`,
+        previewText: `Voce concluiu ${ctx.course_name ?? "o curso"}`,
+      };
+
+    case "mention":
+    case "mention_community":
+      return {
+        heading: `${actor} mencionou voce`,
+        bodyHtml: `<p style="margin:0;"><strong>${actor}</strong> te mencionou em uma publicacao${ctx.community_name ? ` em "${ctx.community_name}"` : ""}.</p>`,
+        ctaText: "Ver publicacao",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/comunidade/feed`,
+        previewText: "Veja o que disseram",
+      };
+
+    case "follower_milestone_10":
+      return {
+        heading: `${ctx.follower_count ?? ""} seguidores!`,
+        bodyHtml: `<p style="margin:0;">Parabens, ${name}! Voce alcancou <strong>${ctx.follower_count ?? ""} seguidores</strong> na plataforma. Sua audiencia esta crescendo!</p>`,
+        ctaText: "Ver perfil",
+        ctaUrl: `${baseUrl}/meu-perfil`,
+        previewText: "Sua audiencia esta crescendo",
+      };
+
+    case "post_reply":
+      return {
+        heading: `${actor} respondeu seu post`,
+        bodyHtml: `<p style="margin:0;"><strong>${actor}</strong> deixou um comentario na sua publicacao.</p>`,
+        ctaText: "Ver comentario",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/comunidade/feed`,
+        previewText: "Veja o que acharam",
+      };
+
+    case "mission_complete":
+      return {
+        heading: `Missao concluida!`,
+        bodyHtml: `<p style="margin:0 0 16px 0;">Ola, ${name}! Voce completou a missao <strong>"${ctx.mission_name ?? ""}"</strong>!</p>
+          <p style="margin:0;">Voce ganhou <strong>${ctx.points ?? 0} pontos</strong>. Continue assim!</p>`,
+        ctaText: "Ver minhas missoes",
+        ctaUrl: `${baseUrl}/meu-perfil`,
+        previewText: `Voce ganhou ${ctx.points ?? 0} pontos`,
+      };
+
+    case "comment_milestone":
+      return {
+        heading: `${ctx.comment_count ?? ""} comentarios!`,
+        bodyHtml: `<p style="margin:0;">Parabens, ${name}! Voce ja fez <strong>${ctx.comment_count ?? ""} comentarios</strong> na comunidade. Continue engajando!</p>`,
+        ctaText: "Ver comunidade",
+        ctaUrl: `${baseUrl}/comunidade/feed`,
+        previewText: "Continue engajando a comunidade",
+      };
+
     case "comment":
-      return `<strong>${actor_name}</strong> comentou no seu post "${context.post_title ?? ""}".`;
+      return {
+        heading: `${actor} comentou no seu post`,
+        bodyHtml: `<p style="margin:0;"><strong>${actor}</strong> comentou na sua publicacao${ctx.post_title ? ` "${ctx.post_title}"` : ""}.</p>`,
+        ctaText: "Ver comentario",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/comunidade/feed`,
+        previewText: `${actor} comentou no seu post`,
+      };
+
     case "like":
-      return `<strong>${actor_name}</strong> curtiu seu post "${context.post_title ?? ""}".`;
+      return {
+        heading: `${actor} curtiu seu post`,
+        bodyHtml: `<p style="margin:0;"><strong>${actor}</strong> curtiu sua publicacao${ctx.post_title ? ` "${ctx.post_title}"` : ""}.</p>`,
+        ctaText: "Ver publicacao",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/comunidade/feed`,
+        previewText: `${actor} curtiu seu post`,
+      };
+
     case "follow":
-      return `<strong>${actor_name}</strong> comecou a te seguir na plataforma.`;
-    case "mention":
-      return `<strong>${actor_name}</strong> te mencionou em uma publicacao em "${context.community_name ?? ""}".`;
+      return {
+        heading: `${actor} comecou a te seguir`,
+        bodyHtml: `<p style="margin:0;"><strong>${actor}</strong> comecou a te seguir na plataforma.</p>`,
+        ctaText: "Ver perfil",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/meu-perfil`,
+        previewText: `${actor} comecou a te seguir`,
+      };
+
     case "new_post":
-      return `Novo post em "<strong>${context.community_name ?? ""}</strong>": ${context.post_title ?? ""}`;
+      return {
+        heading: `Novo post em ${ctx.community_name ?? "comunidade"}`,
+        bodyHtml: `<p style="margin:0;">Novo post em <strong>${ctx.community_name ?? ""}</strong>: ${ctx.post_title ?? ""}</p>`,
+        ctaText: "Ver publicacao",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/comunidade/feed`,
+        previewText: `Novo post em ${ctx.community_name ?? "comunidade"}`,
+      };
+
     case "badge_earned":
-      return `Parabens! Voce conquistou o badge "<strong>${context.badge_name ?? ""}</strong>".`;
+      return {
+        heading: `Badge conquistado!`,
+        bodyHtml: `<p style="margin:0;">Parabens! Voce conquistou o badge <strong>"${ctx.badge_name ?? ""}"</strong>!</p>`,
+        ctaText: "Ver perfil",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/meu-perfil`,
+        previewText: `Voce conquistou o badge "${ctx.badge_name ?? ""}"`,
+      };
   }
-}
-
-function getEmoji(type: NotificationType): string {
-  switch (type) {
-    case "comment": return "💬";
-    case "like": return "❤️";
-    case "follow": return "👤";
-    case "mention": return "📢";
-    case "new_post": return "📝";
-    case "badge_earned": return "🏆";
-  }
-}
-
-function buildHtml(payload: NotifyEmailPayload): string {
-  const emoji = getEmoji(payload.type);
-  const message = getMessage(payload.type, payload);
-  const actionUrl = payload.context.action_url;
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f4f5; }
-    .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; margin-top: 24px; margin-bottom: 24px; }
-    .header { background: linear-gradient(135deg, #00C2CB, #00a8b0); padding: 24px; text-align: center; }
-    .header h1 { color: #ffffff; font-size: 20px; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
-    .body { padding: 32px 24px; }
-    .greeting { font-size: 15px; color: #3f3f46; margin-bottom: 16px; }
-    .message { font-size: 15px; color: #18181b; line-height: 1.6; margin-bottom: 24px; padding: 16px; background: #f4f4f5; border-radius: 8px; border-left: 3px solid #00C2CB; }
-    .emoji { font-size: 24px; display: block; margin-bottom: 8px; }
-    .cta { display: inline-block; background: #00C2CB; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px; }
-    .cta:hover { background: #00a8b0; }
-    .cta-wrapper { text-align: center; margin-top: 24px; }
-    .footer { padding: 20px 24px; text-align: center; border-top: 1px solid #e4e4e7; }
-    .footer p { font-size: 12px; color: #a1a1aa; margin: 0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Lumi Membros</h1>
-    </div>
-    <div class="body">
-      <p class="greeting">Ola, ${payload.recipient_name}!</p>
-      <div class="message">
-        <span class="emoji">${emoji}</span>
-        ${message}
-      </div>
-      <div class="cta-wrapper">
-        <a href="${actionUrl}" class="cta">Ver na plataforma</a>
-      </div>
-    </div>
-    <div class="footer">
-      <p>Voce recebeu este email porque e membro da plataforma Lumi Membros.</p>
-    </div>
-  </div>
-</body>
-</html>`;
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
     const payload: NotifyEmailPayload = await req.json();
 
-    if (!payload.recipient_email || !payload.type) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (!payload.type) {
+      return jsonResponse({ error: "Missing required field: type" }, 400);
     }
 
-    const subject = getSubject(payload.type, payload);
-    const html = buildHtml(payload);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // Resolve recipient info if only recipient_id is provided
+    let recipientEmail = payload.recipient_email;
+    let recipientName = payload.recipient_name;
+    let emailEnabled = true;
+
+    if (payload.recipient_id && (!recipientEmail || !recipientName)) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, display_name, name, email_notifications")
+        .eq("id", payload.recipient_id)
+        .single();
+
+      if (!profile || !profile.email) {
+        return jsonResponse({ success: false, skipped: true, reason: "recipient_not_found" });
+      }
+
+      recipientEmail = recipientEmail ?? (profile.email as string);
+      recipientName = recipientName ?? ((profile.display_name as string) || (profile.name as string) || "Membro");
+      emailEnabled = profile.email_notifications !== false;
+    }
+
+    if (!recipientEmail) {
+      return jsonResponse({ error: "Missing recipient email" }, 400);
+    }
+
+    // Check if user has email notifications enabled
+    if (!emailEnabled) {
+      await logEmail(supabase, payload.recipient_id ?? "", payload.type, "", "skipped", { reason: "user_disabled" });
+      return jsonResponse({ success: false, skipped: true, reason: "user_email_disabled" });
+    }
+
+    // Check global email toggle
+    const { data: settings } = await supabase
+      .from("platform_settings")
+      .select("email_notifications_enabled")
+      .eq("id", "default")
+      .single();
+
+    if (settings && settings.email_notifications_enabled === false) {
+      await logEmail(supabase, payload.recipient_id ?? "", payload.type, "", "skipped", { reason: "global_disabled" });
+      return jsonResponse({ success: false, skipped: true, reason: "global_email_disabled" });
+    }
+
+    // Check automation is active
+    const { data: automation } = await supabase
+      .from("email_automations")
+      .select("is_active, subject_template")
+      .eq("type", payload.type)
+      .single();
+
+    // If automation exists and is disabled, skip
+    if (automation && automation.is_active === false) {
+      await logEmail(supabase, payload.recipient_id ?? "", payload.type, "", "skipped", { reason: "automation_disabled" });
+      return jsonResponse({ success: false, skipped: true, reason: "automation_disabled" });
+    }
+
+    // Check per-user notification preferences
+    const prefMap: Record<string, string | null> = {
+      comment: "email_comments",
+      post_reply: "email_post_reply",
+      mention: "email_mentions",
+      mention_community: "email_mentions",
+      like: "email_likes",
+      follow: "email_follows",
+      new_course: "email_new_course",
+      new_lesson: "email_new_lesson",
+      certificate_earned: "email_certificate",
+      mission_complete: "email_mission_complete",
+      badge_earned: "email_badge_earned",
+      follower_milestone_10: "email_follower_milestone",
+      comment_milestone: "email_badge_earned",
+      community_post: "email_comments",
+      welcome: null,
+      access_reminder_7d: null,
+      community_inactive_30d: null,
+    };
+
+    const prefColumn = prefMap[payload.type] ?? undefined;
+    if (prefColumn && payload.recipient_id) {
+      const { data: prefs } = await supabase
+        .from("notification_preferences")
+        .select(prefColumn)
+        .eq("user_id", payload.recipient_id)
+        .single();
+
+      if (prefs && prefs[prefColumn] === false) {
+        await logEmail(supabase, payload.recipient_id, payload.type, "", "skipped", { reason: "user_preference_disabled", field: prefColumn });
+        return jsonResponse({ success: false, skipped: true, reason: "user_preference_disabled" });
+      }
+    }
+
+    // Build the email
+    const subject = buildSubject(payload.type, { ...payload, recipient_name: recipientName });
+    const body = buildBody(payload.type, { ...payload, recipient_name: recipientName });
+
+    const html = buildEmailHtml({
+      subject,
+      previewText: body.previewText,
+      heading: body.heading,
+      bodyHtml: body.bodyHtml,
+      ctaText: body.ctaText,
+      ctaUrl: body.ctaUrl,
+      platformName: PLATFORM_NAME,
+      platformUrl: PLATFORM_URL,
+    });
+
+    // Send via Resend
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -150,31 +391,47 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: FROM_EMAIL,
-        to: [payload.recipient_email],
+        to: [recipientEmail],
         subject,
         html,
       }),
     });
 
     if (!res.ok) {
-      const err = await res.text();
-      console.error("Resend error:", err);
-      return new Response(JSON.stringify({ error: "Failed to send email", detail: err }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      const errText = await res.text();
+      console.error("Resend error:", errText);
+      await logEmail(supabase, payload.recipient_id ?? "", payload.type, subject, "failed", { error: errText });
+      return jsonResponse({ error: "Failed to send email", detail: errText }, 500);
     }
 
     const data = await res.json();
-    return new Response(JSON.stringify({ success: true, id: data.id }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    await logEmail(supabase, payload.recipient_id ?? "", payload.type, subject, "sent", { resend_id: data.id });
+
+    return jsonResponse({ success: true, emailId: data.id });
   } catch (err) {
     console.error("notify-email error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: String(err) }, 500);
   }
 });
+
+async function logEmail(
+  supabase: ReturnType<typeof createClient>,
+  recipientId: string,
+  type: string,
+  subject: string,
+  status: string,
+  metadata: Record<string, unknown>
+) {
+  try {
+    await supabase.from("email_notification_log").insert({
+      recipient_id: recipientId,
+      type,
+      automation_type: type,
+      subject,
+      status,
+      metadata,
+    });
+  } catch (e) {
+    console.error("Failed to log email:", e);
+  }
+}

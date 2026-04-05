@@ -26,9 +26,17 @@ export interface Database {
           display_name: string;
           avatar_url: string;
           cover_url: string;
+          cover_position: string;
           bio: string;
           link: string;
           location: string;
+          cpf: string;
+          social_instagram: string | null;
+          social_youtube: string | null;
+          social_tiktok: string | null;
+          social_twitter: string | null;
+          social_linkedin: string | null;
+          social_website: string | null;
           followers: string[];
           following: string[];
           created_at: string;
@@ -44,9 +52,17 @@ export interface Database {
           display_name?: string;
           avatar_url?: string;
           cover_url?: string;
+          cover_position?: string;
           bio?: string;
           link?: string;
           location?: string;
+          cpf?: string;
+          social_instagram?: string | null;
+          social_youtube?: string | null;
+          social_tiktok?: string | null;
+          social_twitter?: string | null;
+          social_linkedin?: string | null;
+          social_website?: string | null;
           followers?: string[];
           following?: string[];
           created_at?: string;
@@ -62,9 +78,17 @@ export interface Database {
           display_name?: string;
           avatar_url?: string;
           cover_url?: string;
+          cover_position?: string;
           bio?: string;
           link?: string;
           location?: string;
+          cpf?: string;
+          social_instagram?: string | null;
+          social_youtube?: string | null;
+          social_tiktok?: string | null;
+          social_twitter?: string | null;
+          social_linkedin?: string | null;
+          social_website?: string | null;
           followers?: string[];
           following?: string[];
           updated_at?: string;
@@ -117,6 +141,7 @@ export interface Database {
           is_active: boolean;
           access: Json; // { mode: 'all' } | { mode: 'plans', plans: string[] } | { mode: 'admin' }
           certificate_config: Json | null;
+          comments_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -130,6 +155,7 @@ export interface Database {
           is_active?: boolean;
           access?: Json;
           certificate_config?: Json | null;
+          comments_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -143,6 +169,7 @@ export interface Database {
           is_active?: boolean;
           access?: Json;
           certificate_config?: Json | null;
+          comments_enabled?: boolean;
           updated_at?: string;
         };
       };
@@ -196,6 +223,7 @@ export interface Database {
           quiz: Json | null;
           quiz_passing_score: number | null;
           quiz_required_to_advance: boolean;
+          comments_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -212,6 +240,7 @@ export interface Database {
           quiz?: Json | null;
           quiz_passing_score?: number | null;
           quiz_required_to_advance?: boolean;
+          comments_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -228,6 +257,7 @@ export interface Database {
           quiz?: Json | null;
           quiz_passing_score?: number | null;
           quiz_required_to_advance?: boolean;
+          comments_enabled?: boolean;
           updated_at?: string;
         };
       };
@@ -684,6 +714,14 @@ export interface Database {
           certificate_default_text: string;
           theme: Json; // { dark: ThemeColors, light: ThemeColors }
           updated_at: string;
+          favicon_url: string | null;
+          logo_upload_url: string | null;
+          pwa_enabled: boolean;
+          pwa_name: string | null;
+          pwa_short_name: string | null;
+          pwa_icon_url: string | null;
+          pwa_theme_color: string | null;
+          pwa_background_color: string | null;
         };
         Insert: {
           id?: string;
@@ -695,6 +733,14 @@ export interface Database {
           certificate_default_text?: string;
           theme?: Json;
           updated_at?: string;
+          favicon_url?: string | null;
+          logo_upload_url?: string | null;
+          pwa_enabled?: boolean;
+          pwa_name?: string | null;
+          pwa_short_name?: string | null;
+          pwa_icon_url?: string | null;
+          pwa_theme_color?: string | null;
+          pwa_background_color?: string | null;
         };
         Update: {
           id?: string;
@@ -706,6 +752,14 @@ export interface Database {
           certificate_default_text?: string;
           theme?: Json;
           updated_at?: string;
+          favicon_url?: string | null;
+          logo_upload_url?: string | null;
+          pwa_enabled?: boolean;
+          pwa_name?: string | null;
+          pwa_short_name?: string | null;
+          pwa_icon_url?: string | null;
+          pwa_theme_color?: string | null;
+          pwa_background_color?: string | null;
         };
       };
 
@@ -907,6 +961,135 @@ export interface Database {
           score?: number;
           passed?: boolean;
           attempted_at?: string;
+        };
+      };
+
+      // -----------------------------------------------------------------------
+      // script_injections
+      // -----------------------------------------------------------------------
+      script_injections: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          position: string; // 'head' | 'body_start' | 'body_end'
+          content: string;
+          enabled: boolean;
+          apply_to: string; // 'all' | 'admin_only' | 'student_only' | 'specific_pages'
+          specific_pages: string[];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string | null;
+          position: string;
+          content: string;
+          enabled?: boolean;
+          apply_to?: string;
+          specific_pages?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string | null;
+          position?: string;
+          content?: string;
+          enabled?: boolean;
+          apply_to?: string;
+          specific_pages?: string[];
+          updated_at?: string;
+        };
+      };
+
+      // -----------------------------------------------------------------------
+      // nav_menu_items
+      // -----------------------------------------------------------------------
+      nav_menu_items: {
+        Row: {
+          id: string;
+          label: string;
+          url: string | null;
+          icon: string | null;
+          target: string; // '_self' | '_blank'
+          area: string; // 'student' | 'admin'
+          is_external: boolean;
+          is_default: boolean;
+          visible: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          label: string;
+          url?: string | null;
+          icon?: string | null;
+          target?: string;
+          area?: string;
+          is_external?: boolean;
+          is_default?: boolean;
+          visible?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          label?: string;
+          url?: string | null;
+          icon?: string | null;
+          target?: string;
+          area?: string;
+          is_external?: boolean;
+          is_default?: boolean;
+          visible?: boolean;
+          sort_order?: number;
+          updated_at?: string;
+        };
+      };
+
+      // -----------------------------------------------------------------------
+      // lesson_comments
+      // -----------------------------------------------------------------------
+      lesson_comments: {
+        Row: {
+          id: string;
+          lesson_id: string;
+          course_id: string;
+          author_id: string;
+          parent_comment_id: string | null;
+          body: string;
+          likes_count: number;
+          liked_by: string[];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lesson_id: string;
+          course_id: string;
+          author_id: string;
+          parent_comment_id?: string | null;
+          body: string;
+          likes_count?: number;
+          liked_by?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          lesson_id?: string;
+          course_id?: string;
+          author_id?: string;
+          parent_comment_id?: string | null;
+          body?: string;
+          likes_count?: number;
+          liked_by?: string[];
+          updated_at?: string;
         };
       };
 

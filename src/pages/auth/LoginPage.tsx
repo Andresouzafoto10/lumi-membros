@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Eye, EyeOff, Loader2, CheckCircle2, Mail, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,8 @@ export default function LoginPage() {
   const [sent, setSent] = useState(false);
 
   const from = (location.state as { from?: string } | null)?.from ?? "/cursos";
+  const { settings } = usePlatformSettings();
+  const logoSrc = settings.logoUploadUrl || settings.logoUrl || null;
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -66,11 +69,15 @@ export default function LoginPage() {
 
   const logo = (
     <div className="mb-8 text-center">
-      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20 mb-4">
-        <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="currentColor">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-        </svg>
-      </div>
+      {logoSrc ? (
+        <img src={logoSrc} alt={settings.name} className="mx-auto mb-4 h-12 object-contain" />
+      ) : (
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20 mb-4">
+          <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          </svg>
+        </div>
+      )}
       {mode === "login" && (
         <>
           <h1 className="text-2xl font-bold text-foreground">Bem-vindo de volta</h1>
@@ -96,7 +103,7 @@ export default function LoginPage() {
   if (sent) {
     return (
       <>
-        <Helmet><title>E-mail enviado — Lumi Membros</title></Helmet>
+        <Helmet><title>E-mail enviado</title></Helmet>
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
           <div className="text-center space-y-4 animate-fade-in max-w-sm">
             <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
@@ -124,7 +131,7 @@ export default function LoginPage() {
     <>
       <Helmet>
         <title>
-          {mode === "login" ? "Entrar" : mode === "forgot" ? "Recuperar senha" : "Link mágico"} — Lumi Membros
+          {mode === "login" ? "Entrar" : mode === "forgot" ? "Recuperar senha" : "Link mágico"}
         </title>
       </Helmet>
 

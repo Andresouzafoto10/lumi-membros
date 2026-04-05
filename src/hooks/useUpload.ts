@@ -1,14 +1,20 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { uploadToR2, deleteFromR2, type ImagePreset } from "@/lib/r2Upload";
 import { toast } from "sonner";
 
 type UploadOptions = {
-  bucket: string;
-  /** Path inside the bucket (e.g. "avatars/user-123.jpg") */
-  path: string;
+  /** R2 folder path (e.g. "avatars", "courses/banners") */
+  folder: string;
   /** Max file size in bytes (default: 5MB) */
   maxSizeBytes?: number;
-  /** Previous file path to delete after successful upload */
+  /** Previous file URL to delete after successful upload */
+  previousUrl?: string;
+  /** Image optimisation preset */
+  preset?: ImagePreset;
+
+  // Legacy compat (ignored — kept so callers don't break)
+  bucket?: string;
+  path?: string;
   previousPath?: string;
 };
 
@@ -21,12 +27,20 @@ export function useUpload() {
       file: File,
       options: UploadOptions
     ): Promise<{ url: string; path: string } | null> => {
-      const { bucket, path, maxSizeBytes = 5 * 1024 * 1024, previousPath } = options;
+      const {
+        folder,
+        maxSizeBytes = 5 * 1024 * 1024,
+        previousUrl,
+        preset,
+        // Legacy compat: use bucket as folder fallback
+        bucket,
+      } = options;
 
-      // Validate size
+      const effectiveFolder = folder || bucket || "uploads";
+
       if (file.size > maxSizeBytes) {
         const maxMB = Math.round(maxSizeBytes / (1024 * 1024));
-        toast.error(`Arquivo muito grande. Máximo: ${maxMB}MB`);
+        toast.error(`Arquivo muito grande. Maximo: ${maxMB}MB`);
         return null;
       }
 
@@ -34,39 +48,19 @@ export function useUpload() {
       setProgress(0);
 
       try {
-        // Delete previous file if exists
-        if (previousPath) {
-          await supabase.storage.from(bucket).remove([previousPath]);
-        }
-
         setProgress(30);
 
-        // Upload new file
-        const { error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(path, file, {
-            cacheControl: "3600",
-            upsert: true,
-          });
-
-        if (uploadError) {
-          toast.error(`Erro no upload: ${uploadError.message}`);
-          return null;
-        }
-
-        setProgress(80);
-
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from(bucket)
-          .getPublicUrl(path);
+        const url = await uploadToR2(file, effectiveFolder, {
+          oldUrl: previousUrl,
+          preset,
+        });
 
         setProgress(100);
 
-        return { url: urlData.publicUrl, path };
+        return { url, path: url };
       } catch (err) {
-        toast.error("Erro inesperado no upload.");
-        console.error(err);
+        console.error("[useUpload]", err);
+        toast.error("Erro no upload.");
         return null;
       } finally {
         setUploading(false);
@@ -76,12 +70,9 @@ export function useUpload() {
     []
   );
 
-  const deleteFile = useCallback(
-    async (bucket: string, path: string) => {
-      await supabase.storage.from(bucket).remove([path]);
-    },
-    []
-  );
+  const deleteFile = useCallback(async (_bucket: string, urlOrPath: string) => {
+    await deleteFromR2(urlOrPath);
+  }, []);
 
   return { uploadFile, deleteFile, uploading, progress };
 }

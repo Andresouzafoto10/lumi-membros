@@ -15,6 +15,7 @@ import { useCourses } from "@/hooks/useCourses";
 import type { CourseBanner, CourseBannerTargetType } from "@/types/course";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { FileUpload } from "@/components/ui/FileUpload";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -421,24 +422,21 @@ export default function AdminCoursesPage() {
             </DialogHeader>
 
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-              {/* Image URL + preview */}
+              {/* Image upload + preview */}
               <div className="space-y-2">
-                <Label htmlFor="banner-img">URL da imagem</Label>
-                <Input
-                  id="banner-img"
-                  placeholder="https://..."
+                <Label>Imagem do banner</Label>
+                <FileUpload
                   value={bannerForm.imageUrl}
-                  onChange={(e) =>
-                    setBannerForm({ ...bannerForm, imageUrl: e.target.value })
+                  onChange={(url) =>
+                    setBannerForm({ ...bannerForm, imageUrl: url })
                   }
+                  folder="banners"
+                  imagePreset="banner"
+                  allowUrl={true}
+                  aspectRatio="21/9"
+                  maxSizeMB={10}
+                  placeholder="Arraste ou clique para enviar"
                 />
-                {bannerForm.imageUrl && (
-                  <img
-                    src={bannerForm.imageUrl}
-                    alt="Preview"
-                    className="h-32 w-full rounded-md object-cover"
-                  />
-                )}
               </div>
 
               <div className="space-y-2">

@@ -63,6 +63,7 @@ export type CourseLesson = {
   quizPassingScore?: number;
   quizRequiredToAdvance?: boolean;
   ratingsEnabled: boolean;
+  commentsEnabled?: boolean;
 };
 
 export type CourseModule = {
@@ -73,10 +74,16 @@ export type CourseModule = {
   lessons: CourseLesson[];
 };
 
+export type CourseAccessBase = {
+  no_access_action?: "nothing" | "redirect";
+  no_access_redirect_url?: string;
+  no_access_support_url?: string;
+};
+
 export type CourseAccess =
-  | { mode: "all" }
-  | { mode: "plans"; plans: string[] }
-  | { mode: "admin" };
+  | (CourseAccessBase & { mode: "all" })
+  | (CourseAccessBase & { mode: "plans"; plans: string[] })
+  | (CourseAccessBase & { mode: "admin" });
 
 export type CertificateRequirementType =
   | "completion"
@@ -101,7 +108,29 @@ export type Course = {
   access: CourseAccess;
   modules: CourseModule[];
   certificateConfig?: CertificateConfig;
+  commentsEnabled?: boolean;
 };
+
+export interface LessonComment {
+  id: string;
+  lesson_id: string;
+  course_id: string;
+  author_id: string;
+  parent_comment_id: string | null;
+  body: string;
+  likes_count: number;
+  liked_by: string[];
+  created_at: string;
+  updated_at: string;
+  author?: {
+    id: string;
+    name: string;
+    display_name: string;
+    avatar_url: string;
+    role: string;
+  };
+  replies?: LessonComment[];
+}
 
 export type CourseSession = {
   id: string;

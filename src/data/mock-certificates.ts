@@ -5,6 +5,7 @@ export const mockCertificateTemplates: CertificateTemplate[] = [
     id: "tpl-classico",
     name: "Certificado Clássico",
     backgroundUrl: "",
+    backgroundConfig: { fit: "cover", position: "50% 50%" },
     blocks: [
       {
         id: "blk-1",
@@ -92,6 +93,7 @@ export const mockCertificateTemplates: CertificateTemplate[] = [
     id: "tpl-moderno",
     name: "Certificado Moderno",
     backgroundUrl: "",
+    backgroundConfig: { fit: "cover", position: "50% 50%" },
     blocks: [
       {
         id: "blk-m1",

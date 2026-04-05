@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 
 import { StudentLayout } from "@/components/layout/StudentLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -7,6 +8,7 @@ import { CommunityLayout } from "@/components/layout/CommunityLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { applyThemeToCss } from "@/lib/applyTheme";
+import { applyFavicon, applyPwaManifest } from "@/lib/generatePwaManifest";
 
 // ---------------------------------------------------------------------------
 // Auth pages (NOT lazy — precisam ser rápidas)
@@ -88,6 +90,9 @@ const AdminCommunityEditPage = lazy(
 const AdminModerationPage = lazy(
   () => import("@/pages/admin/AdminModerationPage")
 );
+const AdminEmailsPage = lazy(
+  () => import("@/pages/admin/AdminEmailsPage")
+);
 
 // ---------------------------------------------------------------------------
 // Loading fallback
@@ -110,10 +115,20 @@ function PageLoader() {
 
 function ThemeApplicator() {
   const { settings } = usePlatformSettings();
+  const platformName = settings.name || "Lumi Membros";
+
   useEffect(() => {
     applyThemeToCss(settings.theme.dark, settings.theme.light);
+    applyFavicon(settings.faviconUrl);
+    applyPwaManifest(settings);
   }, [settings]);
-  return null;
+
+  return (
+    <Helmet
+      titleTemplate={`%s | ${platformName}`}
+      defaultTitle={platformName}
+    />
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +218,7 @@ export default function App() {
             element={<AdminCommunityEditPage />}
           />
           <Route path="/admin/comentarios" element={<AdminModerationPage />} />
+          <Route path="/admin/emails" element={<AdminEmailsPage />} />
           <Route path="/admin/gamificacao" element={<AdminGamificationPage />} />
           <Route path="/admin/configuracoes" element={<AdminSettingsPage />} />
           <Route

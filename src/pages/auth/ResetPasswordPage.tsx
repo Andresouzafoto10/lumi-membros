@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
 
   return (
     <>
-      <Helmet><title>Redefinir senha — Lumi Membros</title></Helmet>
+      <Helmet><title>Redefinir senha</title></Helmet>
 
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">

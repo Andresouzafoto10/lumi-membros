@@ -196,6 +196,25 @@ export function useStudents() {
     [invalidate]
   );
 
+  const updateEnrollment = useCallback(
+    async (
+      enrollmentId: string,
+      patch: Partial<Pick<Enrollment, "type" | "expiresAt" | "status">>
+    ) => {
+      const { error } = await supabase
+        .from("enrollments")
+        .update({
+          ...(patch.type !== undefined && { type: patch.type }),
+          ...(patch.expiresAt !== undefined && { expires_at: patch.expiresAt }),
+          ...(patch.status !== undefined && { status: patch.status }),
+        })
+        .eq("id", enrollmentId);
+      if (error) throw error;
+      invalidate();
+    },
+    [invalidate]
+  );
+
   const revokeEnrollment = useCallback(
     async (enrollmentId: string) => {
       const { error } = await supabase
@@ -219,6 +238,7 @@ export function useStudents() {
     updateStudent,
     deleteStudent,
     addEnrollment,
+    updateEnrollment,
     revokeEnrollment,
   };
 }

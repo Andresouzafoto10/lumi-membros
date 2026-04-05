@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { deleteFromR2 } from "@/lib/r2Upload";
 import type { Community, CommunitySettings } from "@/types/student";
 import { isCommunityPublic } from "@/types/student";
 import { useAuth } from "@/contexts/AuthContext";
@@ -177,14 +178,18 @@ export function useCommunities() {
 
   const deleteCommunity = useCallback(
     async (communityId: string) => {
+      const community = communities.find((c) => c.id === communityId);
       const { error } = await supabase
         .from("communities")
         .delete()
         .eq("id", communityId);
       if (error) throw error;
+      // Clean up R2 files
+      if (community?.coverUrl) deleteFromR2(community.coverUrl).catch(() => {});
+      if (community?.iconUrl) deleteFromR2(community.iconUrl).catch(() => {});
       invalidate();
     },
-    [invalidate]
+    [communities, invalidate]
   );
 
   const pinPost = useCallback(

@@ -14,6 +14,7 @@ export default function RegisterPage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -23,10 +24,19 @@ export default function RegisterPage() {
 
   const passwordsMatch = !confirmPassword || password === confirmPassword;
   const passwordStrong = password.length >= 6;
+  const cpfValid = cpf.replace(/\D/g, "").length === 11;
+
+  function formatCpf(value: string): string {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!name || !email || !password || !confirmPassword) return;
+    if (!name || !email || !password || !confirmPassword || !cpfValid) return;
     if (password !== confirmPassword) {
       setError("As senhas não coincidem.");
       return;
@@ -35,10 +45,14 @@ export default function RegisterPage() {
       setError("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
+    if (!cpfValid) {
+      setError("CPF é obrigatório.");
+      return;
+    }
 
     setError(null);
     setLoading(true);
-    const { error } = await signUp(email, password, name);
+    const { error } = await signUp(email, password, name, cpf.replace(/\D/g, ""));
     setLoading(false);
 
     if (error) {
@@ -71,7 +85,7 @@ export default function RegisterPage() {
   return (
     <>
       <Helmet>
-        <title>Criar conta — Lumi Membros</title>
+        <title>Criar conta</title>
       </Helmet>
 
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -144,6 +158,32 @@ export default function RegisterPage() {
                 />
               </div>
 
+              {/* CPF */}
+              <div className="space-y-1.5">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input
+                  id="cpf"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="000.000.000-00"
+                  autoComplete="off"
+                  maxLength={14}
+                  value={formatCpf(cpf)}
+                  onChange={(e) => setCpf(e.target.value)}
+                  disabled={loading}
+                  required
+                  className={cn(
+                    "h-11",
+                    cpf && !cpfValid && "border-destructive/50"
+                  )}
+                />
+                {cpf && !cpfValid && (
+                  <p className="text-xs text-destructive">
+                    CPF é obrigatório
+                  </p>
+                )}
+              </div>
+
               {/* Password */}
               <div className="space-y-1.5">
                 <Label htmlFor="password">Senha</Label>
@@ -214,6 +254,7 @@ export default function RegisterPage() {
                   loading ||
                   !name ||
                   !email ||
+                  !cpfValid ||
                   !password ||
                   !confirmPassword ||
                   !passwordsMatch ||

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   GraduationCap,
@@ -9,29 +9,38 @@ import {
   Loader2,
   Save,
   BookOpen,
-  Upload,
   Award,
+  Image,
+  Shield,
+  Lock,
+  ExternalLink,
+  MessageCircle,
+  Info,
+  Upload,
+  ImageIcon,
+  Link as LinkIcon,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
 import { useCertificates } from "@/hooks/useCertificates";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
-import { useUpload } from "@/hooks/useUpload";
 import type { CourseAccess } from "@/types/course";
+import { uploadToR2, deleteFromR2, isR2Url } from "@/lib/r2Upload";
+import { ImageCropDialog } from "@/components/ui/ImageCropDialog";
 import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
   Dialog,
   DialogContent,
@@ -91,6 +100,14 @@ export default function AdminCourseEditPage() {
   const [isActive, setIsActive] = useState(course?.isActive ?? true);
   const [description, setDescription] = useState(course?.description ?? "");
   const [bannerPreview, setBannerPreview] = useState(course?.bannerUrl ?? "");
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const [bannerCropSrc, setBannerCropSrc] = useState<string>("");
+  const [bannerCropOpen, setBannerCropOpen] = useState(false);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [bannerDeleting, setBannerDeleting] = useState(false);
+  const [bannerShowUrl, setBannerShowUrl] = useState(false);
+  const [bannerUrlDraft, setBannerUrlDraft] = useState("");
+  const [bannerConfirmRemove, setBannerConfirmRemove] = useState(false);
   const [accessMode, setAccessMode] = useState<"all" | "plans" | "admin">(
     course?.access.mode ?? "all"
   );
@@ -98,8 +115,22 @@ export default function AdminCourseEditPage() {
     course?.access.mode === "plans" ? course.access.plans : []
   );
   const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { uploadFile } = useUpload();
+
+  // No-access behavior
+  const [noAccessAction, setNoAccessAction] = useState<"nothing" | "redirect">(
+    course?.access.no_access_action ?? "nothing"
+  );
+  const [noAccessRedirectUrl, setNoAccessRedirectUrl] = useState(
+    course?.access.no_access_redirect_url ?? ""
+  );
+  const [noAccessSupportUrl, setNoAccessSupportUrl] = useState(
+    course?.access.no_access_support_url ?? ""
+  );
+
+  // Comments config
+  const [commentsEnabled, setCommentsEnabled] = useState(
+    course?.commentsEnabled ?? true
+  );
 
   // Certificate config
   const [certTemplateId, setCertTemplateId] = useState<string>(
@@ -138,6 +169,81 @@ export default function AdminCourseEditPage() {
     (a, b) => a.order - b.order
   );
 
+  const bannerUrl = bannerPreview || course?.bannerUrl || "";
+
+  // ---------- Banner handlers ----------
+  const handleBannerFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = "";
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Arquivo muito grande. Maximo: 5MB");
+        return;
+      }
+      const objectUrl = URL.createObjectURL(file);
+      setBannerCropSrc(objectUrl);
+      setBannerCropOpen(true);
+    },
+    []
+  );
+
+  const handleBannerCropConfirm = useCallback(
+    async (croppedFile: File) => {
+      setBannerCropOpen(false);
+      if (bannerCropSrc) URL.revokeObjectURL(bannerCropSrc);
+      setBannerCropSrc("");
+      setBannerUploading(true);
+      try {
+        const url = await uploadToR2(croppedFile, "courses/banners", {
+          oldUrl: bannerUrl,
+          preset: "banner",
+        });
+        setBannerPreview(url);
+        toast.success("Banner atualizado!");
+      } catch (err) {
+        console.error("[BannerUpload]", err);
+        toast.error("Erro no upload. Tente novamente.");
+      } finally {
+        setBannerUploading(false);
+      }
+    },
+    [bannerUrl, bannerCropSrc]
+  );
+
+  const handleBannerCropCancel = useCallback(() => {
+    setBannerCropOpen(false);
+    if (bannerCropSrc) URL.revokeObjectURL(bannerCropSrc);
+    setBannerCropSrc("");
+  }, [bannerCropSrc]);
+
+  const handleBannerRemove = useCallback(async () => {
+    setBannerConfirmRemove(false);
+    if (bannerUrl && isR2Url(bannerUrl)) {
+      setBannerDeleting(true);
+      try {
+        await deleteFromR2(bannerUrl);
+      } catch {
+        // silent
+      } finally {
+        setBannerDeleting(false);
+      }
+    }
+    setBannerPreview("");
+    toast.success("Banner removido.");
+  }, [bannerUrl]);
+
+  const handleBannerUrlConfirm = useCallback(() => {
+    const trimmed = bannerUrlDraft.trim();
+    if (!trimmed) return;
+    if (bannerUrl && isR2Url(bannerUrl)) {
+      deleteFromR2(bannerUrl).catch(() => {});
+    }
+    setBannerPreview(trimmed);
+    setBannerUrlDraft("");
+    setBannerShowUrl(false);
+  }, [bannerUrlDraft, bannerUrl]);
+
   // ---------- Save ----------
   function handleSave() {
     if (!title.trim()) {
@@ -146,17 +252,24 @@ export default function AdminCourseEditPage() {
     }
     setSaving(true);
 
+    const noAccessFields = {
+      no_access_action: noAccessAction,
+      no_access_redirect_url: noAccessRedirectUrl,
+      no_access_support_url: noAccessSupportUrl,
+    };
+
     const access: CourseAccess =
       accessMode === "plans"
-        ? { mode: "plans", plans: accessPlans }
-        : { mode: accessMode };
+        ? { mode: "plans", plans: accessPlans, ...noAccessFields }
+        : { mode: accessMode, ...noAccessFields };
 
     updateCourse(courseId!, {
       title: title.trim(),
       description: description.trim(),
       isActive,
-      bannerUrl: bannerPreview || course?.bannerUrl || "",
+      bannerUrl: bannerUrl,
       access,
+      commentsEnabled,
       certificateConfig: {
         templateId: certTemplateId || null,
         completionThreshold: certThreshold,
@@ -167,23 +280,6 @@ export default function AdminCourseEditPage() {
     });
     toast.success("Curso salvo.");
     setTimeout(() => setSaving(false), 400);
-  }
-
-  // ---------- Banner file upload to Supabase Storage ----------
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !courseId) return;
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `courses/${courseId}/${Date.now()}.${ext}`;
-    const result = await uploadFile(file, {
-      bucket: "thumbnails",
-      path,
-      maxSizeBytes: 5 * 1024 * 1024,
-    });
-    if (result) {
-      setBannerPreview(result.url);
-    }
-    e.target.value = "";
   }
 
   // ---------- Module handlers ----------
@@ -219,15 +315,16 @@ export default function AdminCourseEditPage() {
 
   // ---------- Render ----------
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <Breadcrumb
         items={[
           { label: "Admin", to: "/admin" },
           { label: "Cursos", to: "/admin/cursos" },
-          { label: session?.title ?? "Sessão", to: session ? `/admin/cursos/sessoes/${session.id}` : undefined },
+          { label: session?.title ?? "Sessao", to: session ? `/admin/cursos/sessoes/${session.id}` : undefined },
           { label: course.title },
         ]}
       />
+
       {/* ====== Header ====== */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 flex-wrap">
@@ -238,13 +335,13 @@ export default function AdminCourseEditPage() {
           </Badge>
           {session && <Badge variant="outline">{session.title}</Badge>}
         </div>
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={saving} size="lg">
           {saving ? (
-            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            <Save className="mr-1 h-4 w-4" />
+            <Save className="mr-2 h-4 w-4" />
           )}
-          Salvar
+          Salvar alteracoes
         </Button>
       </div>
 
@@ -257,128 +354,396 @@ export default function AdminCourseEditPage() {
 
         {/* ---------- Configuracoes ---------- */}
         <TabsContent value="config" className="space-y-6 pt-4">
-          <Card>
-            <CardContent className="space-y-4 pt-6">
-              <div className="space-y-2">
-                <Label htmlFor="course-title">Titulo</Label>
-                <Input
-                  id="course-title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
 
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="course-active"
-                  checked={isActive}
-                  onCheckedChange={setIsActive}
-                />
-                <Label htmlFor="course-active">Ativo</Label>
-              </div>
+          {/* ── Row 1: Informacoes gerais + Banner ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-              <div className="space-y-2">
-                <Label htmlFor="course-desc">Descricao</Label>
-                <Textarea
-                  id="course-desc"
-                  rows={4}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-
-              {/* Banner */}
-              <div className="space-y-2">
-                <Label>Banner</Label>
-                <div className="relative group">
-                  <AspectRatio ratio={16 / 9}>
-                    {bannerPreview ? (
-                      <img
-                        src={bannerPreview}
-                        alt="Banner do curso"
-                        className="h-full w-full rounded-md object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center rounded-md bg-muted">
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    {/* Hover overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Upload className="mr-1 h-4 w-4" />
-                        Alterar
-                      </Button>
-                    </div>
-                  </AspectRatio>
+            {/* Left: Informacoes gerais (3 cols) */}
+            <Card className="lg:col-span-3">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Info className="h-4 w-4 text-primary" />
+                    Informacoes gerais
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="course-active-switch" className="text-sm text-muted-foreground">
+                      {isActive ? "Ativo" : "Inativo"}
+                    </Label>
+                    <Switch
+                      id="course-active-switch"
+                      checked={isActive}
+                      onCheckedChange={setIsActive}
+                    />
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="course-title">Titulo do curso</Label>
+                  <Input
+                    id="course-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Ex: Fotografia para iniciantes"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="course-desc">Descricao</Label>
+                  <Textarea
+                    id="course-desc"
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Descreva o conteudo do curso..."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Right: Banner (2 cols) */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Image className="h-4 w-4 text-primary" />
+                  Banner
+                </CardTitle>
+                <CardDescription>
+                  Imagem de capa do curso (16:9)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <input
-                  ref={fileInputRef}
+                  ref={bannerInputRef}
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={handleFileSelect}
+                  onChange={handleBannerFileSelect}
                 />
-              </div>
 
-              {/* Access control */}
-              <div className="space-y-3">
-                <Label>Controle de acesso</Label>
+                {/* 16:9 preview — pixel-perfect match with CourseCard */}
+                {bannerUrl ? (
+                  <div className="relative group">
+                    <div className="aspect-video rounded-xl overflow-hidden border border-border/50 bg-muted">
+                      <img
+                        src={bannerUrl}
+                        alt="Banner preview"
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                    </div>
+                    {/* Hover overlay with actions */}
+                    <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/40 transition-colors">
+                      <div className="absolute top-2.5 right-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="secondary"
+                          className="h-8 w-8 rounded-full shadow-md"
+                          onClick={() => bannerInputRef.current?.click()}
+                          disabled={bannerUploading || bannerDeleting}
+                        >
+                          {bannerUploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Upload className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="destructive"
+                          className="h-8 w-8 rounded-full shadow-md"
+                          onClick={() => setBannerConfirmRemove(true)}
+                          disabled={bannerUploading || bannerDeleting}
+                        >
+                          {bannerDeleting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Pre-visualizacao — exatamente como o aluno vera
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => bannerInputRef.current?.click()}
+                    disabled={bannerUploading}
+                    className="w-full aspect-video rounded-xl border-2 border-dashed border-border/60 bg-muted/30 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-muted/50 transition-colors"
+                  >
+                    {bannerUploading ? (
+                      <>
+                        <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                        <span className="text-xs text-muted-foreground">Enviando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Clique para enviar</span>
+                        <span className="text-xs text-muted-foreground/60">Max 5MB</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {/* URL externa toggle */}
+                {!bannerUploading && (
+                  <>
+                    {bannerShowUrl ? (
+                      <div className="flex gap-2">
+                        <Input
+                          value={bannerUrlDraft}
+                          onChange={(e) => setBannerUrlDraft(e.target.value)}
+                          placeholder="https://..."
+                          className="flex-1 text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleBannerUrlConfirm();
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={handleBannerUrlConfirm}
+                          disabled={!bannerUrlDraft.trim()}
+                        >
+                          OK
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => { setBannerShowUrl(false); setBannerUrlDraft(""); }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => setBannerShowUrl(true)}
+                      >
+                        <LinkIcon className="h-3 w-3" />
+                        Usar URL externa
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* Crop dialog */}
+                <ImageCropDialog
+                  open={bannerCropOpen}
+                  onClose={handleBannerCropCancel}
+                  onConfirm={handleBannerCropConfirm}
+                  imageSrc={bannerCropSrc}
+                  aspect={16 / 9}
+                  shape="rect"
+                  title="Recortar banner do curso"
+                  cropObjectFit="horizontal-cover"
+                />
+
+                {/* Confirm remove dialog */}
+                <AlertDialog open={bannerConfirmRemove} onOpenChange={setBannerConfirmRemove}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remover banner</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {isR2Url(bannerUrl)
+                          ? "A imagem sera excluida permanentemente do servidor. Deseja continuar?"
+                          : "A referencia da imagem sera removida. Deseja continuar?"}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleBannerRemove}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Remover
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── Row 2: Acesso + Comportamento sem acesso ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            {/* Left: Controle de acesso */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Controle de acesso
+                </CardTitle>
+                <CardDescription>
+                  Quem pode acessar este curso
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <RadioGroup
                   value={accessMode}
                   onValueChange={(v) =>
                     setAccessMode(v as "all" | "plans" | "admin")
                   }
-                  className="space-y-2"
+                  className="space-y-3"
                 >
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="all" id="acc-all" />
-                    <Label htmlFor="acc-all">Todos</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="plans" id="acc-plans" />
-                    <Label htmlFor="acc-plans">Por planos</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="admin" id="acc-admin" />
-                    <Label htmlFor="acc-admin">Somente admin</Label>
-                  </div>
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5">
+                    <RadioGroupItem value="all" id="acc-all" className="mt-0.5" />
+                    <div>
+                      <span className="text-sm font-medium">Todos os matriculados</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">Qualquer aluno matriculado em uma turma com este curso</p>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5">
+                    <RadioGroupItem value="plans" id="acc-plans" className="mt-0.5" />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium">Por planos</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">Somente alunos de planos especificos</p>
+                      {accessMode === "plans" && (
+                        <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border/30">
+                          {PLANS.map((plan) => (
+                            <div key={plan.value} className="flex items-center gap-2">
+                              <Checkbox
+                                id={`eplan-${plan.value}`}
+                                checked={accessPlans.includes(plan.value)}
+                                onCheckedChange={() => togglePlan(plan.value)}
+                              />
+                              <Label htmlFor={`eplan-${plan.value}`} className="text-sm">{plan.label}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5">
+                    <RadioGroupItem value="admin" id="acc-admin" className="mt-0.5" />
+                    <div>
+                      <span className="text-sm font-medium">Somente admin</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">Visivel apenas para administradores</p>
+                    </div>
+                  </label>
                 </RadioGroup>
+              </CardContent>
+            </Card>
 
-                {accessMode === "plans" && (
-                  <div className="grid grid-cols-3 gap-3 pl-6">
-                    {PLANS.map((plan) => (
-                      <div
-                        key={plan.value}
-                        className="flex items-center gap-2"
-                      >
-                        <Checkbox
-                          id={`eplan-${plan.value}`}
-                          checked={accessPlans.includes(plan.value)}
-                          onCheckedChange={() => togglePlan(plan.value)}
-                        />
-                        <Label htmlFor={`eplan-${plan.value}`}>
-                          {plan.label}
-                        </Label>
+            {/* Right: Comportamento sem acesso */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-primary" />
+                  Sem acesso
+                </CardTitle>
+                <CardDescription>
+                  O que acontece quando um aluno sem permissao clica no curso
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup
+                  value={noAccessAction}
+                  onValueChange={(v) => setNoAccessAction(v as "nothing" | "redirect")}
+                  className="space-y-3"
+                >
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5">
+                    <RadioGroupItem value="nothing" id="noacc-nothing" className="mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-sm font-medium">Mensagem de suporte</span>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <p className="text-xs text-muted-foreground mt-1">Exibe um modal com opcao de falar com o suporte</p>
+                      {noAccessAction === "nothing" && (
+                        <div className="mt-3 pt-3 border-t border-border/30 space-y-1.5">
+                          <Label htmlFor="support-url" className="text-xs">Link do suporte (opcional)</Label>
+                          <Input
+                            id="support-url"
+                            value={noAccessSupportUrl}
+                            onChange={(e) => setNoAccessSupportUrl(e.target.value)}
+                            placeholder="https://wa.me/5511999999999"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5">
+                    <RadioGroupItem value="redirect" id="noacc-redirect" className="mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-sm font-medium">Redirecionar</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Abre uma URL externa ao clicar no curso</p>
+                      {noAccessAction === "redirect" && (
+                        <div className="mt-3 pt-3 border-t border-border/30 space-y-1.5">
+                          <Label htmlFor="redirect-url" className="text-xs">URL de redirecionamento *</Label>
+                          <Input
+                            id="redirect-url"
+                            value={noAccessRedirectUrl}
+                            onChange={(e) => setNoAccessRedirectUrl(e.target.value)}
+                            placeholder="https://exemplo.com/planos"
+                            className="text-sm h-8"
+                            required
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </RadioGroup>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── Row 3: Comentários nas aulas ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-primary" />
+                Comentarios nas aulas
+              </CardTitle>
+              <CardDescription>
+                Controle se os alunos podem comentar nas aulas deste curso
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="comments-toggle">Habilitar comentarios neste curso</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Quando desativado, nenhuma aula deste curso exibira comentarios, independente da configuracao individual.
+                  </p>
+                </div>
+                <Switch
+                  id="comments-toggle"
+                  checked={commentsEnabled}
+                  onCheckedChange={setCommentsEnabled}
+                />
               </div>
             </CardContent>
           </Card>
 
-          {/* Certificate config */}
+          {/* ── Row 4: Certificado ── */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-4">
               <CardTitle className="text-base flex items-center gap-2">
                 <Award className="h-4 w-4 text-yellow-500" />
                 Certificado
               </CardTitle>
+              <CardDescription>
+                Configure a emissao automatica de certificado ao concluir o curso
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
@@ -396,94 +761,95 @@ export default function AdminCourseEditPage() {
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground">
-                  Gerencie modelos em Configurações &gt; Certificados.
+                  Gerencie modelos em Configuracoes &gt; Certificados.
                 </p>
               </div>
 
               {certTemplateId && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">Tipo de requisito</Label>
-                    <div className="space-y-2">
-                      {[
-                        { value: "completion", label: "Conclusão de aulas" },
-                        { value: "quiz", label: "Aprovação nos quizzes" },
-                        { value: "completion_and_quiz", label: "Conclusão + Quizzes" },
-                      ].map((opt) => (
-                        <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="cert-req-type"
-                            value={opt.value}
-                            checked={certRequirementType === opt.value}
-                            onChange={(e) => setCertRequirementType(e.target.value)}
-                            className="accent-primary"
-                          />
-                          <span className="text-sm">{opt.label}</span>
-                        </label>
-                      ))}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                  {/* Left: settings */}
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">Tipo de requisito</Label>
+                      <RadioGroup
+                        value={certRequirementType}
+                        onValueChange={(v) => setCertRequirementType(v)}
+                        className="space-y-2"
+                      >
+                        {[
+                          { value: "completion", label: "Conclusao de aulas" },
+                          { value: "quiz", label: "Aprovacao nos quizzes" },
+                          { value: "completion_and_quiz", label: "Conclusao + Quizzes" },
+                        ].map((opt) => (
+                          <div key={opt.value} className="flex items-center gap-2">
+                            <RadioGroupItem value={opt.value} id={`cert-${opt.value}`} />
+                            <Label htmlFor={`cert-${opt.value}`} className="text-sm">{opt.label}</Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+
+                    {(certRequirementType === "completion" || certRequirementType === "completion_and_quiz") && (
+                      <div className="space-y-1.5">
+                        <Label>Conclusao minima — {certThreshold}%</Label>
+                        <input
+                          type="range"
+                          min={50}
+                          max={100}
+                          value={certThreshold}
+                          onChange={(e) => setCertThreshold(Number(e.target.value))}
+                          className="w-full h-2 accent-primary"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          O aluno precisa concluir {certThreshold}% das aulas.
+                        </p>
+                      </div>
+                    )}
+
+                    {(certRequirementType === "quiz" || certRequirementType === "completion_and_quiz") && (
+                      <div className="space-y-1.5">
+                        <Label>Nota minima nos quizzes — {certQuizThreshold}%</Label>
+                        <input
+                          type="range"
+                          min={50}
+                          max={100}
+                          value={certQuizThreshold}
+                          onChange={(e) => setCertQuizThreshold(Number(e.target.value))}
+                          className="w-full h-2 accent-primary"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Media dos melhores scores do aluno nos quizzes.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cert-hours">Carga horaria (horas)</Label>
+                      <Input
+                        id="cert-hours"
+                        type="number"
+                        min={0}
+                        value={certHours}
+                        onChange={(e) => setCertHours(Number(e.target.value))}
+                        className="w-32"
+                      />
                     </div>
                   </div>
 
-                  {(certRequirementType === "completion" || certRequirementType === "completion_and_quiz") && (
-                    <div className="space-y-1.5">
-                      <Label>Percentual de conclusão — {certThreshold}%</Label>
-                      <input
-                        type="range"
-                        min={50}
-                        max={100}
-                        value={certThreshold}
-                        onChange={(e) => setCertThreshold(Number(e.target.value))}
-                        className="w-full h-2 accent-primary"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        O aluno precisa concluir {certThreshold}% das aulas.
-                      </p>
-                    </div>
-                  )}
-
-                  {(certRequirementType === "quiz" || certRequirementType === "completion_and_quiz") && (
-                    <div className="space-y-1.5">
-                      <Label>Nota mínima média nos quizzes — {certQuizThreshold}%</Label>
-                      <input
-                        type="range"
-                        min={50}
-                        max={100}
-                        value={certQuizThreshold}
-                        onChange={(e) => setCertQuizThreshold(Number(e.target.value))}
-                        className="w-full h-2 accent-primary"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Média dos melhores scores do aluno nos quizzes.
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cert-hours">Carga horária do curso (horas)</Label>
-                    <Input
-                      id="cert-hours"
-                      type="number"
-                      min={0}
-                      value={certHours}
-                      onChange={(e) => setCertHours(Number(e.target.value))}
-                      className="w-32"
-                    />
-                  </div>
-
+                  {/* Right: preview */}
                   {(() => {
                     const tpl = templates.find((t) => t.id === certTemplateId);
                     if (!tpl) return null;
                     return (
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Preview do certificado</Label>
-                        <div className="rounded-lg border overflow-hidden max-w-md">
+                        <Label className="text-xs text-muted-foreground">Preview</Label>
+                        <div className="rounded-lg border overflow-hidden">
                           <CertificateRenderer
                             template={tpl}
                             data={{
                               studentName: "Ana Paula Ferreira",
                               courseName: title || "Nome do curso",
-                              completionDate: "29 de março de 2026",
+                              completionDate: "29 de marco de 2026",
                               courseHours: certHours,
                               platformName: platformSettings.name || "Lumi Membros",
                             }}
@@ -492,7 +858,7 @@ export default function AdminCourseEditPage() {
                       </div>
                     );
                   })()}
-                </>
+                </div>
               )}
             </CardContent>
           </Card>

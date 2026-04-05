@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { deleteFromR2, isR2Url } from "@/lib/r2Upload";
 import { onPostLiked, onPostCreated, onPollAnswered, onFirstPost } from "@/lib/gamificationEngine";
 import { notifyPostLiked, notifyPostApproved, notifyPostRejected, notifyMentions } from "@/lib/notificationTriggers";
 import type { CommunityPost, SystemEvent, PostAttachment, PostPoll } from "@/types/student";
@@ -338,14 +339,25 @@ export function usePosts() {
 
   const deletePost = useCallback(
     async (postId: string) => {
+      // Find post to clean up R2 files
+      const post = allPosts.find((p) => p.id === postId);
       const { error } = await supabase
         .from("community_posts")
         .delete()
         .eq("id", postId);
       if (error) throw error;
+      // Clean up R2 images and attachments
+      if (post) {
+        for (const url of post.images ?? []) {
+          if (isR2Url(url)) deleteFromR2(url).catch(() => {});
+        }
+        for (const att of post.attachments ?? []) {
+          if (att.dataUrl && isR2Url(att.dataUrl)) deleteFromR2(att.dataUrl).catch(() => {});
+        }
+      }
       invalidate();
     },
-    [invalidate]
+    [allPosts, invalidate]
   );
 
   const toggleLike = useCallback(

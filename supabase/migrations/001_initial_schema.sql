@@ -33,6 +33,7 @@ create table if not exists public.profiles (
   display_name    text not null default '',
   avatar_url      text not null default '',
   cover_url       text not null default '',
+  cover_position  text not null default '50% 50%',
   bio             text not null default '',
   link            text not null default '',
   location        text not null default '',
@@ -933,12 +934,13 @@ create policy "lesson_notes: aluno gerencia as próprias"
 -- 20. CERTIFICATE_TEMPLATES
 -- =============================================================================
 create table if not exists public.certificate_templates (
-  id              uuid primary key default gen_random_uuid(),
-  name            text not null,
-  background_url  text not null default '',
-  blocks          jsonb not null default '[]'::jsonb,
-  created_at      timestamptz not null default now(),
-  updated_at      timestamptz not null default now()
+  id                uuid primary key default gen_random_uuid(),
+  name              text not null,
+  background_url    text not null default '',
+  background_config jsonb not null default '{"fit":"cover","position":"50% 50%"}'::jsonb,
+  blocks            jsonb not null default '[]'::jsonb,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
 );
 
 create trigger certificate_templates_updated_at
@@ -1116,11 +1118,31 @@ alter table public.platform_settings
   add column if not exists email_notifications_enabled boolean not null default true;
 
 -- =============================================================================
+-- 25b. ADD favicon, logo_upload, PWA fields TO PLATFORM_SETTINGS
+-- =============================================================================
+
+alter table public.platform_settings
+  add column if not exists favicon_url text,
+  add column if not exists logo_upload_url text,
+  add column if not exists pwa_enabled boolean default false,
+  add column if not exists pwa_name text,
+  add column if not exists pwa_short_name text,
+  add column if not exists pwa_icon_url text,
+  add column if not exists pwa_theme_color text,
+  add column if not exists pwa_background_color text;
+
+-- =============================================================================
 -- 26. ADD cpf TO PROFILES (para DRM Social)
 -- =============================================================================
 
 alter table public.profiles
-  add column if not exists cpf text not null default '';
+  add column if not exists cpf text not null default '',
+  add column if not exists social_instagram text,
+  add column if not exists social_youtube text,
+  add column if not exists social_tiktok text,
+  add column if not exists social_twitter text,
+  add column if not exists social_linkedin text,
+  add column if not exists social_website text;
 
 -- =============================================================================
 -- 27. LESSON_MATERIALS
@@ -1203,6 +1225,297 @@ create policy "lesson_materials_storage: admin delete"
 
 -- Service role lê (para Edge Function download-material)
 -- Alunos NUNCA acessam o bucket diretamente — download sempre via Edge Function
+
+-- =============================================================================
+-- 29. EMAIL AUTOMATIONS
+-- =============================================================================
+create table if not exists public.email_automations (
+  id              uuid default gen_random_uuid() primary key,
+  type            text not null unique,
+  name            text not null,
+  description     text,
+  category        text not null,
+  is_active       boolean default true,
+  delay_hours     integer default 0,
+  subject_template text not null,
+  preview_text    text,
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now()
+);
+
+create trigger email_automations_updated_at
+  before update on public.email_automations
+  for each row execute function public.handle_updated_at();
+
+alter table public.email_automations enable row level security;
+
+create policy "email_automations: admin pode tudo"
+  on public.email_automations for all
+  using (public.is_admin_user());
+
+create policy "email_automations: autenticado le ativas"
+  on public.email_automations for select
+  using (auth.uid() is not null);
+
+-- Expand email_notification_log
+alter table public.email_notification_log
+  add column if not exists automation_type text,
+  add column if not exists subject text,
+  add column if not exists opened_at timestamptz,
+  add column if not exists clicked_at timestamptz;
+
+-- Seed default automations
+insert into public.email_automations (type, name, description, category, delay_hours, subject_template, preview_text)
+values
+  ('welcome', 'Boas-vindas ao novo aluno', 'Enviado quando um novo usuario e cadastrado', 'onboarding', 0, 'Bem-vindo(a) a {{platform_name}}!', 'Sua jornada comeca agora'),
+  ('access_reminder_7d', 'Lembrete de inatividade (7 dias)', 'Enviado se o aluno nao acessar por 7 dias', 'engagement', 168, 'Sentimos sua falta, {{first_name}}', 'Voce tem cursos esperando'),
+  ('community_post', 'Nova publicacao na comunidade', 'Enviado quando post aprovado', 'community', 0, 'Sua publicacao esta no ar!', 'A comunidade ja pode ver'),
+  ('community_inactive_30d', 'Inatividade na comunidade (30 dias)', 'Enviado se aluno nao postar por 30 dias', 'community', 0, 'Tem novidades na comunidade!', 'Veja o que esta acontecendo'),
+  ('new_course', 'Novo curso disponivel', 'Enviado quando novo curso e publicado', 'content', 0, 'Novo curso: {{course_name}}', 'Acesse agora'),
+  ('new_lesson', 'Nova aula disponivel', 'Enviado quando nova aula e adicionada', 'content', 0, 'Nova aula em {{course_name}}', 'Assista agora'),
+  ('certificate_earned', 'Certificado disponivel', 'Enviado quando aluno conquista certificado', 'gamification', 0, 'Parabens! Certificado disponivel', 'Voce concluiu {{course_name}}'),
+  ('mention_community', 'Mencao na comunidade', 'Enviado quando mencionado', 'community', 0, '{{author_name}} te mencionou', 'Veja o que disseram'),
+  ('follower_milestone_10', 'Marco de 10 seguidores', 'Enviado a cada 10 seguidores', 'engagement', 0, 'Voce tem {{follower_count}} seguidores!', 'Audiencia crescendo'),
+  ('post_reply', 'Resposta no post', 'Enviado quando alguem comenta no post', 'community', 0, '{{author_name}} respondeu seu post', 'Veja o que acharam'),
+  ('mission_complete', 'Missao concluida', 'Enviado quando missao completada', 'gamification', 0, 'Missao concluida: {{mission_name}}', 'Voce ganhou pontos'),
+  ('comment_milestone', 'Marco de comentarios', 'Enviado a cada X comentarios', 'gamification', 0, 'Voce fez {{comment_count}} comentarios!', 'Continue engajando')
+on conflict (type) do nothing;
+
+-- =============================================================================
+-- 30. NOTIFICATION PREFERENCES
+-- =============================================================================
+create table if not exists public.notification_preferences (
+  id              uuid default gen_random_uuid() primary key,
+  user_id         uuid references public.profiles(id) on delete cascade not null,
+  email_comments  boolean default true,
+  email_comment_replies boolean default true,
+  email_mentions  boolean default true,
+  email_likes     boolean default false,
+  email_follows   boolean default true,
+  email_new_course boolean default true,
+  email_new_lesson boolean default true,
+  email_certificate boolean default true,
+  email_mission_complete boolean default true,
+  email_badge_earned boolean default true,
+  email_post_reply boolean default true,
+  email_follower_milestone boolean default true,
+  email_weekly_digest boolean default true,
+  email_marketing boolean default false,
+  notif_comments  boolean default true,
+  notif_comment_replies boolean default true,
+  notif_mentions  boolean default true,
+  notif_likes     boolean default true,
+  notif_follows   boolean default true,
+  notif_new_course boolean default true,
+  notif_new_lesson boolean default true,
+  notif_certificate boolean default true,
+  notif_mission_complete boolean default true,
+  notif_badge_earned boolean default true,
+  notif_post_reply boolean default true,
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now(),
+  unique(user_id)
+);
+
+create trigger handle_updated_at_notification_preferences
+  before update on public.notification_preferences
+  for each row execute function public.handle_updated_at();
+
+alter table public.notification_preferences enable row level security;
+
+create policy "notif_prefs: aluno gerencia as proprias"
+  on public.notification_preferences for all
+  using (auth.uid() = user_id);
+
+create policy "notif_prefs: admin gerencia todas"
+  on public.notification_preferences for all
+  using (public.is_admin_user());
+
+-- Auto-criar preferencias para novos usuarios
+create or replace function public.handle_new_user_preferences()
+returns trigger as $$
+begin
+  insert into public.notification_preferences (user_id) values (NEW.id) on conflict do nothing;
+  return NEW;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_profile_created_create_preferences
+  after insert on public.profiles
+  for each row execute function public.handle_new_user_preferences();
+
+-- =============================================================================
+-- 31. NOTIFICATIONS: DELETE policies + cleanup
+-- =============================================================================
+
+-- Allow users to delete their own notifications
+create policy "notifications: aluno deleta as proprias"
+  on public.notifications for delete
+  using (recipient_id = auth.uid());
+
+-- Enforce 50 notification limit per user
+create or replace function public.enforce_notification_limit()
+returns trigger as $$
+begin
+  delete from public.notifications
+  where id in (
+    select id from public.notifications
+    where recipient_id = NEW.recipient_id
+    order by created_at desc
+    offset 50
+  );
+  return NEW;
+end;
+$$ language plpgsql security definer;
+
+create trigger enforce_notification_limit_trigger
+  after insert on public.notifications
+  for each row execute function public.enforce_notification_limit();
+
+-- Cleanup old read notifications (30+ days)
+create or replace function public.cleanup_old_notifications()
+returns integer as $$
+declare deleted_count integer;
+begin
+  delete from public.notifications where read = true and created_at < now() - interval '30 days';
+  get diagnostics deleted_count = row_count;
+  return deleted_count;
+end;
+$$ language plpgsql security definer;
+
+-- =============================================================================
+-- 32. SCRIPT_INJECTIONS
+-- =============================================================================
+create table if not exists public.script_injections (
+  id              uuid default gen_random_uuid() primary key,
+  name            text not null,
+  description     text,
+  position        text not null check (position in ('head', 'body_start', 'body_end')),
+  content         text not null,
+  enabled         boolean default true,
+  apply_to        text not null default 'all'
+                    check (apply_to in ('all', 'admin_only', 'student_only', 'specific_pages')),
+  specific_pages  text[] default '{}',
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now()
+);
+
+create trigger script_injections_updated_at
+  before update on public.script_injections
+  for each row execute function public.handle_updated_at();
+
+alter table public.script_injections enable row level security;
+
+create policy "Admin full access script_injections"
+  on public.script_injections for all
+  to authenticated
+  using (public.is_admin_user())
+  with check (public.is_admin_user());
+
+-- =============================================================================
+-- 33. NAV_MENU_ITEMS
+-- =============================================================================
+create table if not exists public.nav_menu_items (
+  id            uuid default gen_random_uuid() primary key,
+  label         text not null,
+  url           text,
+  icon          text,
+  target        text default '_self' check (target in ('_self', '_blank')),
+  area          text not null default 'student'
+                  check (area in ('student', 'admin')),
+  is_external   boolean default false,
+  is_default    boolean default false,
+  visible       boolean default true,
+  sort_order    integer default 0,
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now()
+);
+
+create trigger nav_menu_items_updated_at
+  before update on public.nav_menu_items
+  for each row execute function public.handle_updated_at();
+
+alter table public.nav_menu_items enable row level security;
+
+create policy "Admin full access nav_menu_items"
+  on public.nav_menu_items for all
+  to authenticated
+  using (public.is_admin_user())
+  with check (public.is_admin_user());
+
+create policy "Students read visible nav items"
+  on public.nav_menu_items for select
+  to authenticated
+  using (visible = true and area = 'student');
+
+-- Seed default student menu items
+insert into public.nav_menu_items (label, url, icon, area, is_default, is_external, visible, sort_order)
+values
+  ('Inicio', '/cursos', 'Home', 'student', true, false, true, 1),
+  ('Comunidade', '/comunidade/feed', 'MessageSquare', 'student', true, false, true, 2),
+  ('Ranking', '/ranking', 'Trophy', 'student', true, false, true, 3),
+  ('Certificados', '/meus-certificados', 'Award', 'student', true, false, true, 4)
+on conflict do nothing;
+
+-- =============================================================================
+-- 34. LESSON_COMMENTS
+-- =============================================================================
+create table if not exists public.lesson_comments (
+  id                 uuid primary key default gen_random_uuid(),
+  lesson_id          uuid not null references public.course_lessons(id) on delete cascade,
+  course_id          uuid not null references public.courses(id) on delete cascade,
+  author_id          uuid not null references public.profiles(id) on delete cascade,
+  parent_comment_id  uuid references public.lesson_comments(id) on delete cascade,
+  body               text not null,
+  likes_count        integer not null default 0,
+  liked_by           uuid[] not null default '{}',
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+);
+
+create index if not exists idx_lesson_comments_lesson_id on public.lesson_comments(lesson_id);
+create index if not exists idx_lesson_comments_author_id on public.lesson_comments(author_id);
+create index if not exists idx_lesson_comments_parent on public.lesson_comments(parent_comment_id);
+
+create trigger set_lesson_comments_updated_at
+  before update on public.lesson_comments
+  for each row execute function public.handle_updated_at();
+
+alter table public.lesson_comments enable row level security;
+
+create policy "lesson_comments_read"
+  on public.lesson_comments for select
+  using (auth.uid() is not null);
+
+create policy "lesson_comments_insert"
+  on public.lesson_comments for insert
+  with check (auth.uid() = author_id);
+
+create policy "lesson_comments_update_author"
+  on public.lesson_comments for update
+  using (auth.uid() = author_id);
+
+create policy "lesson_comments_delete_author"
+  on public.lesson_comments for delete
+  using (auth.uid() = author_id);
+
+create policy "lesson_comments_admin"
+  on public.lesson_comments for all
+  using (public.is_admin_user());
+
+-- =============================================================================
+-- 35. COMMENTS_ENABLED (controle por curso e aula)
+-- =============================================================================
+alter table public.courses
+  add column if not exists comments_enabled boolean not null default true;
+
+alter table public.course_lessons
+  add column if not exists comments_enabled boolean not null default true;
+
+-- Gamificação: ação lesson_comment
+insert into public.points_config (action_type, action_label, points, max_times, is_system, category, description, icon, enabled)
+values ('lesson_comment', 'Comentário em aula', 3, 5, true, 'community', 'Ganhe pontos comentando nas aulas', '💬', true)
+on conflict (action_type) do nothing;
 
 -- =============================================================================
 -- FIM DO SCHEMA

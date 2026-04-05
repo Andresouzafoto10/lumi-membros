@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import type { EarnedCertificate } from "@/types/student";
 import { useCertificates } from "@/hooks/useCertificates";
 import { useCourses } from "@/hooks/useCourses";
-import { useStudents } from "@/hooks/useStudents";
+import { useProfiles } from "@/hooks/useProfiles";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { downloadCertificateAsPng } from "@/lib/generateCertificate";
 
@@ -23,21 +23,22 @@ export function CertificateCard({ certificate }: Props) {
   const { getTemplateById, markDownloaded, generateCertificateData } =
     useCertificates();
   const { findCourse } = useCourses();
-  const { findStudent } = useStudents();
+  const { findProfile } = useProfiles();
   const { settings } = usePlatformSettings();
 
   const [downloading, setDownloading] = useState(false);
-  const hiddenRef = useRef<HTMLDivElement>(null);
-  const containerId = `cert-download-${certificate.id}`;
+  const downloadRef = useRef<HTMLDivElement>(null);
 
   const course = findCourse(certificate.courseId);
-  const student = findStudent(certificate.studentId);
+  const profile = findProfile(certificate.studentId);
   const template = getTemplateById(certificate.templateId);
 
   if (!course || !template) return null;
 
+  const studentName = profile?.displayName || profile?.username || "Aluno";
+
   const certData = generateCertificateData(
-    student?.name ?? "Aluno",
+    studentName,
     course.title,
     course.certificateConfig?.hoursLoad ?? 0,
     settings.name || "Lumi Membros",
@@ -48,18 +49,19 @@ export function CertificateCard({ certificate }: Props) {
   if (!certData) return null;
 
   async function handleDownload() {
+    if (!downloadRef.current) return;
     setDownloading(true);
     try {
       const slugName = (course?.title ?? "curso")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
-      const slugStudent = (student?.name ?? "aluno")
+      const slugStudent = (studentName)
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
       await downloadCertificateAsPng(
-        containerId,
+        downloadRef.current,
         `certificado-${slugName}-${slugStudent}.png`
       );
       markDownloaded(certificate.id);
@@ -114,22 +116,21 @@ export function CertificateCard({ certificate }: Props) {
         </CardContent>
       </Card>
 
-      {/* Hidden full-size renderer for download */}
+      {/* Hidden full-size A4 landscape renderer for download */}
       <div
-        ref={hiddenRef}
+        ref={downloadRef}
         style={{
           position: "fixed",
           left: "-9999px",
           top: 0,
-          width: 1920,
-          height: 1080,
+          width: 1754,
+          height: 1240,
         }}
       >
         <CertificateRenderer
           template={certData.template}
           data={certData}
-          containerId={containerId}
-          className="w-[1920px] h-[1080px]"
+          className="w-[1754px] h-[1240px]"
         />
       </div>
     </>

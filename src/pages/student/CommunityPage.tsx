@@ -8,6 +8,7 @@ import { usePosts } from "@/hooks/usePosts";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useRestrictions } from "@/hooks/useRestrictions";
 import { useStudents } from "@/hooks/useStudents";
+import { renderCommunityIcon, detectIconType } from "@/lib/communityIcon";
 import type { CommunityPost } from "@/types/student";
 
 import { Button } from "@/components/ui/button";
@@ -127,21 +128,25 @@ export default function CommunityPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      {/* Cover image */}
+      {community.coverUrl && (
+        <div className="w-full h-[120px] sm:h-[200px] rounded-xl overflow-hidden">
+          <img
+            src={community.coverUrl}
+            alt={community.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+
       {/* Community header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg overflow-hidden bg-muted shrink-0 ring-1 ring-border/30">
-            {community.iconUrl ? (
-              <img
-                src={community.iconUrl}
-                alt={community.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-primary/15 text-primary">
-                <MessageSquare className="h-5 w-5" />
-              </div>
-            )}
+          <div className={cn(
+            "h-10 w-10 rounded-lg overflow-hidden shrink-0 ring-1 ring-border/30 flex items-center justify-center",
+            detectIconType(community.iconUrl) === "image" ? "bg-muted" : "bg-primary/15 text-primary"
+          )}>
+            {renderCommunityIcon(community.iconUrl, 20)}
           </div>
           <div>
             <div className="flex items-center gap-2">

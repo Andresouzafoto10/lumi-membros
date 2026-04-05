@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { deleteFromR2 } from "@/lib/r2Upload";
 import type {
   Course,
   CourseBanner,
@@ -59,6 +60,7 @@ async function fetchCourseTree(): Promise<CourseSession[]> {
     quizPassingScore: l.quiz_passing_score ?? undefined,
     quizRequiredToAdvance: l.quiz_required_to_advance,
     ratingsEnabled: l.ratings_enabled ?? true,
+    commentsEnabled: l.comments_enabled ?? true,
   }));
 
   const modules: CourseModule[] = (modulesRes.data ?? []).map((m) => ({
@@ -84,6 +86,7 @@ async function fetchCourseTree(): Promise<CourseSession[]> {
     order: c.order,
     isActive: c.is_active,
     access: c.access as CourseAccess,
+    commentsEnabled: c.comments_enabled ?? true,
     certificateConfig: c.certificate_config
       ? (c.certificate_config as Course["certificateConfig"])
       : undefined,
@@ -326,6 +329,7 @@ export function useCourses() {
           | "bannerUrl"
           | "access"
           | "certificateConfig"
+          | "commentsEnabled"
         >
       >
     ) => {
@@ -340,6 +344,9 @@ export function useCourses() {
           ...(patch.certificateConfig !== undefined && {
             certificate_config: patch.certificateConfig,
           }),
+          ...(patch.commentsEnabled !== undefined && {
+            comments_enabled: patch.commentsEnabled,
+          }),
         })
         .eq("id", courseId);
       if (error) throw error;
@@ -350,14 +357,17 @@ export function useCourses() {
 
   const deleteCourse = useCallback(
     async (courseId: string) => {
+      // Find course to get banner URL before deleting
+      const course = allCourses.find((c) => c.id === courseId);
       const { error } = await supabase
         .from("courses")
         .delete()
         .eq("id", courseId);
       if (error) throw error;
+      if (course?.bannerUrl) deleteFromR2(course.bannerUrl).catch(() => {});
       invalidate();
     },
-    [invalidate]
+    [allCourses, invalidate]
   );
 
   const moveCourse = useCallback(
@@ -552,6 +562,7 @@ export function useCourses() {
         quizPassingScore?: CourseLesson["quizPassingScore"];
         quizRequiredToAdvance?: CourseLesson["quizRequiredToAdvance"];
         ratingsEnabled?: boolean;
+        commentsEnabled?: boolean;
       }
     ) => {
       const mod = findModule(courseId, moduleId);
@@ -572,6 +583,7 @@ export function useCourses() {
         quiz_passing_score: data.quizPassingScore ?? null,
         quiz_required_to_advance: data.quizRequiredToAdvance ?? false,
         ratings_enabled: data.ratingsEnabled ?? true,
+        comments_enabled: data.commentsEnabled ?? true,
         order: maxOrder + 1,
       });
       if (error) throw error;
@@ -605,6 +617,9 @@ export function useCourses() {
           }),
           ...(patch.ratingsEnabled !== undefined && {
             ratings_enabled: patch.ratingsEnabled,
+          }),
+          ...(patch.commentsEnabled !== undefined && {
+            comments_enabled: patch.commentsEnabled,
           }),
         })
         .eq("id", lessonId);
@@ -708,14 +723,18 @@ export function useCourses() {
 
   const deleteBanner = useCallback(
     async (bannerId: string) => {
+      // Find banner to get image URL before deleting
+      const banner = banners.find((b) => b.id === bannerId);
       const { error } = await supabase
         .from("course_banners")
         .delete()
         .eq("id", bannerId);
       if (error) throw error;
+      // Clean up R2 file
+      if (banner?.imageUrl) deleteFromR2(banner.imageUrl).catch(() => {});
       invalidateBanners();
     },
-    [invalidateBanners]
+    [banners, invalidateBanners]
   );
 
   const moveBanner = useCallback(

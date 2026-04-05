@@ -165,7 +165,7 @@ export default function AdminStudentsPage() {
 
   // Filters
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<StudentStatus | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<StudentStatus | "all" | "restricted">("all");
   const [filterRole, setFilterRole] = useState<string>("all");
 
   // New student dialog
@@ -199,11 +199,15 @@ export default function AdminStudentsPage() {
     return students.filter((s) => {
       if (q && !s.name.toLowerCase().includes(q) && !s.email.toLowerCase().includes(q))
         return false;
-      if (filterStatus !== "all" && s.status !== filterStatus) return false;
+      if (filterStatus === "restricted") {
+        if (!isRestricted(s.id)) return false;
+      } else if (filterStatus !== "all" && s.status !== filterStatus) {
+        return false;
+      }
       if (filterRole !== "all" && s.role !== filterRole) return false;
       return true;
     });
-  }, [students, search, filterStatus, filterRole]);
+  }, [students, search, filterStatus, filterRole, isRestricted]);
 
   const uniqueRoles = useMemo(
     () => [...new Set(students.map((s) => s.role))],
@@ -335,7 +339,7 @@ export default function AdminStudentsPage() {
         </div>
         <Select
           value={filterStatus}
-          onValueChange={(v) => setFilterStatus(v as StudentStatus | "all")}
+          onValueChange={(v) => setFilterStatus(v as StudentStatus | "all" | "restricted")}
         >
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Status" />
@@ -345,6 +349,7 @@ export default function AdminStudentsPage() {
             <SelectItem value="active">Ativo</SelectItem>
             <SelectItem value="inactive">Inativo</SelectItem>
             <SelectItem value="expired">Expirado</SelectItem>
+            <SelectItem value="restricted">Restritos</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterRole} onValueChange={setFilterRole}>

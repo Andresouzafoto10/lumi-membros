@@ -31,7 +31,8 @@ type AuthContextValue = {
   signUp: (
     email: string,
     password: string,
-    name: string
+    name: string,
+    cpf?: string
   ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
@@ -106,29 +107,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const lastKnownProfile = useRef<AuthUser | null>(null);
+  const initializedRef = useRef(false);
 
-  // Hydrate from persisted session on mount
   useEffect(() => {
-    // onAuthStateChange fires immediately with INITIAL_SESSION in Supabase v2,
-    // so this is the single source of truth for auth state.
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    let mounted = true;
+
+    // Primary initialization — fetch persisted session once
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
       setSession(session);
       if (session?.user) {
-        // On token refresh, keep the existing profile if the user hasn't changed
-        if (
-          event === "TOKEN_REFRESHED" &&
-          lastKnownProfile.current &&
-          lastKnownProfile.current.id === session.user.id
-        ) {
-          setLoading(false);
-          return;
-        }
-        const profile = await fetchProfile(
-          session.user,
-          lastKnownProfile.current
-        );
+        const profile = await fetchProfile(session.user, lastKnownProfile.current);
+        if (!mounted) return;
         lastKnownProfile.current = profile;
         setUser(profile);
       } else {
@@ -136,9 +126,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       }
       setLoading(false);
+      initializedRef.current = true;
     });
 
-    return () => subscription.unsubscribe();
+    // Listener for subsequent auth changes only (sign-in, sign-out, etc.)
+    // TOKEN_REFRESHED and USER_UPDATED are skipped entirely to avoid
+    // unnecessary re-renders that cause the "Verificando sessão" flicker.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
+
+      setSession(session);
+      if (session?.user) {
+        const profile = await fetchProfile(session.user, lastKnownProfile.current);
+        if (!mounted) return;
+        lastKnownProfile.current = profile;
+        setUser(profile);
+      } else {
+        lastKnownProfile.current = null;
+        setUser(null);
+      }
+
+      // Only set loading false if getSession() hasn't resolved yet (race condition)
+      if (!initializedRef.current) {
+        setLoading(false);
+        initializedRef.current = true;
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = useCallback(
@@ -151,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signUp = useCallback(
-    async (email: string, password: string, name: string) => {
+    async (email: string, password: string, name: string, cpf?: string) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -175,6 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           bio: "",
           link: "",
           location: "",
+          cpf: cpf || "",
           followers: [],
           following: [],
         });

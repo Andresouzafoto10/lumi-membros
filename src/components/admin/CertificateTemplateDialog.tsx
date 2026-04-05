@@ -1,15 +1,18 @@
-import { useState } from "react";
-import { Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import type {
   CertificateTemplate,
   CertificateBlock,
   CertificateBlockType,
+  BackgroundFit,
+  BackgroundConfig,
 } from "@/types/student";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 import { Button } from "@/components/ui/button";
+import { FileUpload } from "@/components/ui/FileUpload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +36,9 @@ import {
   CertificateRenderer,
   type CertificateData,
 } from "@/components/certificates/CertificateRenderer";
+import { downloadCertificateAsPng } from "@/lib/generateCertificate";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 // ---------------------------------------------------------------------------
 
@@ -86,16 +92,25 @@ export function CertificateTemplateDialog({
   const [blocks, setBlocks] = useState<CertificateBlock[]>(
     template?.blocks ?? []
   );
+  const defaultBgConfig: BackgroundConfig = { fit: "cover", position: "50% 50%" };
+  const [bgConfig, setBgConfig] = useState<BackgroundConfig>(
+    template?.backgroundConfig ?? defaultBgConfig
+  );
+  const [downloading, setDownloading] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
-  // Reset form when dialog opens with new template
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen && !open) {
+  // Sync form state whenever dialog opens or template changes
+  const prevOpenRef = useRef(open);
+  useEffect(() => {
+    const justOpened = open && !prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (justOpened) {
       setName(template?.name ?? "");
       setBackgroundUrl(template?.backgroundUrl ?? "");
+      setBgConfig(template?.backgroundConfig ?? defaultBgConfig);
       setBlocks(template?.blocks ?? []);
     }
-    onOpenChange(nextOpen);
-  };
+  }, [open, template]);
 
   function addBlock() {
     const newBlock: CertificateBlock = {
@@ -134,16 +149,18 @@ export function CertificateTemplateDialog({
       toast.error("Informe o nome do modelo.");
       return;
     }
-    onSave({ name: name.trim(), backgroundUrl, blocks });
+    onSave({ name: name.trim(), backgroundUrl, backgroundConfig: bgConfig, blocks });
     onOpenChange(false);
   }
 
-  // Preview data
+  // Preview data (example values for admin preview)
   const previewData: CertificateData = {
     studentName: "Ana Paula Ferreira",
-    courseName: "Fotografia para Iniciantes",
-    completionDate: "29 de março de 2026",
-    courseHours: 20,
+    courseName: "Fotografia Avançada",
+    completionDate: format(new Date(), "dd 'de' MMMM 'de' yyyy", {
+      locale: ptBR,
+    }),
+    courseHours: 40,
     platformName: settings.name || "Lumi Membros",
   };
 
@@ -151,13 +168,14 @@ export function CertificateTemplateDialog({
     id: "preview",
     name,
     backgroundUrl,
+    backgroundConfig: bgConfig,
     blocks,
     createdAt: "",
     updatedAt: "",
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -182,17 +200,93 @@ export function CertificateTemplateDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="tpl-bg">URL da imagem de fundo</Label>
-              <Input
-                id="tpl-bg"
+              <Label>Imagem de fundo</Label>
+              <FileUpload
                 value={backgroundUrl}
-                onChange={(e) => setBackgroundUrl(e.target.value)}
-                placeholder="https://... (recomendado: 1920×1080px)"
+                onChange={setBackgroundUrl}
+                folder="certificates/backgrounds"
+                imagePreset="banner"
+                allowUrl={true}
+                aspectRatio="1.414/1"
+                maxSizeMB={10}
+                placeholder="Arraste ou clique (recomendado: 1754x1240px — A4 landscape)"
               />
               <p className="text-xs text-muted-foreground">
-                Sem URL, um fundo escuro degradê será usado.
+                Sem imagem, um fundo escuro degrade sera usado.
               </p>
             </div>
+
+            {/* Background position / fit controls */}
+            {backgroundUrl && (
+              <div className="space-y-2 rounded-lg border border-border/50 p-3 bg-card/50">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Ajuste da imagem de fundo
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px]">Encaixe</Label>
+                    <Select
+                      value={bgConfig.fit}
+                      onValueChange={(v) =>
+                        setBgConfig((prev) => ({
+                          ...prev,
+                          fit: v as BackgroundFit,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cover">Preencher</SelectItem>
+                        <SelectItem value="contain">Conter</SelectItem>
+                        <SelectItem value="fill">Esticar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px]">
+                      Pos. X ({bgConfig.position.split(" ")[0]})
+                    </Label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={parseInt(bgConfig.position.split(" ")[0]) || 50}
+                      onChange={(e) => {
+                        const y = bgConfig.position.split(" ")[1] || "50%";
+                        setBgConfig((prev) => ({
+                          ...prev,
+                          position: `${e.target.value}% ${y}`,
+                        }));
+                      }}
+                      className="w-full h-1.5 accent-primary"
+                    />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px]">
+                      Pos. Y ({bgConfig.position.split(" ")[1]})
+                    </Label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={
+                        parseInt(bgConfig.position.split(" ")[1]) || 50
+                      }
+                      onChange={(e) => {
+                        const x = bgConfig.position.split(" ")[0] || "50%";
+                        setBgConfig((prev) => ({
+                          ...prev,
+                          position: `${x} ${e.target.value}%`,
+                        }));
+                      }}
+                      className="w-full h-1.5 accent-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <Separator />
 
@@ -420,16 +514,44 @@ export function CertificateTemplateDialog({
 
           {/* Right panel — Preview */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold">Preview ao vivo</Label>
-            <div className="rounded-lg border overflow-hidden">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Preview ao vivo</Label>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={downloading || !previewRef.current}
+                onClick={async () => {
+                  if (!previewRef.current) return;
+                  setDownloading(true);
+                  try {
+                    await downloadCertificateAsPng(
+                      previewRef.current,
+                      `certificado-preview-${(name || "modelo").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`
+                    );
+                  } catch {
+                    toast.error("Erro ao gerar preview.");
+                  } finally {
+                    setDownloading(false);
+                  }
+                }}
+              >
+                {downloading ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="mr-1 h-3.5 w-3.5" />
+                )}
+                Baixar preview
+              </Button>
+            </div>
+            <div ref={previewRef} className="rounded-lg border overflow-hidden">
               <CertificateRenderer
                 template={previewTemplate}
                 data={previewData}
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Dados de exemplo. No certificado real, os valores serão
-              preenchidos automaticamente.
+              Dados de exemplo (nome, curso, carga horaria, data). No
+              certificado real, os valores serao preenchidos automaticamente.
             </p>
           </div>
         </div>

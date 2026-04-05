@@ -1,6 +1,36 @@
 import { supabase } from "@/lib/supabase";
 
 // ---------------------------------------------------------------------------
+// Notification type → preference column mapping (in-app)
+// ---------------------------------------------------------------------------
+
+const NOTIF_PREF_MAP: Record<string, string | null> = {
+  like: "notif_likes",
+  comment: "notif_comments",
+  follow: "notif_follows",
+  mention: "notif_mentions",
+  system: null, // system notifications always go through
+};
+
+/**
+ * Check if a user has in-app notifications enabled for a given type.
+ * Returns true if no preferences row exists (defaults to enabled).
+ */
+async function shouldNotify(userId: string, type: string): Promise<boolean> {
+  const column = NOTIF_PREF_MAP[type];
+  if (!column) return true; // system notifications always send
+
+  const { data } = await supabase
+    .from("notification_preferences")
+    .select(column)
+    .eq("user_id", userId)
+    .single();
+
+  if (!data) return true; // no prefs row = default enabled
+  return (data as unknown as Record<string, unknown>)[column] !== false;
+}
+
+// ---------------------------------------------------------------------------
 // Notification creation helper
 // ---------------------------------------------------------------------------
 
@@ -14,6 +44,10 @@ async function createNotification(data: {
 }): Promise<void> {
   // Don't notify yourself
   if (data.actorId && data.actorId === data.recipientId) return;
+
+  // Check user preference
+  const allowed = await shouldNotify(data.recipientId, data.type);
+  if (!allowed) return;
 
   await supabase.from("notifications").insert({
     recipient_id: data.recipientId,

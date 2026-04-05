@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   MapPin,
   LinkIcon,
@@ -9,11 +9,15 @@ import {
   GraduationCap,
   UserPlus,
   UserCheck,
+  ExternalLink,
+  Mail,
+  ShieldCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
+import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useStudents } from "@/hooks/useStudents";
@@ -51,6 +55,7 @@ function MiniPostCard({
   likesCount,
   commentsCount,
   createdAt,
+  onClick,
 }: {
   title: string;
   body: string;
@@ -58,9 +63,13 @@ function MiniPostCard({
   likesCount: number;
   commentsCount: number;
   createdAt: string;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="border-border/50 hover:border-border transition-colors">
+    <Card
+      className="border-border/50 hover:border-border hover:bg-muted/50 transition-colors cursor-pointer"
+      onClick={onClick}
+    >
       <CardContent className="p-4 space-y-1.5">
         {title && (
           <p className="font-semibold text-sm leading-snug">{title}</p>
@@ -85,9 +94,11 @@ function MiniPostCard({
 // ---------------------------------------------------------------------------
 export default function PublicProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const { currentUserId } = useCurrentUser();
   const { findProfile, isFollowing, follow, unfollow } = useProfiles();
-  const { enrollments } = useStudents();
+  const { enrollments, findStudent } = useStudents();
   const { findClass } = useClasses();
   const { allCourses, findCourse } = useCourses();
   const { getPostsByAuthor } = usePosts();
@@ -145,6 +156,15 @@ export default function PublicProfilePage() {
     );
   }
 
+  function handlePostClick(postId: string, communityId: string) {
+    const community = findCommunity(communityId);
+    if (!community) {
+      toast.error("Esta publicacao nao esta mais disponivel");
+      return;
+    }
+    navigate(`/comunidade/${community.slug}#post-${postId}`);
+  }
+
   function handleToggleFollow() {
     if (!id) return;
     if (following) {
@@ -169,17 +189,21 @@ export default function PublicProfilePage() {
 
       {/* Cover */}
       <div className="relative mt-4 px-4 sm:px-5">
-        <div className="h-32 overflow-hidden rounded-[1.25rem] bg-muted sm:h-52 sm:rounded-xl">
+        <div className="h-[140px] overflow-hidden rounded-[1.25rem] bg-muted sm:h-[200px] sm:rounded-xl">
           {profile.coverUrl ? (
             <img
               src={profile.coverUrl}
               alt="Capa"
               className="w-full h-full object-cover"
+              style={{ objectPosition: profile.coverPosition || "50% 50%" }}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
+          {profile.coverUrl && (
+            <div className="absolute inset-0 bg-black/10 rounded-[1.25rem] sm:rounded-xl" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent rounded-[1.25rem] sm:rounded-xl" />
         </div>
       </div>
 
@@ -400,6 +424,7 @@ export default function PublicProfilePage() {
                     likesCount={post.likesCount}
                     commentsCount={post.commentsCount}
                     createdAt={post.createdAt}
+                    onClick={() => handlePostClick(post.id, post.communityId)}
                   />
                 ))}
               </div>
@@ -442,7 +467,71 @@ export default function PublicProfilePage() {
                   <span className="text-muted-foreground">Membro desde:</span>{" "}
                   {format(new Date(profile.createdAt), "dd/MM/yyyy")}
                 </div>
+                {/* Email/CPF: only visible to own user or admin */}
+                {(isOwnProfile || isAdmin) && (
+                  <>
+                    {findStudent(id)?.email && (
+                      <div className="flex items-center gap-1.5">
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-muted-foreground">{findStudent(id)?.email}</span>
+                      </div>
+                    )}
+                    {profile.cpf && (
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          CPF: {profile.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
+
+              {/* FASE 2: Social links */}
+              {(profile.socialInstagram || profile.socialYoutube || profile.socialTiktok || profile.socialTwitter || profile.socialLinkedin || profile.socialWebsite) && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Redes sociais</h3>
+                  <div className="flex flex-wrap gap-3">
+                    {profile.socialInstagram && (
+                      <a href={profile.socialInstagram.startsWith("http") ? profile.socialInstagram : `https://instagram.com/${profile.socialInstagram.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Instagram
+                      </a>
+                    )}
+                    {profile.socialYoutube && (
+                      <a href={profile.socialYoutube.startsWith("http") ? profile.socialYoutube : `https://youtube.com/@${profile.socialYoutube.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        YouTube
+                      </a>
+                    )}
+                    {profile.socialTiktok && (
+                      <a href={profile.socialTiktok.startsWith("http") ? profile.socialTiktok : `https://tiktok.com/@${profile.socialTiktok.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        TikTok
+                      </a>
+                    )}
+                    {profile.socialTwitter && (
+                      <a href={profile.socialTwitter.startsWith("http") ? profile.socialTwitter : `https://x.com/${profile.socialTwitter.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Twitter/X
+                      </a>
+                    )}
+                    {profile.socialLinkedin && (
+                      <a href={profile.socialLinkedin.startsWith("http") ? profile.socialLinkedin : `https://linkedin.com/in/${profile.socialLinkedin}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        LinkedIn
+                      </a>
+                    )}
+                    {profile.socialWebsite && (
+                      <a href={profile.socialWebsite.startsWith("http") ? profile.socialWebsite : `https://${profile.socialWebsite}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Site
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Missões */}
               {(completedMissions.length > 0 || inProgressMissions.length > 0) && (

@@ -73,6 +73,14 @@ async function fetchSettings(): Promise<PlatformSettings> {
       (data.certificate_default_text as string) ??
       DEFAULT_SETTINGS.certificateDefaultText,
     theme: mergeTheme(data.theme),
+    faviconUrl: (data.favicon_url as string) ?? null,
+    logoUploadUrl: (data.logo_upload_url as string) ?? null,
+    pwaEnabled: (data.pwa_enabled as boolean) ?? false,
+    pwaName: (data.pwa_name as string) ?? null,
+    pwaShortName: (data.pwa_short_name as string) ?? null,
+    pwaIconUrl: (data.pwa_icon_url as string) ?? null,
+    pwaThemeColor: (data.pwa_theme_color as string) ?? null,
+    pwaBackgroundColor: (data.pwa_background_color as string) ?? null,
   };
 }
 
@@ -111,6 +119,14 @@ export function usePlatformSettings() {
           ...(patch.certificateDefaultText !== undefined && {
             certificate_default_text: patch.certificateDefaultText,
           }),
+          ...(patch.faviconUrl !== undefined && { favicon_url: patch.faviconUrl }),
+          ...(patch.logoUploadUrl !== undefined && { logo_upload_url: patch.logoUploadUrl }),
+          ...(patch.pwaEnabled !== undefined && { pwa_enabled: patch.pwaEnabled }),
+          ...(patch.pwaName !== undefined && { pwa_name: patch.pwaName }),
+          ...(patch.pwaShortName !== undefined && { pwa_short_name: patch.pwaShortName }),
+          ...(patch.pwaIconUrl !== undefined && { pwa_icon_url: patch.pwaIconUrl }),
+          ...(patch.pwaThemeColor !== undefined && { pwa_theme_color: patch.pwaThemeColor }),
+          ...(patch.pwaBackgroundColor !== undefined && { pwa_background_color: patch.pwaBackgroundColor }),
         })
         .eq("id", "default");
       if (error) throw error;
