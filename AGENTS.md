@@ -36,11 +36,11 @@ Two route groups, each wrapped in its own layout:
 
 ### State Management (src/hooks/useCourses.ts)
 
-All app state flows through a single `useCourses()` hook that implements an **in-memory store with localStorage persistence** (`lumi-membros:store:v1` key). It uses `useSyncExternalStore` for React integration.
+Course/session/banner data is managed by `useCourses()` using **TanStack React Query + Supabase** as the primary source of truth.
 
-The store holds two top-level collections: `sessions` (which contain nested `courses → modules → lessons`) and `banners`. The hook exposes selectors and CRUD actions for every entity level (sessions, courses, modules, lessons, banners), plus reordering (`move*`) and cross-session operations (`moveCourseToSession`, `duplicateCourseToSession`).
+The hook returns two top-level collections: `sessions` (with nested `courses → modules → lessons`) and `banners`. It exposes selectors and CRUD actions for sessions, courses, modules, lessons, and banners, including reorder/move operations.
 
-Currently uses **mock data** seeded from `src/data/mock-*.ts` files. There is no backend API integration yet — `VITE_USE_MOCK_DATA=true` in `.env`.
+Some other domains in the app still use mock/localStorage during migration, but courses/banners are no longer an in-memory `useSyncExternalStore` localStorage store.
 
 ### Data Model Hierarchy
 

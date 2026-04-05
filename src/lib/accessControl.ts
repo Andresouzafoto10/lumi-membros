@@ -133,7 +133,8 @@ export function evaluateRule(
   enrollment: Enrollment,
   completedLessons: Record<string, boolean>,
   allLessonIds: string[],
-  moduleLessonMap: Record<string, string[]>
+  moduleLessonMap: Record<string, string[]>,
+  referenceCourseLessonIds?: Record<string, string[]>
 ): LessonAccessStatus {
   switch (rule.rule) {
     case "free":
@@ -183,12 +184,9 @@ export function evaluateRule(
 
     case "course_complete": {
       if (!rule.referenceId) return { allowed: true };
-      // Check if all lessons in the referenced course are completed.
-      // For simplicity, we check against a separate progress key.
-      // The caller must supply completions for the *reference* course if
-      // it differs from the current one.  In most cases, referenceId
-      // refers to the current course, so we use `allLessonIds`.
-      const allDone = allLessonIds.every((id) => completedLessons[id]);
+      const referenceLessonIds =
+        referenceCourseLessonIds?.[rule.referenceId] ?? allLessonIds;
+      const allDone = referenceLessonIds.every((id) => completedLessons[id]);
       if (!allDone) {
         return { allowed: false, reason: "course_complete" };
       }
@@ -233,7 +231,8 @@ export function canAccessLesson(
   classes: Class[],
   completedLessons: Record<string, boolean>,
   allLessonIds: string[],
-  moduleLessonMap: Record<string, string[]>
+  moduleLessonMap: Record<string, string[]>,
+  referenceCourseLessonIds?: Record<string, string[]>
 ): LessonAccessStatus {
   // 1. Check enrollment
   const relevantEnrollments = getEnrollmentsForCourse(
@@ -268,7 +267,8 @@ export function canAccessLesson(
       lessonResult.enrollment,
       completedLessons,
       allLessonIds,
-      moduleLessonMap
+      moduleLessonMap,
+      referenceCourseLessonIds
     );
     if (!status.allowed) return status;
   }
@@ -288,7 +288,8 @@ export function canAccessModule(
   classes: Class[],
   completedLessons: Record<string, boolean>,
   allLessonIds: string[],
-  moduleLessonMap: Record<string, string[]>
+  moduleLessonMap: Record<string, string[]>,
+  referenceCourseLessonIds?: Record<string, string[]>
 ): LessonAccessStatus {
   const relevantEnrollments = getEnrollmentsForCourse(
     studentId,
@@ -320,7 +321,8 @@ export function canAccessModule(
       moduleResult.enrollment,
       completedLessons,
       allLessonIds,
-      moduleLessonMap
+      moduleLessonMap,
+      referenceCourseLessonIds
     );
     if (!status.allowed) return status;
   }
@@ -393,7 +395,8 @@ export function buildCourseAccessMap(
       classes,
       completedLessons,
       allLessonIds,
-      moduleLessonMap
+      moduleLessonMap,
+      { [courseId]: allLessonIds }
     );
 
     for (const l of m.lessons) {
@@ -411,7 +414,8 @@ export function buildCourseAccessMap(
         classes,
         completedLessons,
         allLessonIds,
-        moduleLessonMap
+        moduleLessonMap,
+        { [courseId]: allLessonIds }
       );
     }
   }

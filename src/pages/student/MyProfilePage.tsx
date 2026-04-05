@@ -82,15 +82,15 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 const NOTIF_ROWS: { label: string; emailField?: string; notifField?: string }[] = [
-  { label: "Comentarios nas minhas publicacoes", emailField: "email_comments", notifField: "notif_comments" },
-  { label: "Respostas aos meus comentarios", emailField: "email_comment_replies", notifField: "notif_comment_replies" },
-  { label: "Mencoes", emailField: "email_mentions", notifField: "notif_mentions" },
-  { label: "Curtidas nas minhas publicacoes", emailField: "email_likes", notifField: "notif_likes" },
+  { label: "Comentários nas minhas publicações", emailField: "email_comments", notifField: "notif_comments" },
+  { label: "Respostas aos meus comentários", emailField: "email_comment_replies", notifField: "notif_comment_replies" },
+  { label: "Menções", emailField: "email_mentions", notifField: "notif_mentions" },
+  { label: "Curtidas nas minhas publicações", emailField: "email_likes", notifField: "notif_likes" },
   { label: "Novos seguidores", emailField: "email_follows", notifField: "notif_follows" },
-  { label: "Novo conteudo do curso", emailField: "email_new_course", notifField: "notif_new_course" },
-  { label: "Nova aula disponivel", emailField: "email_new_lesson", notifField: "notif_new_lesson" },
-  { label: "Certificado disponivel", emailField: "email_certificate", notifField: "notif_certificate" },
-  { label: "Missao concluida", emailField: "email_mission_complete", notifField: "notif_mission_complete" },
+  { label: "Novo conteúdo do curso", emailField: "email_new_course", notifField: "notif_new_course" },
+  { label: "Nova aula disponível", emailField: "email_new_lesson", notifField: "notif_new_lesson" },
+  { label: "Certificado disponível", emailField: "email_certificate", notifField: "notif_certificate" },
+  { label: "Missão concluída", emailField: "email_mission_complete", notifField: "notif_mission_complete" },
   { label: "Badge conquistado", emailField: "email_badge_earned", notifField: "notif_badge_earned" },
   { label: "Resposta no meu post", emailField: "email_post_reply", notifField: "notif_post_reply" },
   { label: "Resumo semanal", emailField: "email_weekly_digest" },
