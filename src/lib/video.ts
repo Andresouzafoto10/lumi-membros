@@ -2,20 +2,57 @@ import type { CourseVideoType } from "@/types/course";
 
 const IFRAME_TAG_REGEX = /<iframe\b/i;
 const IFRAME_SRC_REGEX = /<iframe\b[^>]*\bsrc=(['"])(.*?)\1/i;
+const IFRAME_TITLE_REGEX = /<iframe\b[^>]*\btitle=(['"])(.*?)\1/i;
+const IFRAME_ALLOW_REGEX = /<iframe\b[^>]*\ballow=(['"])(.*?)\1/i;
+const IFRAME_ALLOW_FULLSCREEN_REGEX = /<iframe\b[^>]*\ballowfullscreen(?:=(['"])(.*?)\1)?/i;
+
+export type LessonEmbedMode = "iframe" | "url";
+
+export type ParsedIframeEmbed = {
+  src: string;
+  title?: string;
+  allow?: string;
+  allowFullScreen: boolean;
+};
+
+export function isIframeEmbed(value: string): boolean {
+  return IFRAME_TAG_REGEX.test(value.trim());
+}
 
 export function extractIframeSrc(value: string): string | null {
   const match = value.match(IFRAME_SRC_REGEX);
   return match?.[2]?.trim() || null;
 }
 
-export function normalizeLessonVideoInput(
-  _videoType: CourseVideoType,
-  value: string
-): string {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
+export function inferEmbedMode(value: string | null | undefined): LessonEmbedMode {
+  return value && isIframeEmbed(value) ? "iframe" : "url";
+}
 
-  if (IFRAME_TAG_REGEX.test(trimmed)) {
+export function parseIframeEmbed(value: string): ParsedIframeEmbed | null {
+  const src = extractIframeSrc(value);
+  if (!src) {
+    return null;
+  }
+
+  const title = value.match(IFRAME_TITLE_REGEX)?.[2]?.trim();
+  const allow = value.match(IFRAME_ALLOW_REGEX)?.[2]?.trim();
+  const allowFullScreen = IFRAME_ALLOW_FULLSCREEN_REGEX.test(value);
+
+  return {
+    src,
+    ...(title && { title }),
+    ...(allow && { allow }),
+    allowFullScreen,
+  };
+}
+
+export function normalizeExternalVideoUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (isIframeEmbed(trimmed)) {
     return extractIframeSrc(trimmed) ?? "";
   }
 
@@ -26,7 +63,8 @@ export function resolveLessonVideoUrl(
   videoType: CourseVideoType,
   videoUrl: string
 ): string {
-  const normalizedUrl = normalizeLessonVideoInput(videoType, videoUrl);
+  const normalizedUrl =
+    videoType === "embed" ? normalizeExternalVideoUrl(videoUrl) : videoUrl.trim();
 
   if (!normalizedUrl) {
     return "";

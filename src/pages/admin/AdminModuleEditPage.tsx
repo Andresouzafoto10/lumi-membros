@@ -22,7 +22,12 @@ import { toast } from "sonner";
 import { useCourses } from "@/hooks/useCourses";
 import { useAdminLessonRatings } from "@/hooks/useLessonRatings";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
-import { normalizeLessonVideoInput } from "@/lib/video";
+import {
+  extractIframeSrc,
+  inferEmbedMode,
+  isIframeEmbed,
+  normalizeExternalVideoUrl,
+} from "@/lib/video";
 import type { CourseLesson, CourseVideoType, QuizQuestion } from "@/types/course";
 import { LessonMaterialsManager } from "@/components/admin/LessonMaterialsManager";
 
@@ -62,12 +67,14 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+type LessonVideoSource = "youtube" | "vimeo" | "embed" | "external_url";
+
 // ---------------------------------------------------------------------------
 type LessonFormState = {
   title: string;
   isActive: boolean;
   mode: "video" | "text" | "quiz" | "video_quiz";
-  videoType: CourseVideoType;
+  videoSource: LessonVideoSource;
   videoUrl: string;
   description: string;
   quiz: QuizQuestion[];
@@ -81,7 +88,7 @@ const emptyLessonForm: LessonFormState = {
   title: "",
   isActive: true,
   mode: "video",
-  videoType: "youtube",
+  videoSource: "youtube",
   videoUrl: "",
   description: "",
   quiz: [],
@@ -98,11 +105,21 @@ function lessonToForm(lesson: CourseLesson): LessonFormState {
   if (isText && hasQuiz) mode = "quiz";
   else if (isText && !hasQuiz) mode = "text";
   else if (!isText && hasQuiz) mode = "video_quiz";
+
+  const videoSource: LessonVideoSource =
+    lesson.videoType === "embed"
+      ? inferEmbedMode(lesson.videoUrl) === "iframe"
+        ? "embed"
+        : "external_url"
+      : lesson.videoType === "none"
+        ? "youtube"
+        : lesson.videoType;
+
   return {
     title: lesson.title,
     isActive: lesson.isActive,
     mode,
-    videoType: lesson.videoType === "none" ? "youtube" : lesson.videoType,
+    videoSource,
     videoUrl: lesson.videoUrl ?? "",
     description: lesson.description,
     quiz: lesson.quiz ?? [],
@@ -113,17 +130,29 @@ function lessonToForm(lesson: CourseLesson): LessonFormState {
   };
 }
 
-function videoTypeLabel(vt: CourseVideoType): string {
+function videoTypeLabel(vt: CourseVideoType, videoUrl: string | null): string {
   switch (vt) {
     case "youtube":
       return "YouTube";
     case "vimeo":
       return "Vimeo";
     case "embed":
-      return "Outros (URL/embed)";
+      return inferEmbedMode(videoUrl) === "iframe" ? "Embed" : "URL outros";
     case "none":
       return "Sem video";
   }
+}
+
+function videoValuePreview(videoType: CourseVideoType, videoUrl: string | null): string | null {
+  if (!videoUrl) {
+    return null;
+  }
+
+  if (videoType === "embed" && inferEmbedMode(videoUrl) === "iframe") {
+    return extractIframeSrc(videoUrl) ?? "iframe";
+  }
+
+  return videoUrl;
 }
 
 function generateId() {
@@ -175,10 +204,15 @@ export default function AdminModuleEditPage() {
   }
 
   const sortedLessons = [...mod.lessons].sort((a, b) => a.order - b.order);
-  const isOtherVideoSource = lessonForm.videoType === "embed";
-  const videoUrlLabel = isOtherVideoSource ? "URL ou codigo embed" : "URL do video";
-  const videoUrlPlaceholder = isOtherVideoSource
-    ? 'https://player.scaleup.com.br/embed/... ou <iframe src="..."></iframe>'
+  const isEmbedSource = lessonForm.videoSource === "embed";
+  const isExternalUrlSource = lessonForm.videoSource === "external_url";
+  const videoUrlLabel = isEmbedSource
+    ? "Codigo embed"
+    : isExternalUrlSource
+      ? "URL externa"
+      : "URL do video";
+  const videoUrlPlaceholder = isEmbedSource
+    ? '<iframe src="https://player.scaleup.com.br/embed/..."></iframe>'
     : "https://...";
 
   // ---------- Save module ----------
@@ -226,19 +260,53 @@ export default function AdminModuleEditPage() {
     }
     const isQuizMode = lessonForm.mode === "quiz" || lessonForm.mode === "video_quiz";
     const isVideoMode = lessonForm.mode === "video" || lessonForm.mode === "video_quiz";
-    const videoType: CourseVideoType = isVideoMode ? lessonForm.videoType : "none";
-    const normalizedVideoUrl = isVideoMode
-      ? normalizeLessonVideoInput(videoType, lessonForm.videoUrl)
-      : "";
-    const videoUrl = isVideoMode ? normalizedVideoUrl || null : null;
+    const videoType: CourseVideoType = !isVideoMode
+      ? "none"
+      : lessonForm.videoSource === "youtube"
+        ? "youtube"
+        : lessonForm.videoSource === "vimeo"
+          ? "vimeo"
+          : "embed";
+    const rawVideoValue = lessonForm.videoUrl.trim();
+    const videoUrl = !isVideoMode
+      ? null
+      : lessonForm.videoSource === "embed"
+        ? rawVideoValue || null
+        : normalizeExternalVideoUrl(rawVideoValue) || null;
     const quiz = isQuizMode ? lessonForm.quiz : undefined;
     const quizPassingScore = isQuizMode ? lessonForm.quizPassingScore : undefined;
     const quizRequiredToAdvance = isQuizMode ? lessonForm.quizRequiredToAdvance : undefined;
 
     if (isVideoMode && !videoUrl) {
       toast.error(
-        videoType === "embed"
-          ? "Informe uma URL valida ou cole um iframe com src valido."
+        lessonForm.videoSource === "embed"
+          ? "Cole o codigo completo do iframe com src valido."
+          : "Informe a URL do video."
+      );
+      return;
+    }
+
+    if (isVideoMode && lessonForm.videoSource === "embed" && !isIframeEmbed(rawVideoValue)) {
+      toast.error("Para a opcao Embed, cole o iframe completo fornecido pela plataforma.");
+      return;
+    }
+
+    if (isVideoMode && lessonForm.videoSource === "external_url" && isIframeEmbed(rawVideoValue)) {
+      toast.error(
+        "Para URL outros, cole apenas o link direto do player. Para iframe completo, use a opcao Embed."
+      );
+      return;
+    }
+
+    if (isVideoMode && lessonForm.videoSource === "embed" && !extractIframeSrc(rawVideoValue)) {
+      toast.error("O iframe informado nao possui um src valido.");
+      return;
+    }
+
+    if (isVideoMode && lessonForm.videoSource !== "embed" && !videoUrl) {
+      toast.error(
+        lessonForm.videoSource === "external_url"
+          ? "Informe uma URL externa valida."
           : "Informe a URL do video."
       );
       return;
@@ -468,11 +536,11 @@ export default function AdminModuleEditPage() {
                   {lesson.videoType !== "none" ? (
                     <>
                       <Video className="h-3.5 w-3.5" />
-                      {videoTypeLabel(lesson.videoType)}
-                      {lesson.videoUrl && (
+                      {videoTypeLabel(lesson.videoType, lesson.videoUrl)}
+                      {videoValuePreview(lesson.videoType, lesson.videoUrl) && (
                         <span className="truncate max-w-[200px]">
                           {" "}
-                          - {lesson.videoUrl}
+                          - {videoValuePreview(lesson.videoType, lesson.videoUrl)}
                         </span>
                       )}
                     </>
@@ -655,9 +723,9 @@ export default function AdminModuleEditPage() {
                 <div className="space-y-2">
                   <Label>Tipo de video</Label>
                   <Select
-                    value={lessonForm.videoType}
+                    value={lessonForm.videoSource}
                     onValueChange={(v) =>
-                      updateLessonField("videoType", v as CourseVideoType)
+                      updateLessonField("videoSource", v as LessonVideoSource)
                     }
                   >
                     <SelectTrigger>
@@ -666,7 +734,8 @@ export default function AdminModuleEditPage() {
                     <SelectContent>
                       <SelectItem value="youtube">YouTube</SelectItem>
                       <SelectItem value="vimeo">Vimeo</SelectItem>
-                      <SelectItem value="embed">Outros (URL/embed)</SelectItem>
+                      <SelectItem value="embed">Embed</SelectItem>
+                      <SelectItem value="external_url">URL outros</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -680,9 +749,14 @@ export default function AdminModuleEditPage() {
                       updateLessonField("videoUrl", e.target.value)
                     }
                   />
-                  {isOtherVideoSource && (
+                  {isEmbedSource && (
                     <p className="text-xs text-muted-foreground">
-                      Aceita link direto do player ou o codigo completo do iframe.
+                      Cole o iframe completo fornecido pela plataforma de video.
+                    </p>
+                  )}
+                  {isExternalUrlSource && (
+                    <p className="text-xs text-muted-foreground">
+                      Cole apenas a URL direta do player externo.
                     </p>
                   )}
                 </div>
