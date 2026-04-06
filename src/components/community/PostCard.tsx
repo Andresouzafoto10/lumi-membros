@@ -409,7 +409,7 @@ export function PostCard({
         {/* Author row */}
         <div className="flex items-start gap-3">
           <Link to={`/perfil/${post.authorId}`} className="shrink-0">
-            <div className="h-10 w-10 rounded-full overflow-hidden bg-muted ring-2 ring-border/30 hover:ring-primary/30 transition-all">
+            <div className="h-9 w-9 rounded-full overflow-hidden bg-muted ring-2 ring-border/30 hover:ring-primary/30 transition-all sm:h-10 sm:w-10">
               {author?.avatarUrl ? (
                 <img
                   src={author.avatarUrl}
@@ -601,7 +601,7 @@ export function PostCard({
             variant="ghost"
             size="sm"
             className={cn(
-              "gap-1.5 h-8 rounded-full transition-all active:scale-90",
+              "gap-1.5 h-9 rounded-full transition-all active:scale-90",
               liked
                 ? "text-red-500 hover:text-red-600 hover:bg-red-500/10"
                 : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
@@ -624,7 +624,7 @@ export function PostCard({
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 h-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all active:scale-90"
+            className="gap-1.5 h-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all active:scale-90"
             onClick={() => onToggleComments?.(post.id)}
           >
             <MessageCircle className="h-[18px] w-[18px]" />
@@ -638,7 +638,7 @@ export function PostCard({
             variant="ghost"
             size="sm"
             className={cn(
-              "gap-1.5 h-8 rounded-full transition-all active:scale-90",
+              "gap-1.5 h-9 rounded-full transition-all active:scale-90",
               saved
                 ? "text-primary hover:text-primary/80 hover:bg-primary/10"
                 : "text-muted-foreground hover:text-primary hover:bg-primary/10"
@@ -657,7 +657,7 @@ export function PostCard({
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-all active:scale-90"
+            className="gap-1.5 h-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-all active:scale-90"
             onClick={handleShare}
           >
             <Share2 className="h-[18px] w-[18px]" />

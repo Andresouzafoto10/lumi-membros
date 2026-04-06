@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -303,7 +304,7 @@ export default function CourseDetailPage() {
   const lessonBlocked = activeLessonAccess && !activeLessonAccess.allowed;
 
   return (
-    <div className="mx-auto max-w-[1240px] px-5 pb-10 pt-6 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-[1240px] px-3 pb-10 pt-4 sm:px-6 sm:pt-6 lg:px-8">
       <Helmet>
         <title>{course ? course.title : "Curso"}</title>
       </Helmet>
@@ -357,26 +358,6 @@ export default function CourseDetailPage() {
       {/* Course content (only if enrolled and not expired) */}
       {isEnrolled && !isExpired && (
         <>
-          {/* Mobile sidebar toggle */}
-          {hasContent && (
-            <div className="mb-4 lg:hidden">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="w-full justify-between"
-              >
-                <span className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  Conteúdo do curso
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {Math.round(percentCompleted)}% concluído
-                </span>
-              </Button>
-            </div>
-          )}
-
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-12">
             {/* Left column */}
             <div className="min-w-0 space-y-5">
@@ -484,7 +465,7 @@ export default function CourseDetailPage() {
               {/* Active lesson (accessible) */}
               {activeLesson && !lessonBlocked && (
                 <>
-                  <div className="max-w-[860px]">
+                  <div className="-mx-3 sm:mx-0 sm:max-w-[860px]">
                     <LessonPlayer lesson={activeLesson} />
                   </div>
 
@@ -501,29 +482,32 @@ export default function CourseDetailPage() {
                   )}
 
                   {/* Navigation buttons + rating */}
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      {prevLesson && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSelectLesson(prevLesson.id)}
-                        >
-                          <ChevronLeft className="h-4 w-4 mr-1" />
-                          Voltar aula
-                        </Button>
-                      )}
-                      {nextLesson && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSelectLesson(nextLesson.id)}
-                        >
-                          Próxima aula
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      )}
-
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <div className="flex gap-2">
+                        {prevLesson && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 sm:flex-initial"
+                            onClick={() => handleSelectLesson(prevLesson.id)}
+                          >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Voltar aula
+                          </Button>
+                        )}
+                        {nextLesson && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 sm:flex-initial"
+                            onClick={() => handleSelectLesson(nextLesson.id)}
+                          >
+                            Próxima aula
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        )}
+                      </div>
                       <div className="hidden sm:block w-px h-6 bg-border mx-1" />
                       <LessonRating lessonId={activeLesson.id} ratingsEnabled={activeLesson.ratingsEnabled} />
                     </div>
@@ -539,7 +523,7 @@ export default function CourseDetailPage() {
                           disabled={quizBlocked}
                           title={quizBlocked ? "Aprove no quiz para concluir" : undefined}
                           className={cn(
-                            "gap-1.5 transition-all active:scale-[0.97]",
+                            "w-full gap-1.5 transition-all active:scale-[0.97] sm:w-auto",
                             !completedLessons[activeLesson.id] && "shadow-sm shadow-primary/15 hover:shadow-md hover:shadow-primary/20"
                           )}
                         >
@@ -624,23 +608,40 @@ export default function CourseDetailPage() {
             </div>
 
             {/* Right column - Sidebar */}
-            <div className={cn(
-              "lg:sticky lg:top-24 lg:self-start",
-              sidebarOpen ? "block" : "hidden lg:block"
-            )}>
-              <CourseSidebar
-                course={course}
-                activeLessonId={activeLessonId}
-                completedLessons={completedLessons}
-                openModuleId={openModuleId}
-                onToggleModule={handleToggleModule}
-                onSelectLesson={(lessonId) => {
-                  handleSelectLesson(lessonId);
-                  setSidebarOpen(false);
-                }}
-                percentCompleted={percentCompleted}
-                lessonAccess={accessMap?.lessonAccess}
-              />
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              {/* Mobile: collapsible accordion header */}
+              <div className="lg:hidden mb-2">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="flex w-full items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/50 active:scale-[0.99]"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    <BookOpen className="h-4 w-4" />
+                    Conteúdo do curso
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {Math.round(percentCompleted)}% concluído
+                    </span>
+                    <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", sidebarOpen && "rotate-180")} />
+                  </div>
+                </button>
+              </div>
+              <div className={cn(sidebarOpen ? "block" : "hidden lg:block")}>
+                <CourseSidebar
+                  course={course}
+                  activeLessonId={activeLessonId}
+                  completedLessons={completedLessons}
+                  openModuleId={openModuleId}
+                  onToggleModule={handleToggleModule}
+                  onSelectLesson={(lessonId) => {
+                    handleSelectLesson(lessonId);
+                    setSidebarOpen(false);
+                  }}
+                  percentCompleted={percentCompleted}
+                  lessonAccess={accessMap?.lessonAccess}
+                />
+              </div>
             </div>
           </div>
         </>

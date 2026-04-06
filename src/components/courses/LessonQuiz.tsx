@@ -227,7 +227,7 @@ export function LessonQuiz({ quiz, passingScore, lessonId, onPass }: LessonQuizP
                     <label
                       key={option.id}
                       className={cn(
-                        "flex items-center gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-all duration-150 text-sm",
+                        "flex items-center gap-3 rounded-md border px-3 py-3 cursor-pointer transition-all duration-150 text-sm",
                         optionStyle,
                         isSubmitted && "cursor-default"
                       )}

@@ -91,7 +91,7 @@ export function CourseCard({
       </div>
 
       <CardContent className="p-5">
-        <h3 className="text-base font-semibold leading-snug">{title}</h3>
+        <h3 className="text-base font-semibold leading-snug line-clamp-2">{title}</h3>
         <p className="mt-1.5 text-sm text-muted-foreground line-clamp-2">
           {description}
         </p>
@@ -120,7 +120,7 @@ export function CourseCard({
         <button
           type="button"
           onClick={handleLockedClick}
-          className="block w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group cursor-pointer"
+          className="block w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group cursor-pointer active:scale-[0.98] transition-transform"
         >
           {cardContent}
         </button>
@@ -167,7 +167,7 @@ export function CourseCard({
     <Link
       to={to}
       className={cn(
-        "block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group",
+        "block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group active:scale-[0.98] transition-transform",
         isDisabled && "opacity-60 pointer-events-none"
       )}
       tabIndex={isDisabled ? -1 : undefined}

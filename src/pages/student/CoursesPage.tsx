@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
-import { BookOpen, SearchX } from "lucide-react";
+import { BookOpen, Search, SearchX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -102,7 +103,7 @@ export default function CoursesPage() {
   const isFiltering = searchQuery.trim() !== "" || selectedSessionId !== "all";
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-10">
+    <div className="px-4 py-6 max-w-[1400px] mx-auto space-y-8 sm:px-6 sm:space-y-10">
       <Helmet>
         <title>Cursos</title>
       </Helmet>
@@ -112,8 +113,31 @@ export default function CoursesPage() {
         <CourseBannersCarousel banners={activeBanners} />
       )}
 
-      {/* Continue watching + session filter — same row */}
-      <div className="flex items-center justify-between gap-4">
+      {/* Mobile search */}
+      <div className="sm:hidden">
+        <div className="relative group/search">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within/search:text-primary" />
+          <Input
+            placeholder="Buscar cursos..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-9 border-border/60 focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => setSearchQuery("")}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Continue watching + session filter */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="min-w-0">
           {lastWatched && (
             <ContinueWatching
@@ -125,7 +149,7 @@ export default function CoursesPage() {
           )}
         </div>
         <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
-          <SelectTrigger className="w-[200px] shrink-0">
+          <SelectTrigger className="w-full shrink-0 sm:w-[200px]">
             <SelectValue placeholder="Todas as sessoes" />
           </SelectTrigger>
           <SelectContent>
@@ -186,7 +210,7 @@ export default function CoursesPage() {
                 <div className="h-6 w-1 rounded-full bg-primary" />
                 <div>
                   <div className="flex items-center gap-2.5">
-                    <h2 className="text-xl font-bold tracking-tight">{session.title}</h2>
+                    <h2 className="text-lg font-bold tracking-tight sm:text-xl">{session.title}</h2>
                     <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                       {activeCourses.length} {activeCourses.length === 1 ? "curso" : "cursos"}
                     </span>

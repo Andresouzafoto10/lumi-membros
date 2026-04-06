@@ -569,7 +569,7 @@ export default function MyProfilePage() {
       >
         <div
           ref={coverImgRef}
-          className="h-[140px] overflow-hidden rounded-[1.25rem] bg-muted sm:h-[200px] sm:rounded-xl"
+          className="h-[120px] overflow-hidden rounded-[1.25rem] bg-muted sm:h-[200px] sm:rounded-xl"
         >
           {profile.coverUrl ? (
             <img
@@ -922,26 +922,26 @@ export default function MyProfilePage() {
       {/* Tabs */}
       <div className="mt-6 px-4 sm:px-5">
         <Tabs defaultValue="posts">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="posts" className="flex-1 gap-1.5">
+          <TabsList className="flex w-full overflow-x-auto">
+            <TabsTrigger value="posts" className="shrink-0 gap-1.5">
               <FileText className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Publicacoes</span>
               <span className="sm:hidden">Posts</span>
             </TabsTrigger>
-            <TabsTrigger value="saved" className="flex-1 gap-1.5">
+            <TabsTrigger value="saved" className="shrink-0 gap-1.5">
               <Bookmark className="h-3.5 w-3.5" />
               Salvos
             </TabsTrigger>
-            <TabsTrigger value="about" className="flex-1 gap-1.5">
+            <TabsTrigger value="about" className="shrink-0 gap-1.5">
               <Info className="h-3.5 w-3.5" />
               Sobre
             </TabsTrigger>
-            <TabsTrigger value="certificates" className="flex-1 gap-1.5">
+            <TabsTrigger value="certificates" className="shrink-0 gap-1.5">
               <Award className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Certificados</span>
               <span className="sm:hidden">Certs</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex-1 gap-1.5">
+            <TabsTrigger value="notifications" className="shrink-0 gap-1.5">
               <Bell className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Notificacoes</span>
               <span className="sm:hidden">Notif.</span>

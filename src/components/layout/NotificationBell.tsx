@@ -96,7 +96,10 @@ export function NotificationBell() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-50 w-80 sm:w-96 max-h-[28rem] flex flex-col rounded-lg border bg-popover shadow-lg animate-fade-in">
+        <>
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setOpen(false)} />
+        <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col rounded-t-2xl border-t bg-popover shadow-lg animate-slide-up md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-10 md:w-96 md:max-h-[28rem] md:rounded-lg md:border md:animate-fade-in">
+          <div className="mx-auto my-2 h-1 w-10 rounded-full bg-muted-foreground/30 md:hidden" />
           {/* Header */}
           <div className="px-4 py-2.5 border-b shrink-0">
             <div className="flex items-center justify-between mb-2">
@@ -192,6 +195,7 @@ export function NotificationBell() {
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   );
@@ -292,7 +296,7 @@ function NotificationGroupItem({
       </Link>
 
       {/* Actions */}
-      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-0.5 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         {group.hasUnread && (
           <button
             onClick={(e) => {

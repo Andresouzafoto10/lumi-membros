@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Outlet, Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   ChevronDown,
@@ -128,6 +128,7 @@ function ProfileHeaderButton() {
   const { findProfile } = useProfiles();
   const { user, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const [sheetOpen, setSheetOpen] = useState(false);
   const profile = findProfile(currentUserId);
   const fallbackLetter =
     profile?.displayName?.charAt(0).toUpperCase() ??
@@ -139,72 +140,163 @@ function ProfileHeaderButton() {
     navigate("/login");
   };
 
+  const avatarEl = (
+    <div className="flex items-center gap-2 rounded-full border border-border/80 bg-background px-1.5 py-1 shadow-sm transition-all duration-200 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md">
+      <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-2 ring-primary/15 md:h-9 md:w-9">
+        {profile?.avatarUrl ? (
+          <img
+            src={profile.avatarUrl}
+            alt={profile.displayName}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center bg-primary/10 text-sm font-bold text-primary">
+            {fallbackLetter}
+          </span>
+        )}
+      </div>
+      <ChevronDown className="mr-1 hidden h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground sm:block" />
+    </div>
+  );
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          aria-label="Menu do perfil"
-          className="group cursor-pointer outline-none"
-        >
-          <div className="flex items-center gap-2 rounded-full border border-border/80 bg-background px-1.5 py-1 shadow-sm transition-all duration-200 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md">
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full ring-2 ring-primary/15">
-              {profile?.avatarUrl ? (
-                <img
-                  src={profile.avatarUrl}
-                  alt={profile.displayName}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center bg-primary/10 text-sm font-bold text-primary">
-                  {fallbackLetter}
-                </span>
-              )}
-            </div>
-            <ChevronDown className="mr-1 hidden h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground sm:block" />
-          </div>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {user?.name ?? profile?.displayName ?? "Usuário"}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user?.email ?? ""}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer gap-2"
-          onClick={() => navigate("/meu-perfil")}
-        >
-          <User className="h-4 w-4" />
-          Meu Perfil
-        </DropdownMenuItem>
-        {isAdmin && (
-          <>
+    <>
+      {/* Desktop dropdown */}
+      <div className="hidden md:block">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label="Menu do perfil"
+              className="group cursor-pointer outline-none"
+            >
+              {avatarEl}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {user?.name ?? profile?.displayName ?? "Usuário"}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user?.email ?? ""}
+                </p>
+              </div>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="cursor-pointer gap-2"
-              onClick={() => navigate("/admin")}
+              onClick={() => navigate("/meu-perfil")}
             >
-              <Settings className="h-4 w-4" />
-              Painel Admin
+              <User className="h-4 w-4" />
+              Meu Perfil
             </DropdownMenuItem>
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2"
+                  onClick={() => navigate("/admin")}
+                >
+                  <Settings className="h-4 w-4" />
+                  Painel Admin
+                </DropdownMenuItem>
+              </>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Mobile bottom sheet */}
+      <div className="md:hidden">
+        <button
+          aria-label="Menu do perfil"
+          className="group cursor-pointer outline-none"
+          onClick={() => setSheetOpen(true)}
+        >
+          {avatarEl}
+        </button>
+        {sheetOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              onClick={() => setSheetOpen(false)}
+            />
+            <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t bg-popover animate-slide-up">
+              <div className="mx-auto my-3 h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-primary/15">
+                    {profile?.avatarUrl ? (
+                      <img
+                        src={profile.avatarUrl}
+                        alt={profile.displayName}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center bg-primary/10 text-sm font-bold text-primary">
+                        {fallbackLetter}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {user?.name ?? profile?.displayName ?? "Usuário"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {user?.email ?? ""}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <button
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent active:scale-[0.98]"
+                    onClick={() => {
+                      setSheetOpen(false);
+                      navigate("/meu-perfil");
+                    }}
+                  >
+                    <User className="h-5 w-5 text-muted-foreground" />
+                    Meu Perfil
+                  </button>
+                  {isAdmin && (
+                    <button
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent active:scale-[0.98]"
+                      onClick={() => {
+                        setSheetOpen(false);
+                        navigate("/admin");
+                      }}
+                    >
+                      <Settings className="h-5 w-5 text-muted-foreground" />
+                      Painel Admin
+                    </button>
+                  )}
+                  <div className="my-2 h-px bg-border" />
+                  <button
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 active:scale-[0.98]"
+                    onClick={() => {
+                      setSheetOpen(false);
+                      handleSignOut();
+                    }}
+                  >
+                    <LogOut className="h-5 w-5" />
+                    Sair
+                  </button>
+                </div>
+              </div>
+            </div>
           </>
         )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-          onClick={handleSignOut}
-        >
-          <LogOut className="h-4 w-4" />
-          Sair
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </div>
+    </>
   );
 }
 
@@ -255,15 +347,22 @@ function MobileBottomNav() {
             end={end}
             className={({ isActive }) =>
               cn(
-                "flex min-h-[50px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[16px] px-2 py-1.5 text-[0.68rem] font-semibold tracking-[-0.01em] transition-all duration-200",
+                "relative flex min-h-[50px] flex-1 flex-col items-center justify-center gap-1 rounded-[16px] px-2 py-1.5 text-[0.68rem] font-semibold tracking-[-0.01em] transition-all duration-200 active:scale-95",
                 isActive
                   ? "bg-primary/10 text-primary shadow-sm"
                   : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               )
             }
           >
-            <Icon className="h-4 w-4" />
-            <span>{label}</span>
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <span className="absolute top-1.5 h-1 w-1 rounded-full bg-primary" />
+                )}
+                <Icon className="h-5 w-5" />
+                <span>{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </div>
@@ -343,8 +442,8 @@ export function StudentLayout() {
       <DailyLoginTracker />
       <StudentScriptInjector />
       <div className="flex min-h-screen flex-col bg-background">
-        <nav className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border/70 bg-background/95 px-6 backdrop-blur-sm">
-          <div className="flex h-full items-center justify-between gap-6">
+        <nav className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-border/70 bg-background/95 px-4 backdrop-blur-sm md:h-16 md:px-6">
+          <div className="flex h-full items-center justify-between gap-4 md:gap-6">
             <div className="flex min-w-0 items-center gap-6 lg:gap-10">
               <Link
                 to="/cursos"
@@ -362,16 +461,18 @@ export function StudentLayout() {
               <DesktopNav />
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
               <HeaderSearchInput />
               <NotificationBell />
               <ProfileHeaderButton />
-              <ThemeToggle />
+              <div className="hidden sm:block">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         </nav>
 
-        <main className="flex w-full flex-1 flex-col pb-20 pt-16 md:pb-0">
+        <main className="flex w-full flex-1 flex-col pb-20 pt-14 md:pb-0 md:pt-16">
           <div className="flex-1">
             <Outlet />
           </div>

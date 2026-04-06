@@ -2,57 +2,81 @@ import html2canvas from "html2canvas";
 import { isR2Url, fetchR2AsDataUrl } from "@/lib/r2Upload";
 
 /**
- * Convert cross-origin <img> elements to data URLs so html2canvas
- * can render them. R2 images go through the S3 API (CORS-enabled);
- * other cross-origin images use a regular fetch() fallback.
- * Returns a function that restores the original src attributes.
+ * Fetch a cross-origin URL and return it as a data URL.
+ * Tries the S3 API first for R2 URLs, then falls back to regular fetch.
+ */
+async function fetchAsDataUrl(url: string): Promise<string> {
+  // Try S3 API first for R2 URLs (CORS-enabled endpoint)
+  if (isR2Url(url)) {
+    try {
+      return await fetchR2AsDataUrl(url);
+    } catch {
+      // S3 API failed — fall through to regular fetch
+    }
+  }
+
+  // Fallback: regular fetch on the public URL
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function isCrossOrigin(url: string): boolean {
+  try {
+    return new URL(url, window.location.href).origin !== window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Convert cross-origin images to data URLs so html2canvas can render them.
+ * Handles both <img> elements and elements with background-image CSS
+ * (identified via data-bg-src attribute).
+ * Returns a function that restores original values.
  */
 async function proxyCrossOriginImages(
   container: HTMLElement
 ): Promise<() => void> {
-  const images = container.querySelectorAll("img");
   const restores: Array<() => void> = [];
 
-  await Promise.all(
-    Array.from(images).map(async (img) => {
-      const originalSrc = img.src;
-      if (!originalSrc) return;
+  // 1) Handle <img> elements
+  const images = container.querySelectorAll("img");
+  const imgPromises = Array.from(images).map(async (img) => {
+    const originalSrc = img.src;
+    if (!originalSrc || !isCrossOrigin(originalSrc)) return;
 
-      try {
-        let dataUrl: string;
+    try {
+      const dataUrl = await fetchAsDataUrl(originalSrc);
+      img.src = dataUrl;
+      restores.push(() => { img.src = originalSrc; });
+    } catch {
+      console.warn("[Certificate] Failed to proxy <img>:", originalSrc);
+    }
+  });
 
-        if (isR2Url(originalSrc)) {
-          // Fetch via S3 API endpoint (has CORS configured)
-          dataUrl = await fetchR2AsDataUrl(originalSrc);
-        } else {
-          // Check if cross-origin
-          try {
-            const imgUrl = new URL(originalSrc, window.location.href);
-            if (imgUrl.origin === window.location.origin) return;
-          } catch {
-            return;
-          }
-          // Try regular fetch for non-R2 cross-origin images
-          const res = await fetch(originalSrc);
-          const blob = await res.blob();
-          dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-        }
+  // 2) Handle elements with background-image (via data-bg-src attribute)
+  const bgElements = container.querySelectorAll<HTMLElement>("[data-bg-src]");
+  const bgPromises = Array.from(bgElements).map(async (el) => {
+    const originalUrl = el.dataset.bgSrc;
+    if (!originalUrl || !isCrossOrigin(originalUrl)) return;
 
-        img.src = dataUrl;
-        restores.push(() => {
-          img.src = originalSrc;
-        });
-      } catch {
-        // If all methods fail, leave original — image won't appear in PNG
-        console.warn("[Certificate] Failed to proxy image:", originalSrc);
-      }
-    })
-  );
+    try {
+      const dataUrl = await fetchAsDataUrl(originalUrl);
+      const originalBg = el.style.backgroundImage;
+      el.style.backgroundImage = `url(${dataUrl})`;
+      restores.push(() => { el.style.backgroundImage = originalBg; });
+    } catch {
+      console.warn("[Certificate] Failed to proxy background-image:", originalUrl);
+    }
+  });
+
+  await Promise.all([...imgPromises, ...bgPromises]);
 
   return () => restores.forEach((fn) => fn());
 }

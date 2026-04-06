@@ -10,13 +10,8 @@ import { useRestrictions } from "@/hooks/useRestrictions";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+
 import { EmptyState } from "@/components/courses/EmptyState";
 import { PostCard } from "@/components/community/PostCard";
 import { PostComments } from "@/components/community/PostComments";
@@ -91,7 +86,7 @@ export default function CommunityFeedPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold">
             {tagFilter ? `#${tagFilter}` : "Feed"}
@@ -103,34 +98,35 @@ export default function CommunityFeedPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Filter */}
-          {!tagFilter && (
-            <Select
-              value={filter}
-              onValueChange={(v) => setFilter(v as "recent" | "popular" | "following")}
-            >
-              <SelectTrigger className="w-[150px] h-9 text-xs border-border/50">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Mais recente</SelectItem>
-                <SelectItem value="popular">Mais curtido</SelectItem>
-                <SelectItem value="following">Seguindo</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-
-          <Button
-            onClick={() => setCreateOpen(true)}
-            disabled={restricted}
-            className="gap-2 rounded-full shadow-sm shadow-primary/15 hover:shadow-md hover:shadow-primary/20 active:scale-[0.97] transition-all"
-          >
-            <PenSquare className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Nova publicação</span>
-          </Button>
-        </div>
+        <Button
+          onClick={() => setCreateOpen(true)}
+          disabled={restricted}
+          className="gap-2 rounded-full shadow-sm shadow-primary/15 hover:shadow-md hover:shadow-primary/20 active:scale-[0.97] transition-all shrink-0"
+        >
+          <PenSquare className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Nova publicação</span>
+        </Button>
       </div>
+
+      {/* Filter chips */}
+      {!tagFilter && (
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          {(["recent", "popular", "following"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setFilter(v)}
+              className={cn(
+                "shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
+                filter === v
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              {v === "recent" ? "Recente" : v === "popular" ? "Popular" : "Seguindo"}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Create post input bar */}
       <div

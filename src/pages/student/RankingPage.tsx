@@ -86,7 +86,7 @@ export default function RankingPage() {
             <>
               {/* Podium - Top 3 */}
               {top3.length >= 3 && (
-                <div className="flex items-end justify-center gap-3 mb-8 px-2">
+                <div className="flex items-end justify-center gap-2 mb-6 px-1 sm:gap-3 sm:mb-8 sm:px-2">
                   <PodiumCard user={top3[1]} rank={2} height="h-28" />
                   <PodiumCard user={top3[0]} rank={1} height="h-36" highlight />
                   <PodiumCard user={top3[2]} rank={3} height="h-24" />
@@ -145,7 +145,7 @@ export default function RankingPage() {
 
         {/* Guide sidebar — 1/3 */}
         <div className="lg:col-span-1">
-          <div className="rounded-xl border border-border/50 bg-card/50 p-4 sticky top-20">
+          <div className="rounded-xl border border-border/50 bg-card/50 p-4 lg:sticky lg:top-20">
             <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
               <Star className="h-4 w-4 text-amber-500" />
               Guia de Gamificacao
@@ -182,7 +182,7 @@ function PodiumCard({
     <Link
       to={`/perfil/${user.studentId}`}
       className={cn(
-        "flex flex-col items-center gap-2 flex-1 rounded-2xl p-3 transition-all hover:scale-105",
+        "flex flex-col items-center gap-1.5 flex-1 rounded-2xl p-2 transition-all hover:scale-105 sm:gap-2 sm:p-3",
         highlight
           ? "bg-gradient-to-t from-amber-500/10 to-amber-500/5 border border-amber-500/20"
           : "bg-muted/30 border border-border/30"
@@ -191,7 +191,7 @@ function PodiumCard({
       <div className={cn("flex items-center justify-center rounded-full p-1.5", bgColors[rank - 1])}>
         <Icon className={cn("h-4 w-4", colors[rank - 1])} />
       </div>
-      <div className={cn("rounded-full overflow-hidden border-2 bg-muted", highlight ? "h-16 w-16 border-amber-400/40" : "h-12 w-12 border-border/50")}>
+      <div className={cn("rounded-full overflow-hidden border-2 bg-muted", highlight ? "h-12 w-12 border-amber-400/40 sm:h-16 sm:w-16" : "h-10 w-10 border-border/50 sm:h-12 sm:w-12")}>
         {user.avatarUrl ? (
           <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
         ) : (
@@ -255,7 +255,7 @@ function RankRow({
         <div className="flex items-center gap-2">
           <LevelBadge iconName={user.levelIconName} iconColor={user.levelIconColor} levelName={user.levelName} />
           {nextLevel && (
-            <div className="h-1 rounded-full bg-muted/50 overflow-hidden w-16">
+            <div className="hidden h-1 rounded-full bg-muted/50 overflow-hidden w-16 sm:block">
               <div
                 className="h-full rounded-full bg-primary/60"
                 style={{ width: `${Math.min(100, (user.totalPoints / nextLevel.pointsRequired) * 100)}%` }}

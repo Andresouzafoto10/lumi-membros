@@ -79,7 +79,7 @@ export function LessonPlayer({ lesson }: LessonPlayerProps) {
       <iframe
         src={embedUrl}
         title={lesson.title}
-        className="h-full w-full rounded-xl border"
+        className="h-full w-full rounded-none border-0 sm:rounded-xl sm:border"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
       />
