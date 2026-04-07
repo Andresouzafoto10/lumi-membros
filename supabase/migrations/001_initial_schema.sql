@@ -967,7 +967,7 @@ create table if not exists public.earned_certificates (
   id             uuid primary key default gen_random_uuid(),
   student_id     uuid not null references public.profiles(id) on delete cascade,
   course_id      uuid not null references public.courses(id) on delete cascade,
-  template_id    uuid not null references public.certificate_templates(id),
+  template_id    uuid not null references public.certificate_templates(id) on delete cascade,
   earned_at      timestamptz not null default now(),
   downloaded_at  timestamptz,
   unique (student_id, course_id)
@@ -1523,6 +1523,53 @@ alter table public.course_lessons
 insert into public.points_config (action_type, action_label, points, max_times, is_system, category, description, icon, enabled)
 values ('lesson_comment', 'Comentário em aula', 3, 5, true, 'community', 'Ganhe pontos comentando nas aulas', '💬', true)
 on conflict (action_type) do nothing;
+
+-- =============================================================================
+-- 36. INVITE LINKS
+-- =============================================================================
+
+create table if not exists public.invite_links (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text unique not null,
+  class_id uuid references public.classes(id) on delete set null,
+  created_by uuid references public.profiles(id) on delete set null,
+  max_uses integer default null,
+  use_count integer not null default 0,
+  expires_at timestamptz default null,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.invite_link_uses (
+  id uuid primary key default gen_random_uuid(),
+  invite_link_id uuid references public.invite_links(id) on delete cascade,
+  student_id uuid references public.profiles(id) on delete cascade,
+  used_at timestamptz not null default now()
+);
+
+create index if not exists idx_invite_links_slug on public.invite_links(slug);
+
+alter table public.invite_links enable row level security;
+alter table public.invite_link_uses enable row level security;
+
+create policy "admins_manage_invite_links" on public.invite_links
+  for all using (public.is_admin_user());
+
+create policy "public_read_active_invite_links" on public.invite_links
+  for select using (is_active = true);
+
+create policy "admins_read_invite_uses" on public.invite_link_uses
+  for all using (public.is_admin_user());
+
+create trigger handle_updated_at_invite_links
+  before update on public.invite_links
+  for each row execute function public.handle_updated_at();
+
+-- Add signup source tracking to profiles
+alter table public.profiles add column if not exists signup_source text default 'direct';
+alter table public.profiles add column if not exists invite_link_id uuid references public.invite_links(id) on delete set null;
 
 -- =============================================================================
 -- FIM DO SCHEMA

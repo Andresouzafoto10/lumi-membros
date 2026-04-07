@@ -26,6 +26,7 @@ import {
   Check,
   GraduationCap,
   CalendarClock,
+  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -42,6 +43,7 @@ import { useRestrictions } from "@/hooks/useRestrictions";
 import { useCertificates } from "@/hooks/useCertificates";
 import { useStudentProgress } from "@/hooks/useLessonProgress";
 import { useGamification } from "@/hooks/useGamification";
+import { useInviteLinks } from "@/hooks/useInviteLinks";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import type { StudentStatus, StudentRole } from "@/types/student";
@@ -235,6 +237,7 @@ export default function AdminStudentProfilePage() {
   const { getPlayerData, getPlayerMissions, missions, awardPoints, grantMission, revokeMission } =
     useGamification();
   const { user: adminUser, resetPassword } = useAuth();
+  const { inviteLinks } = useInviteLinks();
 
   // -- Derived data --
   const student = useMemo(
@@ -661,6 +664,28 @@ export default function AdminStudentProfilePage() {
               <div className="flex items-start gap-2">
                 <ShieldCheck className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                 <span>{ROLE_LABELS[student.role] ?? student.role}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Link2 className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                <span>
+                  Origem:{" "}
+                  {student.signupSource === "invite_link" ? (
+                    <Badge variant="default" className="text-[10px] ml-1">
+                      Link de convite
+                      {student.inviteLinkId &&
+                        (() => {
+                          const il = inviteLinks.find((l) => l.id === student.inviteLinkId);
+                          return il ? ` — ${il.name}` : "";
+                        })()}
+                    </Badge>
+                  ) : student.signupSource === "webhook" ? (
+                    <Badge variant="outline" className="text-[10px] ml-1">Webhook</Badge>
+                  ) : student.signupSource === "direct" ? (
+                    <Badge variant="secondary" className="text-[10px] ml-1">Cadastro direto</Badge>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </span>
               </div>
             </div>
 

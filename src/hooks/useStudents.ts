@@ -27,7 +27,7 @@ async function fetchStudents(): Promise<{ students: Student[]; enrollments: Enro
     enrolledAt: e.enrolled_at,
   }));
 
-  const students: Student[] = (studentsRes.data ?? []).map((p) => ({
+  const students: Student[] = (studentsRes.data ?? []).map((p: any) => ({
     id: p.id,
     name: p.name,
     email: p.email,
@@ -35,6 +35,8 @@ async function fetchStudents(): Promise<{ students: Student[]; enrollments: Enro
     status: p.status as StudentStatus,
     createdAt: p.created_at,
     enrollments: enrollments.filter((e) => e.studentId === p.id),
+    signupSource: p.signup_source ?? null,
+    inviteLinkId: p.invite_link_id ?? null,
   }));
 
   return { students, enrollments };

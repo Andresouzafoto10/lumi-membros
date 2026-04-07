@@ -13,6 +13,7 @@ import {
   Shield,
   Trophy,
   Mail,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -36,6 +37,7 @@ const navLinks: {
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/cursos", label: "Cursos", icon: GraduationCap, exact: false, permission: "courses" },
   { to: "/admin/turmas", label: "Turmas", icon: UsersRound, exact: false, permission: "classes" },
+  { to: "/admin/convites", label: "Convites", icon: Link2, exact: false, permission: "classes" },
   { to: "/admin/alunos", label: "Alunos", icon: Users, exact: false, permission: "students" },
   { to: "/admin/comunidade", label: "Comunidade", icon: MessageSquare, exact: false, permission: "community" },
   { to: "/admin/comentarios", label: "Moderação", icon: Shield, exact: false, permission: "moderation" },

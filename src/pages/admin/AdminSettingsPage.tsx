@@ -261,24 +261,33 @@ export default function AdminSettingsPage() {
     }
   }
 
-  function handleSaveTemplate(
+  async function handleSaveTemplate(
     data: Omit<CertificateTemplate, "id" | "createdAt" | "updatedAt">
   ) {
-    if (editingTemplate) {
-      updateTemplate(editingTemplate.id, data);
-      toast.success("Modelo atualizado.");
-    } else {
-      createTemplate(data);
-      toast.success("Modelo criado.");
+    try {
+      if (editingTemplate) {
+        await updateTemplate(editingTemplate.id, data);
+        toast.success("Modelo atualizado.");
+      } else {
+        await createTemplate(data);
+        toast.success("Modelo criado.");
+      }
+      setEditingTemplate(null);
+    } catch {
+      toast.error("Erro ao salvar modelo.");
     }
-    setEditingTemplate(null);
   }
 
-  function handleDeleteTemplate() {
+  async function handleDeleteTemplate() {
     if (!deleteTemplateId) return;
-    deleteTemplate(deleteTemplateId);
-    toast.success("Modelo removido.");
-    setDeleteTemplateId(null);
+    try {
+      await deleteTemplate(deleteTemplateId);
+      toast.success("Modelo removido.");
+    } catch {
+      toast.error("Erro ao remover modelo.");
+    } finally {
+      setDeleteTemplateId(null);
+    }
   }
 
   // ---------------------------------------------------------------------------

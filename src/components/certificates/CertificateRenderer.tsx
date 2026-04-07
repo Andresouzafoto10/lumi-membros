@@ -98,16 +98,19 @@ export function CertificateRenderer({
       }}
     >
       {hasBackground ? (
-        <div
-          data-bg-src={template.backgroundUrl}
+        <img
+          key={template.backgroundUrl}
+          src={template.backgroundUrl}
+          alt=""
           style={{
             position: "absolute",
             inset: 0,
-            backgroundImage: `url(${template.backgroundUrl})`,
-            backgroundSize: bgFit === "fill" ? "100% 100%" : bgFit,
-            backgroundPosition: bgPosition,
-            backgroundRepeat: "no-repeat",
+            width: "100%",
+            height: "100%",
+            objectFit: bgFit === "fill" ? "fill" : bgFit,
+            objectPosition: bgPosition,
             borderRadius: 0,
+            display: "block",
           }}
         />
       ) : (

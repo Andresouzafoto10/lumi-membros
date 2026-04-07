@@ -150,14 +150,21 @@ export function useCertificates() {
 
   const deleteTemplate = useCallback(
     async (id: string) => {
+      // Delete earned certificates referencing this template (FK constraint, NOT NULL)
+      await supabase
+        .from("earned_certificates")
+        .delete()
+        .eq("template_id", id);
+
       const { error } = await supabase
         .from("certificate_templates")
         .delete()
         .eq("id", id);
       if (error) throw error;
       invalidateTemplates();
+      invalidateEarned();
     },
-    [invalidateTemplates]
+    [invalidateTemplates, invalidateEarned]
   );
 
   const getTemplates = useCallback(() => templates, [templates]);

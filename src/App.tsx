@@ -15,6 +15,7 @@ import { applyFavicon, applyPwaManifest } from "@/lib/generatePwaManifest";
 // ---------------------------------------------------------------------------
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
+import InviteRegisterPage from "@/pages/auth/InviteRegisterPage";
 import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 import LandingPage from "@/pages/LandingPage";
 
@@ -94,6 +95,9 @@ const AdminModerationPage = lazy(
 const AdminEmailsPage = lazy(
   () => import("@/pages/admin/AdminEmailsPage")
 );
+const InviteLinksPage = lazy(
+  () => import("@/pages/admin/InviteLinksPage")
+);
 
 // ---------------------------------------------------------------------------
 // Loading fallback
@@ -152,6 +156,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cadastro" element={<RegisterPage />} />
         <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
+        <Route path="/convite/:slug" element={<InviteRegisterPage />} />
 
         {/* Student routes — require authentication */}
         <Route
@@ -212,6 +217,7 @@ export default function App() {
             path="/admin/turmas/:classId/edit"
             element={<AdminClassEditPage />}
           />
+          <Route path="/admin/convites" element={<InviteLinksPage />} />
           <Route path="/admin/alunos" element={<AdminStudentsPage />} />
           <Route
             path="/admin/alunos/:studentId"

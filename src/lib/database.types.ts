@@ -37,6 +37,8 @@ export interface Database {
           social_twitter: string | null;
           social_linkedin: string | null;
           social_website: string | null;
+          signup_source: string | null;
+          invite_link_id: string | null;
           followers: string[];
           following: string[];
           created_at: string;
@@ -63,6 +65,8 @@ export interface Database {
           social_twitter?: string | null;
           social_linkedin?: string | null;
           social_website?: string | null;
+          signup_source?: string | null;
+          invite_link_id?: string | null;
           followers?: string[];
           following?: string[];
           created_at?: string;
@@ -89,6 +93,8 @@ export interface Database {
           social_twitter?: string | null;
           social_linkedin?: string | null;
           social_website?: string | null;
+          signup_source?: string | null;
+          invite_link_id?: string | null;
           followers?: string[];
           following?: string[];
           updated_at?: string;
@@ -880,6 +886,7 @@ export interface Database {
           id: string;
           name: string;
           background_url: string;
+          background_config: Json; // { fit: "cover"|"contain"|"fill", position: string }
           blocks: Json; // CertificateBlock[]
           created_at: string;
           updated_at: string;
@@ -888,6 +895,7 @@ export interface Database {
           id?: string;
           name: string;
           background_url?: string;
+          background_config?: Json;
           blocks?: Json;
           created_at?: string;
           updated_at?: string;
@@ -896,6 +904,7 @@ export interface Database {
           id?: string;
           name?: string;
           background_url?: string;
+          background_config?: Json;
           blocks?: Json;
           updated_at?: string;
         };
@@ -1120,6 +1129,74 @@ export interface Database {
         };
       };
     };
+
+      // -----------------------------------------------------------------------
+      // invite_links
+      // -----------------------------------------------------------------------
+      invite_links: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          class_id: string | null;
+          created_by: string | null;
+          max_uses: number | null;
+          use_count: number;
+          expires_at: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          class_id?: string | null;
+          created_by?: string | null;
+          max_uses?: number | null;
+          use_count?: number;
+          expires_at?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          class_id?: string | null;
+          created_by?: string | null;
+          max_uses?: number | null;
+          use_count?: number;
+          expires_at?: string | null;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+      };
+
+      // -----------------------------------------------------------------------
+      // invite_link_uses
+      // -----------------------------------------------------------------------
+      invite_link_uses: {
+        Row: {
+          id: string;
+          invite_link_id: string;
+          student_id: string;
+          used_at: string;
+        };
+        Insert: {
+          id?: string;
+          invite_link_id: string;
+          student_id: string;
+          used_at?: string;
+        };
+        Update: {
+          id?: string;
+          invite_link_id?: string;
+          student_id?: string;
+          used_at?: string;
+        };
+      };
 
     Views: {
       [_ in never]: never;

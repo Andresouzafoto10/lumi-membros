@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Award } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCertificates } from "@/hooks/useCertificates";
+import { supabase } from "@/lib/supabase";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { EmptyState } from "@/components/courses/EmptyState";
@@ -13,10 +15,28 @@ export default function MyCertificatesPage() {
   const { currentUserId } = useCurrentUser();
   const { getEarnedCertificates } = useCertificates();
 
-  const earnedCerts = useMemo(
-    () => getEarnedCertificates(currentUserId),
-    [getEarnedCertificates, currentUserId]
-  );
+  const { data: courseCertConfigs } = useQuery({
+    queryKey: ["courses-cert-config"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("courses")
+        .select("id, certificate_config");
+      return data ?? [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const earnedCerts = useMemo(() => {
+    const all = getEarnedCertificates(currentUserId);
+    if (!courseCertConfigs) return all;
+    return all.filter((cert) => {
+      const course = courseCertConfigs.find((c) => c.id === cert.courseId);
+      if (!course?.certificate_config) return false;
+      const config = course.certificate_config as Record<string, unknown>;
+      const templateId = config.templateId as string | null | undefined;
+      return !!templateId && templateId !== "" && templateId !== "none";
+    });
+  }, [getEarnedCertificates, currentUserId, courseCertConfigs]);
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-12 pt-6 sm:px-6">

@@ -58,6 +58,8 @@ export type Student = {
   status: StudentStatus;
   createdAt: string;
   enrollments: Enrollment[];
+  signupSource?: string | null;
+  inviteLinkId?: string | null;
 };
 
 export type AccessProfile = {
@@ -399,4 +401,24 @@ export type QuizAttempt = {
   score: number;
   passed: boolean;
   attemptedAt: string;
+};
+
+// ---------------------------------------------------------------------------
+// Invite Links
+// ---------------------------------------------------------------------------
+
+export type InviteLink = {
+  id: string;
+  name: string;
+  slug: string;
+  class_id: string | null;
+  created_by: string | null;
+  max_uses: number | null;
+  use_count: number;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  class_name?: string;
 };
