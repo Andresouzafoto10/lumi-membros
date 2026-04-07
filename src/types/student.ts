@@ -100,6 +100,7 @@ export type PlatformSettings = {
   pwaIconUrl?: string | null;
   pwaThemeColor?: string | null;
   pwaBackgroundColor?: string | null;
+  loginCoverUrl?: string | null;
 };
 
 // ---------------------------------------------------------------------------

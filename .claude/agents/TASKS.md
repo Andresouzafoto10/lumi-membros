@@ -72,6 +72,7 @@
 | ECO-006 | CEO v2.0: Sistema de auto-routing, orquestra��ão automática de times, detecção proativa de bugs | CEO | 2026-03-29 |
 | ECO-001 | Aprovação e evolução do ecossistema de agentes (skills mapeadas, times criados, CLAUDE.md atualizado) | DOCS | 2026-03-29 |
 | ECO-000 | Criação do ecossistema de agentes Lumi (7 agentes + TASKS.md) | DOCS | 2026-03-29 |
+| FIX-007 | Fix: Configurações de aparência não persistiam — race condition em 3 updates concorrentes não-awaited, corrigido para single atomic update com async/await e error handling | QA+DEV | 2026-04-06 |
 
 ---
 
@@ -83,7 +84,7 @@
 
 ## 🐛 BUGS ABERTOS
 
-*Nenhum bug reportado ainda*
+*Nenhum bug aberto*
 
 ---
 

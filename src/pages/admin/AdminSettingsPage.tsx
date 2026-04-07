@@ -124,7 +124,7 @@ function ThemePreview({ colors, label }: { colors: ThemeColors; label: string })
 // ---------------------------------------------------------------------------
 export default function AdminSettingsPage() {
   const navigate = useNavigate();
-  const { settings, updateSettings, updateThemeColors } = usePlatformSettings();
+  const { settings, updateSettings } = usePlatformSettings();
 
   const [name, setName] = useState(settings.name);
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl);
@@ -138,6 +138,9 @@ export default function AdminSettingsPage() {
   // Favicon
   const [faviconUrl, setFaviconUrl] = useState(settings.faviconUrl ?? "");
   const [faviconMode, setFaviconMode] = useState<"url" | "upload">(settings.faviconUrl?.startsWith("http") && !settings.faviconUrl?.includes("r2") ? "url" : settings.faviconUrl ? "upload" : "url");
+
+  // Login cover
+  const [loginCoverUrl, setLoginCoverUrl] = useState(settings.loginCoverUrl ?? "");
 
   // PWA
   const [pwaEnabled, setPwaEnabled] = useState(settings.pwaEnabled ?? false);
@@ -200,6 +203,7 @@ export default function AdminSettingsPage() {
     setRatingsEnabled(settings.ratingsEnabled);
     setFaviconUrl(settings.faviconUrl ?? "");
     setFaviconMode(settings.faviconUrl?.startsWith("http") && !settings.faviconUrl?.includes("r2") ? "url" : settings.faviconUrl ? "upload" : "url");
+    setLoginCoverUrl(settings.loginCoverUrl ?? "");
     setPwaEnabled(settings.pwaEnabled ?? false);
     setPwaName(settings.pwaName ?? "");
     setPwaShortName(settings.pwaShortName ?? "");
@@ -210,41 +214,51 @@ export default function AdminSettingsPage() {
   }, [settings]);
 
   // ---------------------------------------------------------------------------
-  function handleSaveAppearance() {
-    updateSettings({
-      name,
-      logoUrl,
-      logoUploadUrl: logoUploadUrl || null,
-      defaultTheme,
-      faviconUrl: faviconUrl || null,
-      pwaEnabled,
-      pwaName: pwaName || null,
-      pwaShortName: pwaShortName || null,
-      pwaIconUrl: pwaIconUrl || null,
-      pwaThemeColor: pwaThemeColor || null,
-      pwaBackgroundColor: pwaBackgroundColor || null,
-    });
-    updateThemeColors("dark", darkColors);
-    updateThemeColors("light", lightColors);
-    applyThemeToCss(darkColors, lightColors);
-    applyFavicon(faviconUrl || null);
-    applyPwaManifest({
-      ...settings,
-      pwaEnabled,
-      pwaName: pwaName || null,
-      pwaShortName: pwaShortName || null,
-      pwaIconUrl: pwaIconUrl || null,
-      pwaThemeColor: pwaThemeColor || null,
-      pwaBackgroundColor: pwaBackgroundColor || null,
-    });
-    toast.success("Aparência salva e aplicada.");
+  async function handleSaveAppearance() {
+    try {
+      await updateSettings({
+        name,
+        logoUrl,
+        logoUploadUrl: logoUploadUrl || null,
+        defaultTheme,
+        faviconUrl: faviconUrl || null,
+        loginCoverUrl: loginCoverUrl || null,
+        pwaEnabled,
+        pwaName: pwaName || null,
+        pwaShortName: pwaShortName || null,
+        pwaIconUrl: pwaIconUrl || null,
+        pwaThemeColor: pwaThemeColor || null,
+        pwaBackgroundColor: pwaBackgroundColor || null,
+        theme: { dark: darkColors, light: lightColors },
+      });
+      applyThemeToCss(darkColors, lightColors);
+      applyFavicon(faviconUrl || null);
+      applyPwaManifest({
+        ...settings,
+        pwaEnabled,
+        pwaName: pwaName || null,
+        pwaShortName: pwaShortName || null,
+        pwaIconUrl: pwaIconUrl || null,
+        pwaThemeColor: pwaThemeColor || null,
+        pwaBackgroundColor: pwaBackgroundColor || null,
+      });
+      toast.success("Aparência salva e aplicada.");
+    } catch (err) {
+      console.error("[settings] Falha ao salvar aparência:", err);
+      toast.error("Erro ao salvar aparência. Tente novamente.");
+    }
   }
 
-  function handleSaveRatings() {
-    updateSettings({ ratingsEnabled });
-    toast.success(
-      ratingsEnabled ? "Avaliações habilitadas." : "Avaliações desabilitadas."
-    );
+  async function handleSaveRatings() {
+    try {
+      await updateSettings({ ratingsEnabled });
+      toast.success(
+        ratingsEnabled ? "Avaliações habilitadas." : "Avaliações desabilitadas."
+      );
+    } catch (err) {
+      console.error("[settings] Falha ao salvar avaliações:", err);
+      toast.error("Erro ao salvar avaliações.");
+    }
   }
 
   function handleSaveTemplate(
@@ -456,6 +470,34 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-muted-foreground">
                   Recomendado: 32x32 ou 64x64 pixels. Formatos: .ico, .png, .svg
                 </p>
+              </div>
+
+              <Separator />
+
+              {/* Login Cover */}
+              <div className="space-y-2">
+                <Label>Capa da tela de login</Label>
+                <p className="text-xs text-muted-foreground">
+                  Imagem exibida ao lado do formulario de login. Recomendado: 1920x1080 ou superior.
+                </p>
+                <ImageUpload
+                  value={loginCoverUrl}
+                  onChange={setLoginCoverUrl}
+                  bucket="platform"
+                  aspect="banner"
+                  imagePreset="banner"
+                  placeholder="Envie a capa de login (PNG, JPG ou WebP)"
+                  maxSizeMB={10}
+                />
+                {loginCoverUrl && (
+                  <div className="rounded-lg border border-border/50 overflow-hidden">
+                    <img
+                      src={loginCoverUrl}
+                      alt="Preview da capa de login"
+                      className="w-full h-40 object-cover"
+                    />
+                  </div>
+                )}
               </div>
 
               <Separator />

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,10 @@ import { cn } from "@/lib/utils";
 export default function RegisterPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const { settings } = usePlatformSettings();
+
+  const logoSrc = settings.logoUploadUrl || settings.logoUrl || null;
+  const coverUrl = settings.loginCoverUrl || null;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -60,23 +65,59 @@ export default function RegisterPage() {
       return;
     }
 
-    // Supabase may require email confirmation depending on project settings.
-    // Show success message; if auto-confirm is on, redirect to /cursos.
     setDone(true);
     setTimeout(() => navigate("/cursos", { replace: true }), 2500);
   }
 
+  const logo = (
+    <div className="mb-6 text-center">
+      {logoSrc ? (
+        <img src={logoSrc} alt={settings.name} className="mx-auto h-12 object-contain" />
+      ) : (
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+          <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+
+  const footer = (
+    <div className="text-center text-xs text-muted-foreground/60 space-y-0.5">
+      <p>&copy; {new Date().getFullYear()} {settings.name}. Todos os direitos reservados.</p>
+    </div>
+  );
+
+  const coverPanel = coverUrl ? (
+    <div className="hidden lg:block lg:w-[60%] xl:w-[65%] relative overflow-hidden">
+      <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/30" />
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20" />
+    </div>
+  ) : (
+    <div
+      className="hidden lg:block lg:w-[60%] xl:w-[65%] relative overflow-hidden"
+      style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%)" }}
+    >
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-primary/8 blur-[120px]" />
+    </div>
+  );
+
   if (done) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center space-y-3 animate-fade-in">
-          <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
-          <h2 className="text-xl font-semibold">Cadastro realizado!</h2>
-          <p className="text-sm text-muted-foreground">
-            Verifique seu e-mail para confirmar a conta.
-            <br />
-            Redirecionando…
-          </p>
+      <div className="min-h-screen bg-background flex flex-col lg:flex-row">
+        {coverPanel}
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="text-center space-y-3 animate-fade-in">
+            <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
+            <h2 className="text-xl font-semibold">Cadastro realizado!</h2>
+            <p className="text-sm text-muted-foreground">
+              Verifique seu e-mail para confirmar a conta.
+              <br />
+              Redirecionando…
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -88,201 +129,187 @@ export default function RegisterPage() {
         <title>Criar conta</title>
       </Helmet>
 
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        {/* Glow */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-0 overflow-hidden"
-        >
-          <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute -bottom-40 -right-40 h-[400px] w-[400px] rounded-full bg-primary/5 blur-3xl" />
-        </div>
+      <div className="min-h-screen bg-background flex flex-col lg:flex-row">
+        {/* ── COVER IMAGE (left side, desktop only) ── */}
+        {coverPanel}
 
-        <div className="relative w-full max-w-md">
-          {/* Header */}
-          <div className="mb-8 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20 mb-4">
-              <svg
-                viewBox="0 0 24 24"
-                className="h-7 w-7 text-primary"
-                fill="currentColor"
-              >
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Crie sua conta</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Acesso gratuito à plataforma
-            </p>
-          </div>
+        {/* ── FORM SIDE (right side) ── */}
+        <div className="flex flex-1 flex-col min-h-screen lg:min-h-0">
+          {/* Form content — centered */}
+          <div className="flex flex-1 items-center justify-center p-6 sm:p-8">
+            <div className="w-full max-w-sm">
+              {logo}
 
-          {/* Card */}
-          <div className="rounded-2xl border border-border/60 bg-card p-8 shadow-xl shadow-black/10">
-            <form onSubmit={handleSubmit} className="space-y-4">
               {/* Error */}
               {error && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   {error}
                 </div>
               )}
 
-              {/* Name */}
-              <div className="space-y-1.5">
-                <Label htmlFor="name">Nome completo</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Seu nome"
-                  autoComplete="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
-                  required
-                  className="h-11"
-                />
-              </div>
-
-              {/* Email */}
-              <div className="space-y-1.5">
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                  required
-                  className="h-11"
-                />
-              </div>
-
-              {/* CPF */}
-              <div className="space-y-1.5">
-                <Label htmlFor="cpf">CPF</Label>
-                <Input
-                  id="cpf"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="000.000.000-00"
-                  autoComplete="off"
-                  maxLength={14}
-                  value={formatCpf(cpf)}
-                  onChange={(e) => setCpf(e.target.value)}
-                  disabled={loading}
-                  required
-                  className={cn(
-                    "h-11",
-                    cpf && !cpfValid && "border-destructive/50"
-                  )}
-                />
-                {cpf && !cpfValid && (
-                  <p className="text-xs text-destructive">
-                    CPF é obrigatório
-                  </p>
-                )}
-              </div>
-
-              {/* Password */}
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Senha</Label>
-                <div className="relative">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Name */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="name">Nome completo</Label>
                   <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Mínimo 6 caracteres"
-                    autoComplete="new-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    id="name"
+                    type="text"
+                    placeholder="Seu nome"
+                    autoComplete="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={loading}
+                    required
+                    className="h-11 bg-muted/30 border-border/50"
+                  />
+                </div>
+
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    required
+                    className="h-11 bg-muted/30 border-border/50"
+                  />
+                </div>
+
+                {/* CPF */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="cpf">CPF</Label>
+                  <Input
+                    id="cpf"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    autoComplete="off"
+                    maxLength={14}
+                    value={formatCpf(cpf)}
+                    onChange={(e) => setCpf(e.target.value)}
                     disabled={loading}
                     required
                     className={cn(
-                      "h-11 pr-10",
-                      password && !passwordStrong && "border-destructive/50"
+                      "h-11 bg-muted/30 border-border/50",
+                      cpf && !cpfValid && "border-destructive/50"
                     )}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                {password && !passwordStrong && (
-                  <p className="text-xs text-destructive">
-                    Mínimo 6 caracteres
-                  </p>
-                )}
-              </div>
-
-              {/* Confirm Password */}
-              <div className="space-y-1.5">
-                <Label htmlFor="confirmPassword">Confirmar senha</Label>
-                <Input
-                  id="confirmPassword"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Repita a senha"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={loading}
-                  required
-                  className={cn(
-                    "h-11",
-                    confirmPassword && !passwordsMatch && "border-destructive/50"
+                  {cpf && !cpfValid && (
+                    <p className="text-xs text-destructive">CPF é obrigatório</p>
                   )}
-                />
-                {confirmPassword && !passwordsMatch && (
-                  <p className="text-xs text-destructive">
-                    As senhas não coincidem
-                  </p>
-                )}
-              </div>
+                </div>
 
-              {/* Submit */}
-              <Button
-                type="submit"
-                className="w-full h-11 font-semibold mt-2 shadow-sm shadow-primary/20 active:scale-[0.98] transition-transform"
-                disabled={
-                  loading ||
-                  !name ||
-                  !email ||
-                  !cpfValid ||
-                  !password ||
-                  !confirmPassword ||
-                  !passwordsMatch ||
-                  !passwordStrong
-                }
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Criando conta…
-                  </>
-                ) : (
-                  "Criar conta grátis"
-                )}
-              </Button>
-            </form>
+                {/* Password */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="password">Senha</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Mínimo 6 caracteres"
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={loading}
+                      required
+                      className={cn(
+                        "h-11 pr-10 bg-muted/30 border-border/50",
+                        password && !passwordStrong && "border-destructive/50"
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {password && !passwordStrong && (
+                    <p className="text-xs text-destructive">Mínimo 6 caracteres</p>
+                  )}
+                </div>
 
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              Já tem uma conta?{" "}
-              <Link
-                to="/login"
-                className="text-primary font-medium hover:underline underline-offset-4"
-              >
-                Entrar
-              </Link>
-            </p>
+                {/* Confirm Password */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPassword">Confirmar senha</Label>
+                  <Input
+                    id="confirmPassword"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Repita a senha"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading}
+                    required
+                    className={cn(
+                      "h-11 bg-muted/30 border-border/50",
+                      confirmPassword && !passwordsMatch && "border-destructive/50"
+                    )}
+                  />
+                  {confirmPassword && !passwordsMatch && (
+                    <p className="text-xs text-destructive">As senhas não coincidem</p>
+                  )}
+                </div>
+
+                {/* Submit */}
+                <Button
+                  type="submit"
+                  className="w-full h-11 rounded-full font-semibold mt-2 shadow-sm shadow-primary/20 active:scale-[0.98] transition-transform"
+                  disabled={
+                    loading ||
+                    !name ||
+                    !email ||
+                    !cpfValid ||
+                    !password ||
+                    !confirmPassword ||
+                    !passwordsMatch ||
+                    !passwordStrong
+                  }
+                >
+                  {loading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Criando conta…</>
+                  ) : (
+                    "Criar conta grátis"
+                  )}
+                </Button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                Já tem uma conta?{" "}
+                <Link to="/login" className="text-primary font-medium hover:underline underline-offset-4">
+                  Entrar
+                </Link>
+              </p>
+            </div>
+          </div>
+
+          {/* Footer — pinned to bottom */}
+          <div className="pb-6 px-6">
+            {footer}
           </div>
         </div>
+
+        {/* ── MOBILE HERO IMAGE (below form) ── */}
+        {coverUrl ? (
+          <div className="lg:hidden relative min-h-[30vh]">
+            <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
+            <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-black/60" />
+          </div>
+        ) : (
+          <div
+            className="lg:hidden relative min-h-[30vh]"
+            style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%)" }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-background to-transparent h-16" />
+          </div>
+        )}
       </div>
     </>
   );

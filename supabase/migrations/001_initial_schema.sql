@@ -1132,6 +1132,13 @@ alter table public.platform_settings
   add column if not exists pwa_background_color text;
 
 -- =============================================================================
+-- 25c. ADD login_cover_url TO PLATFORM_SETTINGS
+-- =============================================================================
+
+alter table public.platform_settings
+  add column if not exists login_cover_url text;
+
+-- =============================================================================
 -- 26. ADD cpf TO PROFILES (para DRM Social)
 -- =============================================================================
 

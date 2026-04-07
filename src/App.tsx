@@ -16,6 +16,7 @@ import { applyFavicon, applyPwaManifest } from "@/lib/generatePwaManifest";
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
+import LandingPage from "@/pages/LandingPage";
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded pages (code-splitting)
@@ -114,14 +115,18 @@ function PageLoader() {
 // ---------------------------------------------------------------------------
 
 function ThemeApplicator() {
-  const { settings } = usePlatformSettings();
+  const { settings, loading } = usePlatformSettings();
   const platformName = settings.name || "Lumi Membros";
 
   useEffect(() => {
+    // Skip applying defaults while loading — the cached theme (from
+    // localStorage) is already active and correct. Only apply once the
+    // real settings arrive from Supabase.
+    if (loading) return;
     applyThemeToCss(settings.theme.dark, settings.theme.light);
     applyFavicon(settings.faviconUrl);
     applyPwaManifest(settings);
-  }, [settings]);
+  }, [settings, loading]);
 
   return (
     <Helmet
@@ -140,8 +145,8 @@ export default function App() {
     <Suspense fallback={<PageLoader />}>
       <ThemeApplicator />
       <Routes>
-        {/* Root redirect */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Landing / sales page (public) */}
+        <Route path="/" element={<LandingPage />} />
 
         {/* Public auth routes */}
         <Route path="/login" element={<LoginPage />} />

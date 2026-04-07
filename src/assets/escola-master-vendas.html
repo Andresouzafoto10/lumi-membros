@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Escola Master para Fotógrafos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;700&family=Poppins:wght@400;500;600;700&family=Archivo:wght@400;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --orange: #ff6717;
+    --orange-dark: #fe5800;
+    --bg-black: #000000;
+    --bg-dark: #0f0f0f;
+    --bg-darkest: #010403;
+    --bg-card: #0E0E12;
+    --bg-section: #191919;
+    --text-white: #ffffff;
+    --text-light: #d1d1d2;
+    --text-muted: #9c9c9c;
+    --text-body: #a3a3a3;
+    --border: #262D38;
+    --green: #4bc878;
+    --blue: #3897F0;
+  }
+
+  body {
+    background: var(--bg-black);
+    color: var(--text-body);
+    font-family: 'Inter', sans-serif;
+    font-weight: 200;
+    font-size: 18px;
+    line-height: 1.6;
+  }
+
+  img { max-width: 100%; height: auto; display: block; }
+  a { text-decoration: none; }
+
+  /* ─── TOP BAR: ACESSAR ─── */
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #111;
+    border-bottom: 1px solid #222;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 10px 20px;
+  }
+  .btn-acessar {
+    display: inline-block;
+    background: var(--orange);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 10px 28px;
+    border-radius: 50px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+    white-space: nowrap;
+  }
+  .btn-acessar:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  @media (max-width: 480px) {
+    .top-bar { justify-content: center; }
+    .btn-acessar { width: 100%; text-align: center; padding: 12px; border-radius: 8px; }
+  }
+
+  /* ─── CONTAINER ─── */
+  .container {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* ─── BUTTONS ─── */
+  .btn-primary {
+    display: inline-block;
+    background: #ff8600;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    padding: 16px 32px;
+    border-radius: 50px;
+    border: 2px solid #ffaa44;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+    width: 100%;
+    max-width: 480px;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-2px); }
+
+  .btn-cta {
+    display: inline-block;
+    background: #fe5800;
+    color: #fff;
+    font-family: 'Archivo', sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    padding: 16px 32px;
+    border-radius: 5px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+    width: 100%;
+    max-width: 480px;
+  }
+  .btn-cta:hover { opacity: 0.9; transform: translateY(-2px); }
+
+  .btn-blue {
+    display: inline-block;
+    background: #0096FF;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 16px 32px;
+    border-radius: 8px;
+    border: 1.5px solid #acdcff;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+    width: 100%;
+    max-width: 320px;
+  }
+  .btn-blue:hover { opacity: 0.9; }
+
+  .center { display: flex; justify-content: center; }
+
+  /* ─── RESPONSIVE VIDEO ─── */
+  .video-wrapper {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid #333;
+  }
+  .video-wrapper iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: none;
+  }
+
+  /* ─── SECTION BASE ─── */
+  section { padding: 80px 0; }
+
+  /* ─────────────────────────────────────────────
+     HERO SECTION
+  ───────────────────────────────────────────── */
+  .hero {
+    background: #000;
+    padding: 40px 0 60px;
+    text-align: center;
+  }
+  .hero .logo-wrap { display: flex; justify-content: center; margin-bottom: 8px; }
+  .hero .logo-wrap img { width: 200px; height: 75px; object-fit: contain; }
+
+  .hero h1 {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-weight: bold;
+    font-size: clamp(18px, 4vw, 32px);
+    line-height: 1.35;
+    margin: 24px auto 16px;
+    max-width: 800px;
+    padding: 0 16px;
+  }
+  .hero h2 {
+    color: #ff5f00;
+    font-size: clamp(14px, 3vw, 20px);
+    font-weight: 400;
+    margin-bottom: 32px;
+    padding: 0 16px;
+  }
+
+  .hero .video-container {
+    max-width: 720px;
+    margin: 0 auto 24px;
+    padding: 0 16px;
+  }
+
+  .hero .people-img {
+    width: 200px;
+    margin: 16px auto;
+    object-fit: contain;
+  }
+
+  .hero .price-list {
+    list-style: disc;
+    max-width: 600px;
+    margin: 16px auto 24px;
+    padding: 0 32px;
+    text-align: left;
+    font-size: clamp(14px, 3vw, 18px);
+    color: #ffffff;
+  }
+  .hero .price-list li { margin-bottom: 10px; }
+
+  .hero .device-img {
+    width: min(300px, 80%);
+    margin: 16px auto;
+    object-fit: contain;
+  }
+
+  /* ─────────────────────────────────────────────
+     FOR WHO SECTION
+  ───────────────────────────────────────────── */
+  .for-who {
+    background: #000;
+    padding: 80px 0;
+  }
+  .for-who h1 {
+    color: #fff;
+    font-family: Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(22px, 4vw, 42px);
+    text-align: center;
+    margin-bottom: 48px;
+    line-height: 1.2;
+  }
+  .for-who-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    padding: 0 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .for-who-card {
+    background: #191919;
+    border: 1px solid #c79e611a;
+    border-radius: 8px;
+    padding: 24px 18px;
+    text-align: center;
+  }
+  .for-who-card i { color: #ff5200; font-size: 24px; }
+  .for-who-card h2 {
+    color: #fff;
+    font-family: Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(16px, 2.5vw, 22px);
+    margin: 16px 0 8px;
+  }
+  .for-who-card p { color: #c3c3c3; font-size: 14px; font-weight: 400; }
+
+  /* ─────────────────────────────────────────────
+     METHOD / PHASES
+  ───────────────────────────────────────────── */
+  .method {
+    background: #000;
+    padding: 80px 0;
+  }
+  .method-header { text-align: center; margin-bottom: 48px; padding: 0 20px; }
+  .method-header .label {
+    color: var(--orange);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: block;
+    margin-bottom: 12px;
+  }
+  .method-header h1 {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(22px, 4vw, 40px);
+    font-weight: 400;
+  }
+
+  .phases-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto 48px;
+    padding: 0 20px;
+  }
+  .phase-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .phase-card .phase-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .phase-card h2 {
+    color: var(--orange);
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(20px, 3vw, 28px);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .phase-card p { color: #abb8c3; font-size: 14px; line-height: 1.7; }
+  .phase-card .highlight { color: var(--orange); font-weight: 600; }
+
+  .method .device-img {
+    width: min(400px, 80%);
+    display: block;
+    margin: 0 auto 32px;
+  }
+
+  /* ─────────────────────────────────────────────
+     TESTIMONIALS
+  ───────────────────────────────────────────── */
+  .testimonials {
+    background: #191919;
+    padding: 80px 0;
+    text-align: center;
+  }
+  .testimonials .label {
+    color: var(--orange);
+    font-weight: bold;
+    font-size: clamp(20px, 3vw, 40px);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 16px;
+  }
+  .testimonials h1 {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(20px, 4vw, 48px);
+    font-weight: 400;
+    margin-bottom: 16px;
+    padding: 0 16px;
+  }
+  .testimonials p {
+    color: #cecece;
+    font-size: clamp(14px, 2.5vw, 20px);
+    max-width: 700px;
+    margin: 0 auto 32px;
+    padding: 0 16px;
+  }
+  .testimonials p span { color: var(--orange); font-size: clamp(16px, 2.5vw, 28px); display: block; margin-top: 8px; }
+
+  .videos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* ─────────────────────────────────────────────
+     PROOF / SCREENSHOTS
+  ───────────────────────────────────────────── */
+  .proof {
+    background: #000;
+    padding: 60px 0;
+  }
+  .proof .title-text {
+    color: var(--orange);
+    font-size: clamp(18px, 3vw, 36px);
+    text-align: center;
+    line-height: 1.3;
+    padding: 0 20px 40px;
+    display: block;
+  }
+  .proof-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  .proof-grid img { width: 100%; height: auto; border-radius: 8px; }
+
+  /* ─────────────────────────────────────────────
+     BECOME MASTER SECTION
+  ───────────────────────────────────────────── */
+  .become-master {
+    background: #0f0f0f;
+    padding: 80px 0;
+    text-align: center;
+  }
+  .become-master h1 {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(22px, 4vw, 40px);
+    font-weight: 400;
+    margin-bottom: 48px;
+    padding: 0 20px;
+  }
+
+  .master-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 60px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+    text-align: left;
+  }
+  .master-left h1 {
+    color: #fff;
+    font-size: clamp(22px, 3.5vw, 40px);
+    font-family: 'Helvetica', sans-serif;
+    font-weight: 400;
+    text-align: left;
+    margin-bottom: 16px;
+  }
+  .master-left p { color: #9c9c9c; font-size: 18px; margin-bottom: 24px; }
+  .master-left .teacher-photo {
+    width: min(400px, 100%);
+    object-fit: contain;
+    margin-top: 16px;
+  }
+  .master-left .photo-credit { color: #cdcdcd; font-size: 12px; margin-top: 8px; }
+
+  .master-right h2 {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(18px, 2.5vw, 28px);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .master-right p { color: #9c9c9c; font-size: 14px; margin-bottom: 0; }
+  .master-divider { border: none; border-bottom: 1px solid var(--border); margin: 28px 0; }
+
+  /* ─────────────────────────────────────────────
+     COMMUNITY ACCESS
+  ───────────────────────────────────────────── */
+  .community {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    padding: 80px 0;
+    text-align: center;
+  }
+  .community-inner { max-width: 700px; margin: 0 auto; padding: 0 20px; }
+  .community h1 {
+    color: var(--orange);
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(22px, 4vw, 40px);
+    font-weight: 400;
+    margin-bottom: 16px;
+  }
+  .community p {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(16px, 2.5vw, 24px);
+    font-weight: 400;
+    margin-bottom: 24px;
+  }
+  .community-screenshot {
+    width: min(600px, 100%);
+    margin: 24px auto 0;
+    border-radius: 12px;
+  }
+
+  /* ─────────────────────────────────────────────
+     MODULES
+  ───────────────────────────────────────────── */
+  .modules {
+    background: #040809;
+    padding: 48px 0 80px;
+  }
+  .modules h2 {
+    color: #f4f4f4;
+    text-align: center;
+    font-size: clamp(18px, 3vw, 28px);
+    font-weight: 400;
+    margin-bottom: 40px;
+    padding: 0 20px;
+  }
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 60px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .module-item h1 {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .module-item p { color: #9c9c9c; font-size: 14px; }
+  .module-item ul { color: #9c9c9c; font-size: 14px; margin-top: 8px; padding-left: 20px; }
+  .module-item ul li { margin-bottom: 4px; }
+  .module-divider { border: none; border-bottom: 1px solid var(--border); margin: 28px 0; }
+
+  .screenshots-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .screenshots-grid img {
+    width: 100%;
+    height: 280px;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+
+  /* ─────────────────────────────────────────────
+     LIVE SESSIONS (backgrounds)
+  ───────────────────────────────────────────── */
+  .live-banner {
+    background-size: cover;
+    background-position: center left;
+    background-repeat: no-repeat;
+    padding: 80px 40px;
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+  }
+  .live-banner .content { max-width: 500px; }
+  .live-banner .badge {
+    color: #fff;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .live-banner .badge i { color: var(--blue); }
+  .live-banner h1 {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(22px, 4vw, 40px);
+    font-weight: 400;
+    margin-bottom: 16px;
+  }
+  .live-banner p {
+    color: #efeded;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(14px, 2vw, 20px);
+    font-weight: 600;
+  }
+
+  /* ─────────────────────────────────────────────
+     OFFER / PRICING BOX
+  ───────────────────────────────────────────── */
+  .offer-section {
+    background: #000;
+    padding: 80px 0;
+  }
+  .offer-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px;
+    text-align: center;
+  }
+  .offer-inner .alert-label {
+    color: var(--orange-dark);
+    font-family: 'Archivo', sans-serif;
+    font-size: clamp(20px, 3vw, 32px);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .offer-inner .alert-text {
+    color: #f7f7f7;
+    font-family: 'Archivo', sans-serif;
+    font-size: clamp(16px, 2.5vw, 40px);
+    font-weight: 400;
+    line-height: 1.5;
+    margin-bottom: 60px;
+  }
+
+  .offer-box {
+    border: 4px solid #555E74;
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: left;
+  }
+
+  .offer-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .offer-item i { color: var(--green); font-size: 20px; flex-shrink: 0; }
+  .offer-item h2 {
+    color: #c8c9ca;
+    font-family: 'Archivo', sans-serif;
+    font-size: clamp(13px, 2vw, 16px);
+    font-weight: 400;
+    line-height: 1.3;
+    margin: 0;
+  }
+  .offer-divider { border: none; border-bottom: 1px solid #B2B9C7; margin: 24px 0; }
+
+  /* ─────────────────────────────────────────────
+     GUARANTEE
+  ───────────────────────────────────────────── */
+  .guarantee {
+    background: var(--bg-darkest);
+    padding: 60px 0;
+    text-align: center;
+  }
+  .guarantee img {
+    width: min(200px, 50%);
+    margin: 0 auto 24px;
+    object-fit: contain;
+  }
+  .guarantee .label {
+    color: #00BFEB;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: block;
+    margin-bottom: 12px;
+  }
+  .guarantee h1 {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(22px, 4vw, 40px);
+    font-weight: 400;
+    margin-bottom: 16px;
+  }
+  .guarantee p {
+    color: #9c9c9c;
+    font-size: clamp(14px, 2.5vw, 18px);
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* ─────────────────────────────────────────────
+     MENTORS
+  ───────────────────────────────────────────── */
+  .mentors { background: #000; padding: 80px 0; }
+  .mentors h1 {
+    color: var(--orange);
+    text-align: center;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(22px, 4vw, 40px);
+    margin-bottom: 60px;
+    padding: 0 20px;
+  }
+  .mentors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 60px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  .mentor-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .mentor-card img {
+    width: min(280px, 100%);
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  .mentor-card h1 {
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    font-size: clamp(20px, 3vw, 32px);
+    font-weight: 500;
+    line-height: 1.15;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .mentor-card p { color: #d1d1d2; font-size: 16px; text-align: left; }
+
+  /* ─────────────────────────────────────────────
+     FAQ
+  ───────────────────────────────────────────── */
+  .faq { background: var(--bg-darkest); padding: 72px 0; }
+  .faq-inner { max-width: 800px; margin: 0 auto; padding: 0 20px; }
+  .faq .label {
+    color: #ff6917;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: block;
+    margin-bottom: 12px;
+  }
+  .faq h1 {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: clamp(24px, 4vw, 40px);
+    font-weight: 400;
+    margin-bottom: 8px;
+  }
+  .faq .subtitle { color: #9c9c9c; font-size: 16px; margin-bottom: 32px; }
+
+  .accordion {
+    background: var(--bg-darkest);
+    border: 1px solid #595c5d;
+    border-radius: 4px;
+    margin-bottom: 0;
+  }
+  .accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .accordion-header h2 {
+    color: #fefefe;
+    font-size: clamp(14px, 2.5vw, 18px);
+    font-weight: 400;
+    margin: 0;
+    flex: 1;
+    padding-right: 16px;
+  }
+  .accordion-header i { color: #f7f7f7; font-size: 14px; transition: transform 0.3s; flex-shrink: 0; }
+  .accordion-header.open i { transform: rotate(180deg); }
+  .accordion-body {
+    display: none;
+    padding: 0 24px 16px;
+  }
+  .accordion-body p { color: #939393; font-size: 16px; }
+  .accordion-body.open { display: block; }
+
+  .faq-cta { text-align: center; margin-top: 80px; margin-bottom: 80px; }
+  .faq-cta h2 {
+    color: #fff;
+    font-size: clamp(14px, 2.5vw, 18px);
+    font-weight: 400;
+    margin-bottom: 16px;
+    padding: 0 20px;
+  }
+
+  /* ─────────────────────────────────────────────
+     FOOTER
+  ───────────────────────────────────────────── */
+  footer {
+    background: var(--bg-darkest);
+    padding: 56px 20px;
+    text-align: center;
+  }
+  footer img { width: 200px; height: 75px; object-fit: contain; margin: 0 auto 16px; }
+  footer .copyright { font-size: 12px; color: #9c9c9c; margin-bottom: 24px; }
+  footer .footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    margin-bottom: 32px;
+  }
+  footer .footer-links a {
+    color: #fff;
+    font-family: 'Helvetica', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+  }
+  footer .footer-legal { font-size: 12px; color: #9c9c9c; max-width: 800px; margin: 0 auto; line-height: 1.7; }
+  footer .footer-contact { color: #9c9c9c; font-size: 12px; margin-bottom: 24px; }
+
+  /* ─────────────────────────────────────────────
+     POPUP
+  ───────────────────────────────────────────── */
+  .popup-overlay {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 999;
+    display: none;
+  }
+  .popup-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 500px;
+    width: 94%;
+    z-index: 1000;
+    display: none;
+  }
+  .popup-close {
+    position: absolute;
+    top: 12px; right: 16px;
+    cursor: pointer;
+    font-size: 24px;
+    color: #363940;
+    background: none;
+    border: none;
+  }
+  .popup-title {
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+  .popup-subtitle {
+    font-size: 16px;
+    text-align: center;
+    text-decoration: underline;
+    color: var(--orange);
+    margin-bottom: 20px;
+  }
+  .cm-form { display: flex; flex-direction: column; gap: 12px; }
+  .cm-label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: #ccc; }
+  .cm-input {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #040404;
+    background: #fff;
+    font-size: 14px;
+    color: #000;
+  }
+  .checkbox-row { flex-direction: row !important; align-items: center; gap: 8px !important; }
+  .btn-submit {
+    background: #34c171;
+    color: #fff;
+    border: none;
+    padding: 14px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .btn-submit:hover { opacity: 0.9; }
+
+  /* ─────────────────────────────────────────────
+     MOBILE RESPONSIVE OVERRIDES
+  ───────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    section { padding: 48px 0; }
+
+    .live-banner {
+      padding: 48px 20px;
+      min-height: auto;
+      background-position: center;
+    }
+    .live-banner .content { max-width: 100%; }
+
+    .screenshots-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .screenshots-grid img { height: 200px; }
+
+    .master-grid { gap: 32px; }
+    .modules-grid { gap: 32px; }
+    .mentors-grid { gap: 40px; }
+
+    .offer-box { padding: 24px 16px; }
+  }
+
+  @media (max-width: 480px) {
+    .screenshots-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .screenshots-grid img { height: 160px; }
+
+    .hero .price-list { padding: 0 20px; font-size: 15px; }
+    .btn-primary, .btn-cta { font-size: 15px; padding: 14px 20px; }
+
+    footer .footer-links { gap: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     TOP BAR — BOTÃO ACESSAR
+══════════════════════════════════════════════════ -->
+<div class="top-bar">
+  <a class="btn-acessar" href="/login">Acessar</a>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="container">
+    <div class="logo-wrap">
+      <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/36c73f00-8702-4f2f-8a07-8ef108f2dd54" alt="Logo Escola Master"/>
+    </div>
+
+    <h1>tudo que você precisa para ser um profissional reconhecido, desejado e bem pago na fotografia podendo faturar de 3 mil a 10 mil por mês! 💸</h1>
+
+    <h2>Mesmo que você esteja começando do zero na fotografia, entre no curso master para fotógrafos!</h2>
+
+    <div class="video-container">
+      <div class="video-wrapper">
+        <iframe src="https://www.youtube.com/embed/g8dwQfjxm0I?enablejsapi=1&rel=0&autoplay=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <img class="people-img" src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/27a8a693-ae94-42d9-b935-34868510c353" alt="Alunos"/>
+
+    <div class="center" style="margin-bottom:16px;">
+      <a class="btn-primary" href="https://pay.kiwify.com.br/TJFAryT" target="_blank">QUERO SER FOTOGRAFO MASTER!</a>
+    </div>
+
+    <ul class="price-list">
+      <li>De <s style="color:#f0084c;">R$ 2.997</s> por: <span style="color:#00d088;">oferta especial por 12x de R$ 30,72 ou R$ 297 à vista!</span></li>
+      <li>Ambiente seguro!</li>
+      <li>Mais de 800 alunos pelo mundo aprendem conosco!</li>
+      <li>O curso completo para viver de fotografia</li>
+      <li>7 dias de Garantia</li>
+      <li>Formação completa para viver de fotografia<br/>(+de 150 aulas + comunidade para fotógrafos + encontros ao vivo por semana!)</li>
+      <li>App + chat + comunidade de desafios + Premiação por engajamento!</li>
+    </ul>
+
+    <img class="device-img" src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/e234a6e1-80f5-45ad-b9d4-ee800a3f21b9" alt="Dispositivos"/>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     PARA QUEM É
+══════════════════════════════════════════════════ -->
+<section class="for-who">
+  <div class="container">
+    <h1>Para quem é a Comunidade Master:</h1>
+    <div class="for-who-grid">
+      <div class="for-who-card">
+        <i class="fa-solid fa-child-reaching"></i>
+        <h2>INICIANTES DA FOTOGRAFIA</h2>
+        <p>PARA QUEM DESEJA TER UMA CARREIRA NA FOTOGRAFIA, MESMO INICIANDO DO ZERO, SABER O PASSO A PASSO PARA COMPRAR CÂMERAS, DOMINAR A FOTOGRAFIA, INICIAR NO MERCADO FOTOGRÁFICO!</p>
+      </div>
+      <div class="for-who-card">
+        <i class="fa-solid fa-camera-retro"></i>
+        <h2>FOTÓGRAFOS QUE SE ENCONTRAM PERDIDOS!</h2>
+        <p>PARA FOTÓGRAFOS QUE DESEJAM EVOLUIR SUA FOTOGRAFIA, EDIÇÃO E MARKETING SEM PRECISAR DE OUTRO LUGAR!</p>
+      </div>
+      <div class="for-who-card">
+        <i class="fa-solid fa-clapperboard"></i>
+        <h2>PARA FOTÓGRAFOS EXPERIENTES!</h2>
+        <p>PARA VOCÊ QUE TEM EXPERIÊNCIA E DESEJA TER MAIS RESULTADOS COM A FOTOGRAFIA, ALCANÇAR NOVOS RESULTADOS E FATURAR ACIMA DE 5K POR MÊS!</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     MÉTODO / FASES
+══════════════════════════════════════════════════ -->
+<section class="method">
+  <div style="text-align:center; margin-bottom:8px; padding:0 20px;">
+    <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/36c73f00-8702-4f2f-8a07-8ef108f2dd54" alt="Logo" style="width:200px;height:67px;object-fit:contain;margin:0 auto 24px;"/>
+  </div>
+  <div style="text-align:center;padding:0 20px;margin-bottom:24px;">
+    <h1 style="color:#ff5200;font-family:'Helvetica',sans-serif;font-size:clamp(18px,4vw,32px);font-weight:400;">Revelado: a comunidade definitiva que vai impulsionar sua carreira como fotógrafo!</h1>
+  </div>
+
+  <div style="background:#000;padding:60px 0;">
+    <div class="method-header">
+      <span class="label">MÉTODO</span>
+      <h1>Conheça as 3 Fases do Fotógrafo Master!</h1>
+    </div>
+
+    <div class="phases-grid">
+      <div class="phase-card">
+        <span class="phase-label" style="color:#00BFEB;">FASE 1</span>
+        <h2>Fotógrafo iniciante.</h2>
+        <p>Primeiro vamos ensinar como dominar sua câmera e transformar suas fotos em verdadeiras obras de arte.<br/><br/>
+        Nesta fase, você aprenderá tudo, desde os fundamentos até as técnicas mais avançadas de fotografia. Vamos guiá-lo passo a passo, garantindo que você tenha total controle sobre iluminação, composição e enquadramento.<br/><br/>
+        Além disso, você terá acesso a aulas práticas e teóricas que farão suas fotos se destacarem e impressionarem seus clientes.<br/><br/>
+        - Controle absoluto da câmera<br/>
+        - Conceitos de iluminação e enquadramento<br/>
+        - Fotos que atraem e geram engajamento</p>
+      </div>
+
+      <div class="phase-card">
+        <span class="phase-label" style="color:#f45700;">FASE 2</span>
+        <h2>Fotógrafo Master 5k</h2>
+        <p>Aqui vamos te mostrar de maneira detalhada como dominar todas as áreas essenciais que um fotógrafo precisa saber para conseguir faturar 5 mil reais por mês com fotografia.<br/><br/>
+        Essa é uma realidade que já está sendo vivenciada por centenas de alunos do nosso programa Master, que conquistaram seu espaço e reconhecimento no mercado.<br/><br/>
+        Vamos apresentar um passo a passo simples e eficaz, que te guiará em cada etapa do processo, permitindo que você também alcance o tão desejado reconhecimento como um fotógrafo Master!<br/><br/>
+        <span class="highlight">Recebe a placa 5k de faturamento!</span></p>
+      </div>
+
+      <div class="phase-card">
+        <span class="phase-label" style="color:#00BFEB;">FASE 3</span>
+        <h2>Fotógrafo Master 10k</h2>
+        <p>Aqui você vai aprender o caminho para transformar sua paixão pela fotografia em um negócio próspero e reconhecido!<br/><br/>
+        Nesta fase exclusiva, você aprenderá passo a passo como construir uma carreira sólida, escalar seu empreendimento (estúdio fotográfico) e se tornar a referência número 1 em sua região.<br/><br/>
+        Imagine ter seu próprio estúdio, montar uma equipe talentosa e, finalmente, fazer dinheiro de verdade com a fotografia. Proporcione mais conforto para você e sua família!<br/><br/>
+        <span class="highlight">Recebe a placa de 10k de faturamento!</span></p>
+      </div>
+    </div>
+
+    <div class="center" style="margin-bottom:32px;">
+      <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/e234a6e1-80f5-45ad-b9d4-ee800a3f21b9" alt="Dispositivos" style="width:min(400px,80%);"/>
+    </div>
+    <div class="center">
+      <a class="btn-primary" href="https://pay.kiwify.com.br/TJFAryT" target="_blank">ENTRAR NO CURSO MASTER ONLINE!</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     DEPOIMENTOS
+══════════════════════════════════════════════════ -->
+<section class="testimonials">
+  <span class="label">O que os membros têm a dizer</span>
+  <h1>Seja você o próximo case de sucesso da comunidade Master!</h1>
+  <p>Se contra fatos não há argumentos, contra resultados também não. Veja abaixo alguns dos milhares de casos de sucesso da escola Master para Fotógrafos.
+    <span>Faturaram mais de 5k mensalmente e receberam a placa fotógrafo Master 5k — prêmio concedido aos membros da comunidade!!</span>
+  </p>
+
+  <div class="videos-grid">
+    <div class="video-wrapper">
+      <iframe src="https://www.youtube.com/embed/u9tU5rKr1HY?enablejsapi=1&rel=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </div>
+    <div class="video-wrapper">
+      <iframe src="https://www.youtube.com/embed/cPKsXLQQfL0?enablejsapi=1&rel=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     PROVAS SOCIAIS
+══════════════════════════════════════════════════ -->
+<section class="proof">
+  <span class="title-text">Seja o próximo a enviar sua mensagem de conquista da câmera nova ou ganhos financeiros na fotografia!</span>
+
+  <div class="proof-grid">
+    <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/785c3209-ce72-47e6-af9b-4d4f1142a665" alt="Depoimento"/>
+    <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/e1245989-cd3e-4da9-837e-a26c426ca5b9" alt="Depoimento"/>
+    <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/74e69175-77cd-41ef-a61f-a2461f31e91e" alt="Depoimento"/>
+    <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/59e7cd7d-1bf9-4205-8720-53ad03466741" alt="Depoimento"/>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     TORNE-SE UM MESTRE
+══════════════════════════════════════════════════ -->
+<section class="become-master">
+  <div class="center" style="margin-bottom:32px;">
+    <a class="btn-primary" href="https://pay.kiwify.com.br/TJFAryT" target="_blank">QUERO SER MASTER</a>
+  </div>
+  <div class="master-grid">
+    <div class="master-left">
+      <h1>Torne-se um mestre da Fotografia.</h1>
+      <p>Transforme sua paixão em profissão e viva intensamente o mundo da fotografia, dominando as habilidades essenciais para o sucesso. Alcance novos patamares e conquiste o reconhecimento que você merece!</p>
+      <img class="teacher-photo" src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/d3a84555-2b97-4840-9d11-4b868765c9e7" alt="André Souza Fotógrafo"/>
+      <p class="photo-credit">📸 Foto: @andresouzafotografo - professor da escola master</p>
+    </div>
+    <div class="master-right">
+      <h2>📸 Domine sua câmera de fotografia.</h2>
+      <p>Desperte o fotógrafo que existe em você! Tenha acesso a um imenso acervo de aulas e workshops que irão revolucionar sua forma de capturar imagens. Explore conteúdos sempre atualizados e práticos, que vão desde os fundamentos essenciais até as técnicas mais inovadoras do mercado.</p>
+      <hr class="master-divider"/>
+      <h2>📸 Participe de uma comunidade de fotógrafos.</h2>
+      <p>Descubra um novo mundo na fotografia! Ao participar de nossas aulas semanais, você aprenderá sobre fotografia, edição, marketing e vendas, além de se conectar com uma comunidade vibrante de fotógrafos de todo o Brasil.</p>
+      <hr class="master-divider"/>
+      <h2>📸 <span style="color:#fff;">Material Complementar Exclusivo</span></h2>
+      <p>Além das aulas, tenha acesso a PDFs e outros materiais que reforçam seu aprendizado, permitindo que você revise e aprofunde seus conhecimentos sempre que precisar.</p>
+      <hr class="master-divider"/>
+      <h2>📸 <span style="color:#fff;">Tenha fotos que De impactar</span></h2>
+      <p>Domine técnicas para criar imagens que realmente se destacam, aumentando sua visibilidade online e ajudando a atrair clientes.</p>
+      <hr class="master-divider"/>
+      <h2>📸 <span style="color:#fff;">Edição de Fotos Avançada</span></h2>
+      <p>Aprenda as técnicas mais modernas de edição para redes sociais. Destaque-se com fotos refinadas e profissionais que garantem mais curtidas, comentários e seguidores.</p>
+      <hr class="master-divider"/>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     ACESSO EXCLUSIVO À COMUNIDADE
+══════════════════════════════════════════════════ -->
+<section class="community" style="background-image:url('https://projects.clickmax.dev/665c9a99-a7e5-4833-ba35-f171aad0158b/assets/0adf1399-2c29-4d71-b286-e9ac0539e301.webp');">
+  <div class="community-inner">
+    <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/36c73f00-8702-4f2f-8a07-8ef108f2dd54" alt="Logo" style="width:133px;height:45px;object-fit:contain;margin:0 auto 24px;"/>
+    <h1>Acesso exclusivo à comunidade Master:</h1>
+    <p>Desfrute de uma experiência de estudo excepcional com nossas aulas de alta qualidade. Nosso time de especialistas em audiovisual se dedica para garantir que sua jornada de aprendizado seja envolvente e imersiva, sem espaço para aulas monótonas. Prepare-se para uma experiência tão envolvente quanto assistir à sua série favorita!</p>
+    <img class="community-screenshot" src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/35fb6852-fa6c-4447-817e-cf52b909705f" alt="Plataforma"/>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     MÓDULOS
+══════════════════════════════════════════════════ -->
+<section class="modules">
+  <h2>Conheça um pouco do que tem por dentro do curso Master!</h2>
+
+  <div class="modules-grid">
+    <div>
+      <div class="module-item">
+        <h1>Módulo 1: Fotografia Básica</h1>
+        <p><strong>Domine os Fundamentos Essenciais da Fotografia e Capture Imagens que Encantam!</strong><br/>Nesta formação, você vai desbloquear os segredos por trás das fotos profissionais. De forma simples e direta, vamos te ensinar a transformar qualquer cenário em uma obra-prima visual.</p>
+        <ul>
+          <li>Transforme o simples em extraordinário com técnicas de composição</li>
+          <li>Controle total do modo manual para fotos precisas</li>
+          <li>Iluminação natural para destacar cada detalhe, em qualquer condição</li>
+        </ul>
+      </div>
+      <hr class="module-divider"/>
+
+      <div class="module-item">
+        <h1>Módulo 2: Fotografia Avançada</h1>
+        <p><strong>Leve Suas Fotos para Outro Nível e Surpreenda o Mundo!</strong><br/>Você vai aprender a usar flashes, luzes externas, dominar fotografia de movimento e muito mais. Cada técnica ensinada aqui vai transformar o jeito que você vê e captura o mundo.</p>
+        <ul>
+          <li>Domine a iluminação artificial para resultados impressionantes</li>
+          <li>Capture o movimento e ação com precisão</li>
+          <li>Direção de modelos para retratos inesquecíveis</li>
+        </ul>
+      </div>
+      <hr class="module-divider"/>
+
+      <div class="module-item">
+        <h1>Módulo 3: Iluminação com Flash</h1>
+        <p><strong>A Arte de Iluminar: Crie Imagens de Impacto com a Luz Perfeita!</strong><br/>A iluminação é o coração de uma boa fotografia, e nesta formação, você vai aprender a moldá-la como um verdadeiro artista. Seja no estúdio ou em ambientes externos, você dominará cada nuance da luz.</p>
+        <ul>
+          <li>Esquemas clássicos e modernos que realçam a beleza de qualquer cena</li>
+          <li>Controle total de luz natural e artificial, para qualquer ambiente</li>
+          <li>Crie atmosferas impactantes com refletores, softboxes e mais</li>
+        </ul>
+      </div>
+      <hr class="module-divider"/>
+
+      <div class="module-item">
+        <h1>Módulo 4: Edição de Imagens</h1>
+        <p><strong>Edite Imagens como um Profissional e Economize Horas de Trabalho!</strong><br/>Você vai aprender a dominar ferramentas como Photoshop e Lightroom, economizando horas preciosas enquanto cria edições impecáveis.</p>
+        <ul>
+          <li>Correção de cores e retoques que transformam suas fotos em obras de arte</li>
+          <li>Edição rápida e eficiente sem perder qualidade</li>
+          <li>Otimize o tempo de edição com fluxos de trabalho profissionais</li>
+        </ul>
+      </div>
+      <hr class="module-divider"/>
+
+      <div class="module-item">
+        <h1>Módulo 5: Instagram para Fotógrafos</h1>
+        <p>Seu Instagram pode ser mais do que uma rede social – ele pode ser sua maior ferramenta de vendas. Nessa formação, você vai aprender a criar um perfil que destaque suas melhores fotos, atraindo clientes e criando uma audiência fiel.</p>
+        <ul>
+          <li>Aprenda a montar um feed irresistível que gera curtidas e seguidores</li>
+          <li>Use o Instagram como uma ferramenta de marketing pessoal</li>
+          <li>Conquiste uma audiência fiel que valorize seu trabalho</li>
+        </ul>
+      </div>
+      <hr class="module-divider"/>
+
+      <div class="module-item">
+        <h1>Módulo 6: Tráfego Pago para Fotógrafos</h1>
+        <p>Anunciar seus serviços nunca foi tão fácil. Nesta formação, você aprenderá a criar anúncios que funcionam de forma automática, atraindo novos clientes para seus ensaios fotográficos usando Facebook Ads e Instagram Ads.</p>
+        <ul>
+          <li>Domine o poder dos anúncios pagos para aumentar sua clientela</li>
+          <li>Crie campanhas simples que funcionam no piloto automático</li>
+          <li>Alcance clientes interessados que estão prontos para contratar seus serviços</li>
+        </ul>
+      </div>
+      <hr class="module-divider"/>
+
+      <div class="module-item">
+        <h1>Módulo 7: Vendas Avançadas para Fotógrafos</h1>
+        <p><strong>Venda suas Sessões Fotográficas com Facilidade e Lucre Mais!</strong><br/>Nessa formação, você aprenderá a vender seus serviços com confiança, sabendo como precificar seu trabalho e fechar contratos lucrativos.</p>
+        <ul>
+          <li>Estratégias para vender com confiança e aumentar seu faturamento</li>
+          <li>Negocie como um profissional e feche mais contratos</li>
+          <li>Descubra como criar propostas irresistíveis para seus clientes</li>
+        </ul>
+      </div>
+      <hr class="module-divider"/>
+
+      <div class="module-item">
+        <h1>Módulos [EXTRAS]</h1>
+        <p><strong>Tenha Acesso ao Suporte Direto e Tire Suas Dúvidas em Tempo Real!</strong><br/>Além de todo o conteúdo exclusivo, você terá acesso às aulas semanais ao vivo para tirar dúvidas diretamente com nossos mentores.</p>
+        <ul>
+          <li>Aulas ao vivo semanais para responder suas perguntas</li>
+          <li>Receba feedback personalizado dos melhores profissionais</li>
+          <li>Resolva desafios e evolua com suporte especializado</li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <div class="screenshots-grid">
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/6f0c72e6-1eb8-4e56-a357-c83e9ec56cee" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/e62f7c10-3363-417e-b2ab-2ea427425ad2" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/abfb9a7e-cc45-4013-b22b-636fd40b6c4f" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/c254265d-3821-41ca-b716-0e191a1a31bd" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/0c2d237c-040e-486b-ad15-5dc2662ba6df" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/b75a4221-7269-43fb-adcd-99f2b5ca099d" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/0e8e11a9-cd41-4ac9-9eb6-59c64a54c10c" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/50d57fb1-19f6-4803-ac96-6e70affd30f4" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/3d504cb0-0cf9-4206-80e7-103e7aeacd94" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/337d652f-dbdd-493b-9a86-cea9c163770d" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/c1f473af-2d80-4fcb-8b88-c228bad17d49" alt="Screenshot"/>
+        <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/b72f353b-2acb-4f0f-b193-dce81499016e" alt="Screenshot"/>
+      </div>
+    </div>
+  </div>
+
+  <div class="center" style="margin-top:40px;">
+    <a class="btn-primary" href="https://pay.kiwify.com.br/TJFAryT" target="_blank">QUERO SER FOTÓGRAFO</a>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     LIVES / NOVIDADE
+══════════════════════════════════════════════════ -->
+<section style="background:#010403;padding:0;">
+  <div class="live-banner" style="background-image:url('https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/4bb3a576-0106-4962-8ae9-5c211ea431d1');">
+    <div class="content">
+      <div class="badge">NOVIDADE Master <i class="fa-solid fa-circle-check"></i></div>
+      <h1>1 Live toda semana para membros.</h1>
+      <p>Ao se tornar parte da escola Master para Fotógrafos você poderá participar de aulas ao vivo de acompanhamento coletivo. Essas lives serão a oportunidade perfeita para tirar suas dúvidas diretamente com o nosso time.</p>
+    </div>
+  </div>
+
+  <div class="live-banner" style="background-image:url('https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/617dd5c5-54de-4f9d-b45d-4c0c7bcc7370');">
+    <div class="content">
+      <div class="badge">NOVIDADE Master <i class="fa-solid fa-circle-check"></i></div>
+      <h1>Como construir seu estúdio!</h1>
+      <p>Transforme sua Paixão em Lucro: O Guia Definitivo para Construir um Estúdio de Fotografia de Sucesso! Aumente seus ganhos enquanto reduz suas horas de trabalho e descubra como viver da sua arte.</p>
+    </div>
+  </div>
+
+  <div class="live-banner" style="background-image:url('https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/d05f331a-5646-4793-a4d1-5c716f13f4a3');background-size:cover;">
+    <div class="content">
+      <div class="badge">NOVIDADE Master <i class="fa-solid fa-circle-check"></i></div>
+      <h1>Comunidade + Chat!</h1>
+      <p>Chat Exclusivo — Network direto com fotógrafos de sucesso e mentores especialistas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     OFERTA / ATENÇÃO
+══════════════════════════════════════════════════ -->
+<section class="offer-section">
+  <div class="offer-inner">
+    <p class="alert-label">ATENÇÃO:</p>
+    <p class="alert-text">Temos uma condição especial, mas ela pode sair do ar a qualquer momento!<br/>A oferta faz parte de uma ação temporária e os benefícios atuais serão encerrados sem aviso prévio.</p>
+
+    <div class="offer-box">
+      <hr class="offer-divider"/>
+
+      <div class="offer-item">
+        <i class="fa-solid fa-circle-check"></i>
+        <h2>Formação em fotografia Básica!</h2>
+      </div>
+      <div class="offer-item">
+        <i class="fa-solid fa-circle-check"></i>
+        <h2>Formação Avançada em fotografia</h2>
+      </div>
+      <div class="offer-item">
+        <i class="fa-solid fa-circle-check"></i>
+        <h2>Formação em edição de imagens completa</h2>
+      </div>
+      <div class="offer-item">
+        <i class="fa-solid fa-circle-check"></i>
+        <h2>Formação em marketing e vendas para fotógrafos</h2>
+      </div>
+      <div class="offer-item">
+        <i class="fa-solid fa-circle-check"></i>
+        <h2>Certificados profissionais reconhecidos</h2>
+      </div>
+      <div class="offer-item">
+        <i class="fa-solid fa-circle-check"></i>
+        <h2>30% OFF em workshops/eventos presenciais</h2>
+      </div>
+      <div class="offer-item">
+        <i class="fa-solid fa-circle-check"></i>
+        <h2>App exclusivo mobile e desktop</h2>
+      </div>
+
+      <a class="btn-cta" href="https://pay.kiwify.com.br/TJFAryT" target="_blank" style="margin-top:24px;max-width:100%;display:block;text-align:center;">QUERO SER MASTER</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     GARANTIA
+══════════════════════════════════════════════════ -->
+<section class="guarantee">
+  <div class="container">
+    <img src="https://projects.clickmax.dev/665c9a99-a7e5-4833-ba35-f171aad0158b/assets/d670f40b-f5aa-4219-bc37-c8da35930bca.png" alt="Garantia"/>
+    <span class="label">Garantia</span>
+    <h1>Selo Master de Satisfação</h1>
+    <p>Nossa confiança nos resultados que vai adquirir com o método Master é tão grande que vamos te dar uma garantia de 7 dias. Após adquirir a escola, se você não gostar do treinamento ou não tiver o resultado que deseja nesse período, basta enviar um email para contato@masterfotografia ou pelo whatsapp de suporte, que alguém da minha equipe vai fazer o reembolso de 100% do valor investido.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     MENTORES
+══════════════════════════════════════════════════ -->
+<section class="mentors">
+  <h1>Seus mentores nessa jornada Master!</h1>
+  <div class="mentors-grid">
+    <div class="mentor-card">
+      <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/b8358253-65d1-4003-af8b-c6f0c96480ab" alt="André Souza"/>
+      <h1>Andre Souza, professor da Escola Master!</h1>
+      <p>Descubra o universo da fotografia com André Souza, um fotógrafo de renome, professor inspirador e mentor dedicado, que há 8 anos transforma vidas através da arte visual.<br/><br/>
+      Com uma especialização abrangente nas áreas essenciais para o sucesso na fotografia, André já capacitou mais de mil alunos, tanto presencialmente quanto online, e atendeu a mais de 1.500 clientes satisfeitos.<br/><br/>
+      Sua missão? Valorizar e garantir a remuneração justa para os profissionais da fotografia. Junto com sua esposa Amanda, ele fundou a prestigiada Escola Master e é proprietário do maior estúdio da região.</p>
+    </div>
+
+    <div class="mentor-card">
+      <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/98b7845e-ee90-4391-b708-7c1c7d64973d" alt="Amanda Cardoso"/>
+      <h1>Amanda Cardoso, professora da Escola Master!</h1>
+      <p>Amanda é uma renomada e respeitada profissional do ramo da fotografia, reconhecida por sua vasta expertise em marketing e branding especificamente voltados para fotógrafos.<br/><br/>
+      Com uma carreira consolidada e repleta de sucessos, ela desenvolveu uma metodologia de vendas verdadeiramente inovadora, que já gerou impressionantes mais de meio milhão de reais em faturamento para diversos fotógrafos ao longo dos últimos 3 anos.<br/><br/>
+      Se você deseja alavancar sua carreira e se destacar nesse mercado competitivo, não perca a oportunidade de conhecer e aprender com quem realmente entende do assunto.</p>
+    </div>
+
+    <div class="mentor-card">
+      <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/ca1d6517-80aa-41ca-bad5-872104fd048c" alt="Tamilles Esposito"/>
+      <h1>Tamilles Esposito, professora da Escola Master!</h1>
+      <p>Tamilles Esposito, escolhida a dedo por seus mentores André e Amanda, é reconhecida por mais de 500 alunos Master como uma professora de excelência.<br/><br/>
+      Iniciou sua carreira em 2022 e rapidamente se destacou como um prodígio, trazendo consigo uma vasta bagagem de formações acadêmicas. Imersa na arte da fotografia, Tamilles é uma pessoa criativa e dedicada.<br/><br/>
+      Reconhecida pelo curso Master, onde foi aluna, professora e palestrante, ela não apenas é uma referência, mas também uma fonte de inspiração, mostrando que basta querer para crescer no mundo da fotografia!</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     FAQ
+══════════════════════════════════════════════════ -->
+<section class="faq">
+  <div class="faq-inner">
+    <span class="label">FAQ</span>
+    <h1>Dúvidas frequentes</h1>
+    <p class="subtitle">Confira algumas das dúvidas mais frequentes a respeito da Escola Master!</p>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <h2>#1 Quais são as formas de pagamento?</h2>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="accordion-body"><p>Formas de pagamento débito ou crédito!</p></div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <h2>#2 Como vou receber acesso à comunidade?</h2>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="accordion-body"><p>Você recebe um email com acesso ao link da nossa comunidade + os links para baixar o app exclusivo!</p></div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <h2>#3 O conteúdo é ao vivo ou gravado?</h2>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="accordion-body"><p>Você vai receber as aulas gravadas em alta qualidade + materiais em PDF + aulas ao vivo toda semana!</p></div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <h2>#4 Por quanto tempo terei acesso ao treinamento?</h2>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="accordion-body"><p>1 ANO DE ACESSO COM RENOVAÇÃO CASO DESEJAR</p></div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <h2>#5 A plataforma de pagamentos é segura?</h2>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="accordion-body"><p>Sim, usamos uma das melhores plataformas de pagamento online do mundo!</p></div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <h2>#6 Moro fora do país, vou conseguir me matricular?</h2>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="accordion-body"><p>Sim, você pode se cadastrar de qualquer lugar do mundo, temos alunos em mais de 24 países.</p></div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <h2>#7 Sou avançado, a comunidade Master serve para mim?</h2>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="accordion-body"><p>Seja você um novato ou um fotógrafo experiente, nossa comunidade é o lugar ideal para quem busca evoluir na carreira.<br/><br/>Se seus ganhos mensais estão abaixo de R$10.000, temos as ferramentas e o conhecimento que você precisa para impulsionar seu sucesso.<br/><br/>E se você já ultrapassa essa marca, entre em contato com nossos mentores para descobrir como nosso programa de mentoria master pode levar seu talento a um novo patamar!</p></div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <h2>#8 Ainda não tenho câmera. A escola é para mim?</h2>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="accordion-body"><p>Não se preocupe se você ainda não tem uma câmera!<br/><br/>Você pode dar os primeiros passos conosco, começando do zero.<br/><br/>E tem mais: nossos parceiros estão prontos para oferecer descontos exclusivos para nossos alunos.</p></div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <h2>#9 Quero aprender para hobby, eu posso?</h2>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="accordion-body"><p>Sim, é possível aprender mesmo que seja para hobby, apesar de nosso foco ser ensinar a viver 100% de fotografia.</p></div>
+    </div>
+  </div>
+
+  <div class="faq-cta">
+    <h2>Clique no botão abaixo e garanta sua vaga... não sei quando (e nem se) essa oportunidade aparecerá para você novamente</h2>
+    <div class="center">
+      <a class="btn-blue" href="https://pay.kiwify.com.br/TJFAryT" target="_blank"><b>Quero ser master!</b></a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════ -->
+<footer>
+  <img src="https://projects.clickmax.io/707d0faf-d9da-4bb0-8924-b1d31251c03b/assets/36c73f00-8702-4f2f-8a07-8ef108f2dd54" alt="Logo Escola Master"/>
+  <p class="copyright">© Copyright 2023 Nômade Milionário.<br/>Todos os direitos reservados.</p>
+  <div class="footer-links">
+    <a href="#">Termos</a>
+    <a href="#">Privacidade</a>
+  </div>
+  <p class="footer-contact">contato@masterfotografia.com.br</p>
+  <p class="footer-legal">ESTE SITE NÃO É do FACEBOOK: Este site não faz parte do site do Facebook ou do Facebook Inc. Além disso, este site NÃO é endossado pelo Facebook de nenhuma maneira. FACEBOOK é uma marca comercial independente da FACEBOOK, Inc.<br/><br/>
+  A Comunidade master é uma empresa com o objetivo de ajudar pessoas a obterem resultados financeiros utilizando o poder da fotografia através de cursos e comunidade. Não reivindicamos ou declaramos que ao usar o método, você ganhará dinheiro ou recuperará seu dinheiro. Os depoimentos mostrados são negócios e vão variar com base no seu esforço, no conhecimento que você adquirir e nas forças do mercado que estão além do controle de qualquer pessoa.<br/><br/>
+  Nós NÃO compartilharemos seu endereço de e-mail com ninguém. Você pode cancelar sua inscrição a qualquer momento.</p>
+</footer>
+
+<script>
+  function toggleAccordion(header) {
+    const body = header.nextElementSibling;
+    const isOpen = header.classList.contains('open');
+    document.querySelectorAll('.accordion-header').forEach(h => h.classList.remove('open'));
+    document.querySelectorAll('.accordion-body').forEach(b => b.classList.remove('open'));
+    if (!isOpen) {
+      header.classList.add('open');
+      body.classList.add('open');
+    }
+  }
+</script>
+
+</body>
+</html>

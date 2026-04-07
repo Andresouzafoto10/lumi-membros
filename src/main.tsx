@@ -10,24 +10,39 @@ import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider } from "./contexts/AuthContext";
 import "./index.css";
+import { applyCachedTheme, fetchAndApplyTheme } from "./lib/applyTheme";
 
 const queryClient = new QueryClient();
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <HelmetProvider>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          <QueryClientProvider client={queryClient}>
-            <BrowserRouter>
-              <AuthProvider>
-                <App />
-                <Toaster richColors position="bottom-right" />
-              </AuthProvider>
-            </BrowserRouter>
-          </QueryClientProvider>
-        </ThemeProvider>
-      </HelmetProvider>
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+function render() {
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <HelmetProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+            <QueryClientProvider client={queryClient}>
+              <BrowserRouter>
+                <AuthProvider>
+                  <App />
+                  <Toaster richColors position="bottom-right" />
+                </AuthProvider>
+              </BrowserRouter>
+            </QueryClientProvider>
+          </ThemeProvider>
+        </HelmetProvider>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+}
+
+// 1. Try applying theme from localStorage cache (instant, no fetch)
+const hasCachedTheme = applyCachedTheme();
+
+if (hasCachedTheme) {
+  // Cache hit — render immediately with correct colors
+  render();
+} else {
+  // First visit (no cache) — fetch theme from Supabase before rendering
+  // so the user never sees the default teal colors
+  fetchAndApplyTheme().finally(render);
+}

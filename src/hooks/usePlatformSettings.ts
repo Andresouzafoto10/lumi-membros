@@ -88,6 +88,7 @@ async function fetchSettings(): Promise<PlatformSettings> {
     pwaIconUrl: (data.pwa_icon_url as string) ?? null,
     pwaThemeColor: (data.pwa_theme_color as string) ?? null,
     pwaBackgroundColor: (data.pwa_background_color as string) ?? null,
+    loginCoverUrl: (data.login_cover_url as string) ?? null,
   };
 }
 
@@ -105,36 +106,27 @@ export function usePlatformSettings() {
   }, [queryClient]);
 
   const updateSettings = useCallback(
-    async (patch: Partial<Omit<PlatformSettings, "theme">>) => {
+    async (patch: Partial<PlatformSettings>) => {
+      const dbPatch: Record<string, unknown> = {};
+      if (patch.name !== undefined) dbPatch.name = patch.name;
+      if (patch.logoUrl !== undefined) dbPatch.logo_url = patch.logoUrl;
+      if (patch.defaultTheme !== undefined) dbPatch.default_theme = patch.defaultTheme;
+      if (patch.ratingsEnabled !== undefined) dbPatch.ratings_enabled = patch.ratingsEnabled;
+      if (patch.certificateBackgroundUrl !== undefined) dbPatch.certificate_background_url = patch.certificateBackgroundUrl;
+      if (patch.certificateDefaultText !== undefined) dbPatch.certificate_default_text = patch.certificateDefaultText;
+      if (patch.theme !== undefined) dbPatch.theme = patch.theme;
+      if (patch.faviconUrl !== undefined) dbPatch.favicon_url = patch.faviconUrl;
+      if (patch.logoUploadUrl !== undefined) dbPatch.logo_upload_url = patch.logoUploadUrl;
+      if (patch.pwaEnabled !== undefined) dbPatch.pwa_enabled = patch.pwaEnabled;
+      if (patch.pwaName !== undefined) dbPatch.pwa_name = patch.pwaName;
+      if (patch.pwaShortName !== undefined) dbPatch.pwa_short_name = patch.pwaShortName;
+      if (patch.pwaIconUrl !== undefined) dbPatch.pwa_icon_url = patch.pwaIconUrl;
+      if (patch.pwaThemeColor !== undefined) dbPatch.pwa_theme_color = patch.pwaThemeColor;
+      if (patch.pwaBackgroundColor !== undefined) dbPatch.pwa_background_color = patch.pwaBackgroundColor;
+      if (patch.loginCoverUrl !== undefined) dbPatch.login_cover_url = patch.loginCoverUrl;
       const { error } = await supabase
         .from("platform_settings")
-        .update({
-          ...(patch.name !== undefined && { name: patch.name }),
-          ...(patch.logoUrl !== undefined && { logo_url: patch.logoUrl }),
-          ...(patch.defaultTheme !== undefined && {
-            default_theme: patch.defaultTheme,
-          }),
-          ...(patch.ratingsEnabled !== undefined && {
-            ratings_enabled: patch.ratingsEnabled,
-          }),
-          ...(patch.emailNotificationsEnabled !== undefined && {
-            email_notifications_enabled: patch.emailNotificationsEnabled,
-          }),
-          ...(patch.certificateBackgroundUrl !== undefined && {
-            certificate_background_url: patch.certificateBackgroundUrl,
-          }),
-          ...(patch.certificateDefaultText !== undefined && {
-            certificate_default_text: patch.certificateDefaultText,
-          }),
-          ...(patch.faviconUrl !== undefined && { favicon_url: patch.faviconUrl }),
-          ...(patch.logoUploadUrl !== undefined && { logo_upload_url: patch.logoUploadUrl }),
-          ...(patch.pwaEnabled !== undefined && { pwa_enabled: patch.pwaEnabled }),
-          ...(patch.pwaName !== undefined && { pwa_name: patch.pwaName }),
-          ...(patch.pwaShortName !== undefined && { pwa_short_name: patch.pwaShortName }),
-          ...(patch.pwaIconUrl !== undefined && { pwa_icon_url: patch.pwaIconUrl }),
-          ...(patch.pwaThemeColor !== undefined && { pwa_theme_color: patch.pwaThemeColor }),
-          ...(patch.pwaBackgroundColor !== undefined && { pwa_background_color: patch.pwaBackgroundColor }),
-        })
+        .update(dbPatch)
         .eq("id", "default");
       if (error) throw error;
       invalidate();
