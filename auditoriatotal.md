@@ -7,11 +7,11 @@
 
 ## 📈 PROGRESSO DA CORREÇÃO
 
-🚨 Críticos: 3/5 concluídos
+🚨 Críticos: 4/5 concluídos
 ⚠️ Bugs: 0/8 concluídos
 🔧 Melhorias: 0/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 3/41**
+**Total: 4/41**
 
 ---
 
@@ -87,9 +87,12 @@
 - **Descrição:** Para cada um dos 5 últimos enrollments, o hook faz 2 queries Supabase sequenciais (profiles + classes) dentro de um `for` loop com `await`. Com 5 enrollments = 10 queries extras sequenciais, cada uma aguardando a anterior. Isso torna o carregamento do Dashboard Admin severamente lento (centenas de ms adicionais de latência de rede multiplicada).
 - **Impacto:** Crítico — performance degrada linearmente; com 5 enrollments são ~10 round-trips desnecessários
 - **Decisão:**
-  - [ ] Corrigir automaticamente (substituir pelo join: `enrollments JOIN profiles ON ... JOIN classes ON ...` em query única)
+  - [x] Corrigir automaticamente (substituir pelo join: `enrollments JOIN profiles ON ... JOIN classes ON ...` em query única)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
+- Substituído for-loop sequencial por 2 batch queries com `.in()` + `Promise.all`
+- De 10 round-trips → 2 queries paralelas (melhoria ~5x no carregamento)
 
 ---
 

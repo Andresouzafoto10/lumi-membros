@@ -101,26 +101,29 @@ async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
 
   const totalMissionsCompleted = gamRes.count ?? 0;
 
-  // Map recent enrollments to include names
-  const recentEnrollments: DashboardMetrics["recentEnrollments"] = [];
-  for (const e of recentEnrollmentsRes.data ?? []) {
-    const { data: sp } = await supabase
-      .from("profiles")
-      .select("name")
-      .eq("id", e.student_id)
-      .single();
-    const { data: cl } = await supabase
-      .from("classes")
-      .select("name")
-      .eq("id", e.class_id)
-      .single();
-    recentEnrollments.push({
-      id: e.id as string,
-      studentName: (sp?.name as string) ?? "—",
-      className: (cl?.name as string) ?? "—",
-      enrolledAt: e.enrolled_at as string,
-    });
-  }
+  // Map recent enrollments to include names — batch queries instead of N+1 loop
+  const rawEnrollments = recentEnrollmentsRes.data ?? [];
+  const studentIds = [...new Set(rawEnrollments.map((e) => e.student_id as string))];
+  const classIds = [...new Set(rawEnrollments.map((e) => e.class_id as string))];
+
+  const [profilesRes, classesNamesRes] = await Promise.all([
+    studentIds.length > 0
+      ? supabase.from("profiles").select("id, name").in("id", studentIds)
+      : Promise.resolve({ data: [] }),
+    classIds.length > 0
+      ? supabase.from("classes").select("id, name").in("id", classIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const profileMap = new Map((profilesRes.data ?? []).map((p) => [p.id as string, p.name as string]));
+  const classMap = new Map((classesNamesRes.data ?? []).map((c) => [c.id as string, c.name as string]));
+
+  const recentEnrollments: DashboardMetrics["recentEnrollments"] = rawEnrollments.map((e) => ({
+    id: e.id as string,
+    studentName: profileMap.get(e.student_id as string) ?? "—",
+    className: classMap.get(e.class_id as string) ?? "—",
+    enrolledAt: e.enrolled_at as string,
+  }));
 
   return {
     totalStudents: studentsRes.count ?? students.length,
