@@ -8,10 +8,10 @@
 ## 📈 PROGRESSO DA CORREÇÃO
 
 🚨 Críticos: 5/5 concluídos
-⚠️ Bugs: 1/8 concluídos
+⚠️ Bugs: 2/8 concluídos
 🔧 Melhorias: 0/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 6/41**
+**Total: 7/41**
 
 ---
 
@@ -133,9 +133,12 @@
 - **Descrição:** O debounce usa `debounceTimers.current[lessonId] = setTimeout(async () => {...}, 10000)`. Quando o componente desmonta (usuário navega para outra página), os timers pendentes continuam rodando e tentam fazer upsert com `user.id` que pode estar desatualizado ou o contexto desmontado. Não há `useEffect` com `return () => { Object.values(debounceTimers.current).forEach(clearTimeout) }`.
 - **Impacto:** Médio — memory leak; possível write em dados incorretos após navegação
 - **Decisão:**
-  - [ ] Corrigir automaticamente (adicionar useEffect de cleanup que limpa todos os timers)
+  - [x] Corrigir automaticamente (adicionar useEffect de cleanup que limpa todos os timers)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
+- Adicionado `useEffect` cleanup que limpa todos os timers pendentes ao desmontar
+- Captura `user.id` em variável local antes do setTimeout (evita stale closure)
 
 ---
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -192,10 +192,11 @@ export function useLessonProgress() {
         clearTimeout(debounceTimers.current[lessonId]);
       }
 
+      const userId = user.id;
       debounceTimers.current[lessonId] = setTimeout(async () => {
         await supabase.from("lesson_progress").upsert(
           {
-            student_id: user.id,
+            student_id: userId,
             lesson_id: lessonId,
             course_id: courseId,
             module_id: moduleId,
@@ -208,6 +209,14 @@ export function useLessonProgress() {
     },
     [user]
   );
+
+  // Cleanup all pending timers when the hook unmounts
+  useEffect(() => {
+    const timers = debounceTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   return {
     progress,
