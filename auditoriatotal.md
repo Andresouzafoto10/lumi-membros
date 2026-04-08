@@ -9,9 +9,9 @@
 
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
-🔧 Melhorias: 1/8 concluídas
+🔧 Melhorias: 2/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 14/41**
+**Total: 15/41**
 
 ---
 
@@ -239,9 +239,12 @@
 - **Descrição:** Imagens de thumbnail de curso, imagens de posts e avatares em listas não têm atributo `loading="lazy"`. O browser carrega todas as imagens imediatamente, mesmo as fora do viewport, aumentando o tempo de carregamento inicial em ~300ms.
 - **Impacto:** Médio — LCP (Largest Contentful Paint) e FCP afetados; dados desnecessários carregados
 - **Decisão:**
-  - [ ] Corrigir automaticamente (adicionar `loading="lazy"` em todas as `<img>` que estão fora do fold inicial)
+  - [x] Corrigir automaticamente (adicionar `loading="lazy"` em todas as `<img>` que estão fora do fold inicial)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
+- Adicionado `loading="lazy"` em 10 imagens de avatares em listas (ranking, moderação, comunidade, notificações, gamificação)
+- Logos e covers de auth não alterados (acima do fold)
 
 ---
 

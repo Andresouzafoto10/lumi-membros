@@ -193,7 +193,7 @@ function PodiumCard({
       </div>
       <div className={cn("rounded-full overflow-hidden border-2 bg-muted", highlight ? "h-12 w-12 border-amber-400/40 sm:h-16 sm:w-16" : "h-10 w-10 border-border/50 sm:h-12 sm:w-12")}>
         {user.avatarUrl ? (
-          <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+          <img src={user.avatarUrl} alt={user.name} loading="lazy" className="h-full w-full object-cover" />
         ) : (
           <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary font-bold">
             {user.name.charAt(0).toUpperCase()}
@@ -243,7 +243,7 @@ function RankRow({
       </span>
       <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden bg-muted ring-1 ring-border/30">
         {user.avatarUrl ? (
-          <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+          <img src={user.avatarUrl} alt={user.name} loading="lazy" className="h-full w-full object-cover" />
         ) : (
           <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary text-sm font-bold">
             {user.name.charAt(0).toUpperCase()}
