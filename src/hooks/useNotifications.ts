@@ -108,7 +108,7 @@ export function useNotifications() {
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: QK,
     queryFn: fetchNotifications,
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 60 * 5, // 5 min — invalidated on mutations anyway
   });
 
   const invalidate = useCallback(() => {

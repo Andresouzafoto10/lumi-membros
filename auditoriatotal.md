@@ -9,9 +9,9 @@
 
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
-🔧 Melhorias: 2/8 concluídas
+🔧 Melhorias: 3/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 15/41**
+**Total: 16/41**
 
 ---
 
@@ -253,9 +253,10 @@
 - **Descrição:** `staleTime: 1000 * 30` (30 segundos) faz a query refazer fetch a cada re-focus do browser. Notificações já são atualizadas por subscription Realtime do Supabase. Esse polling redundante desperdiça recursos de rede e banco.
 - **Impacto:** Médio — queries desnecessárias; aumenta carga no banco
 - **Decisão:**
-  - [ ] Corrigir automaticamente (aumentar para `staleTime: 1000 * 60 * 5` — 5 minutos, pois Realtime já atualiza)
+  - [x] Corrigir automaticamente (aumentar para `staleTime: 1000 * 60 * 5` — 5 minutos, pois Realtime já atualiza)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07 — staleTime de 30s → 5 min
 
 ---
 
