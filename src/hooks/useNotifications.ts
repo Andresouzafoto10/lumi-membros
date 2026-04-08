@@ -20,9 +20,14 @@ function mapRow(n: Record<string, unknown>): AppNotification {
 }
 
 async function fetchNotifications(): Promise<AppNotification[]> {
+  // Defence-in-depth: filter by current user even though RLS should enforce it
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("notifications")
     .select("*")
+    .eq("recipient_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) throw error;

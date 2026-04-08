@@ -7,11 +7,11 @@
 
 ## 📈 PROGRESSO DA CORREÇÃO
 
-🚨 Críticos: 4/5 concluídos
+🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 0/8 concluídos
 🔧 Melhorias: 0/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 4/41**
+**Total: 5/41**
 
 ---
 
@@ -101,9 +101,12 @@
 - **Descrição:** A função `fetchNotifications()` faz `.from("notifications").select("*")` sem nenhum filtro de `recipient_id`. A segurança depende **exclusivamente** do RLS do Supabase. Se houver qualquer misconfiguration na política RLS, todos os usuários veriam todas as notificações de todos. Além disso, o limite de 50 registros pode retornar notificações de outro usuário se o RLS falhar. Prática defensiva exige filtro no código também.
 - **Impacto:** Crítico (potencial) — vazamento de dados se RLS falhar; sem redundância de segurança no cliente
 - **Decisão:**
-  - [ ] Corrigir automaticamente (adicionar `.eq("recipient_id", currentUserId)` na query principal)
+  - [x] Corrigir automaticamente (adicionar `.eq("recipient_id", currentUserId)` na query principal)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (confio apenas no RLS — justifique)
+✅ Corrigido em 2026-04-07
+- Adicionado `supabase.auth.getUser()` + `.eq("recipient_id", user.id)` na query
+- Retorna array vazio se não autenticado (defense-in-depth)
 
 ---
 
