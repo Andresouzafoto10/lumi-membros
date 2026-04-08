@@ -8,10 +8,10 @@
 ## 📈 PROGRESSO DA CORREÇÃO
 
 🚨 Críticos: 5/5 concluídos
-⚠️ Bugs: 2/8 concluídos
+⚠️ Bugs: 3/8 concluídos
 🔧 Melhorias: 0/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 7/41**
+**Total: 8/41**
 
 ---
 
@@ -147,9 +147,11 @@
 - **Descrição:** O `useEffect` faz fetch sem verificação de cancelamento. Se o usuário trocar rapidamente entre aulas (lessonId muda antes da query anterior retornar), a nota da aula anterior pode sobrescrever `setContent` com o estado errado. Não há AbortController nem flag `isMounted`.
 - **Impacto:** Médio — exibe nota errada para a aula; perda de UX de notas
 - **Decisão:**
-  - [ ] Corrigir automaticamente (adicionar AbortController ou flag let cancelled = false antes do .then)
+  - [x] Corrigir automaticamente (adicionar AbortController ou flag let cancelled = false antes do .then)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
+- Adicionado `let cancelled = false` + cleanup `return () => { cancelled = true }` no useEffect
 
 ---
 

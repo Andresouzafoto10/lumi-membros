@@ -16,6 +16,7 @@ export function useLessonNotes(
       setContent("");
       return;
     }
+    let cancelled = false;
     supabase
       .from("lesson_notes")
       .select("content")
@@ -23,8 +24,9 @@ export function useLessonNotes(
       .eq("student_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
-        setContent((data?.content as string) ?? "");
+        if (!cancelled) setContent((data?.content as string) ?? "");
       });
+    return () => { cancelled = true; };
   }, [courseId, lessonId, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveNote = useCallback(
