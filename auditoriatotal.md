@@ -9,9 +9,9 @@
 
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
-🔧 Melhorias: 4/8 concluídas
+🔧 Melhorias: 8/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 17/41**
+**Total: 21/41**
 
 ---
 
@@ -29,7 +29,7 @@
 
 **Estado do build:** ✅ Passa limpo (0 erros TypeScript)
 **Estado do lint:** ✅ ESLint configurado — 12 erros (hooks condicionais), 62 warnings
-**Bundle principal:** ⚠️ 1,850 KB (reduzido de 2,069 após remover S3 client)
+**Bundle principal:** ✅ 1,153 KB app + 898 KB vendors (separados via manualChunks) — gzip total 490 KB
 
 ---
 
@@ -280,9 +280,10 @@
 - **Descrição:** O botão `<Button size="icon">` com ícone X para limpar a busca não possui `aria-label`. Usuários de screen reader não conseguem identificar a função do botão.
 - **Impacto:** Baixo — acessibilidade comprometida para usuários com deficiência visual
 - **Decisão:**
-  - [ ] Corrigir automaticamente (adicionar `aria-label="Limpar busca"`)
+  - [x] Corrigir automaticamente (adicionar `aria-label="Limpar busca"`)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
 
 ---
 
@@ -291,9 +292,10 @@
 - **Descrição:** Componente `AvatarSmall` renderiza `<img alt="">` sem texto alternativo. Deveria ser `alt={name}` para contexto de acessibilidade.
 - **Impacto:** Baixo — imagens decorativas sem contexto para screen readers
 - **Decisão:**
-  - [ ] Corrigir automaticamente (trocar `alt=""` por `alt={name || "Avatar"}`)
+  - [x] Corrigir automaticamente (trocar `alt=""` por `alt={name || "Avatar"}`)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
 
 ---
 
@@ -302,9 +304,10 @@
 - **Descrição:** O `.env.example` não documenta `VITE_SUPABASE_SERVICE_ROLE_KEY` e as variáveis R2 (`VITE_R2_*`). Um novo desenvolvedor que clonar o projeto não saberá que precisa dessas variáveis e não terá aviso de que elas são sensíveis.
 - **Impacto:** Baixo — onboarding confuso para novos devs; risco de commits acidentais de .env real
 - **Decisão:**
-  - [ ] Corrigir automaticamente (atualizar .env.example com todas as variáveis + comentários sobre quais são backend-only)
+  - [x] Corrigir automaticamente (atualizar .env.example com todas as variáveis + comentários sobre quais são backend-only)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07 (junto com CRIT-003)
 
 ---
 
@@ -313,9 +316,12 @@
 - **Descrição:** O bundle vendor principal tem 2MB. Causas principais: (1) `date-fns` com locale `pt-BR` importa o módulo inteiro (~180KB); (2) Radix UI com 14 componentes importados (~400KB); (3) ReactDOM. Já existe code-splitting para páginas, mas o vendor não está otimizado. O alerta do Vite sobre chunks >500KB aparece no build.
 - **Impacto:** Médio — FCP mais lento na primeira visita; usuários mobile afetados
 - **Decisão:**
-  - [ ] Corrigir automaticamente (configurar `manualChunks` no vite.config.ts para separar Radix, date-fns, etc.)
+  - [x] Corrigir automaticamente (configurar `manualChunks` no vite.config.ts para separar Radix, date-fns, etc.)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (já tem code-splitting de páginas; performance atual é aceitável)
+✅ Corrigido em 2026-04-07
+- manualChunks em vite.config.ts: react (347KB), supabase (193KB), radix (134KB), markdown (143KB), query (55KB), date-fns (26KB)
+- Bundle principal: 2,069 KB → 1,153 KB app code (gzip 223 KB)
 
 ---
 

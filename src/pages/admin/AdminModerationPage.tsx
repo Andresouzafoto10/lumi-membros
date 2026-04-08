@@ -95,7 +95,7 @@ function AvatarSmall({ url, name }: { url?: string | null; name: string }) {
   return (
     <div className="h-7 w-7 rounded-full overflow-hidden bg-muted shrink-0">
       {url ? (
-        <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+        <img src={url} alt={name} loading="lazy" className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-xs font-bold">
           {name.charAt(0).toUpperCase()}
