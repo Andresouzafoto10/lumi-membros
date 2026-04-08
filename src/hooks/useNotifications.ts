@@ -1,6 +1,7 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import type { AppNotification } from "@/types/student";
 
 const QK = ["notifications"] as const;
@@ -104,16 +105,42 @@ function groupNotifications(notifications: AppNotification[]): GroupedNotificati
 
 export function useNotifications() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: QK,
     queryFn: fetchNotifications,
-    staleTime: 1000 * 60 * 5, // 5 min — invalidated on mutations anyway
+    staleTime: 1000 * 60 * 5, // 5 min — Realtime handles live updates
   });
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: QK });
   }, [queryClient]);
+
+  // Supabase Realtime — instant bell updates on INSERT/UPDATE/DELETE
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("notifications-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        () => {
+          invalidate();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, invalidate]);
 
   const getNotificationsForUser = useCallback(
     (recipientId: string) =>

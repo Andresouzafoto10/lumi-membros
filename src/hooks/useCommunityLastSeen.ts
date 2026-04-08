@@ -1,55 +1,65 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ---------------------------------------------------------------------------
-// Tracks last-seen timestamp per community for unread badge
+// Tracks last-seen timestamp per community for unread badge.
+// Migrated from localStorage to Supabase for cross-device sync.
 // ---------------------------------------------------------------------------
-
-const STORAGE_KEY = "lumi-membros:community-last-seen";
 
 type LastSeenMap = Record<string, string>; // { [communityId]: ISODate }
 
-let state: LastSeenMap = loadFromStorage();
-const listeners = new Set<() => void>();
+const QK = ["community-last-seen"] as const;
 
-function loadFromStorage(): LastSeenMap {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as LastSeenMap;
-  } catch {
-    // ignore
+async function fetchLastSeen(userId: string): Promise<LastSeenMap> {
+  const { data, error } = await supabase
+    .from("community_last_seen")
+    .select("community_id, last_seen_at")
+    .eq("user_id", userId);
+  if (error) throw error;
+
+  const map: LastSeenMap = {};
+  for (const row of data ?? []) {
+    map[row.community_id as string] = row.last_seen_at as string;
   }
-  return {};
-}
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
-}
-
-function setState(next: LastSeenMap) {
-  state = next;
-  persist();
-  listeners.forEach((fn) => fn());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
+  return map;
 }
 
 export function useCommunityLastSeen() {
-  const lastSeen = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const markSeen = useCallback((communityId: string) => {
-    setState({ ...state, [communityId]: new Date().toISOString() });
-  }, []);
+  const { data: lastSeen = {} } = useQuery({
+    queryKey: [...QK, user?.id],
+    queryFn: () => fetchLastSeen(user!.id),
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const markSeen = useCallback(
+    async (communityId: string) => {
+      if (!user) return;
+
+      const now = new Date().toISOString();
+
+      // Optimistic update
+      queryClient.setQueryData([...QK, user.id], (old: LastSeenMap | undefined) => ({
+        ...(old ?? {}),
+        [communityId]: now,
+      }));
+
+      await supabase.from("community_last_seen").upsert(
+        {
+          user_id: user.id,
+          community_id: communityId,
+          last_seen_at: now,
+        },
+        { onConflict: "user_id,community_id" }
+      );
+    },
+    [user, queryClient]
+  );
 
   const getLastSeen = useCallback(
     (communityId: string): string | null => {

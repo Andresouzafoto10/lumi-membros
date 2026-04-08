@@ -10,8 +10,8 @@
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
 🔧 Melhorias: 8/8 concluídas
-💡 Features: 0/20 decididas
-**Total: 21/41**
+💡 Features: 2/20 decididas
+**Total: 23/41**
 
 ---
 
@@ -335,9 +335,10 @@
 - **Esforço:** P (1-2 dias)
 - **Impacto:** 9/10
 - **Decisão:**
-  - [ ] Adicionar (implementar como descrito)
+  - [x] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
   - [ ] Não adicionar agora
+✅ Implementado em 2026-04-07 (junto com CRIT-003)
 
 ---
 
@@ -347,9 +348,13 @@
 - **Esforço:** M (3-5 dias)
 - **Impacto:** 8/10
 - **Decisão:**
-  - [ ] Adicionar (implementar como descrito)
+  - [x] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
   - [ ] Não adicionar agora
+✅ Implementado em 2026-04-07
+- useNotifications: Supabase Realtime subscription no canal `notifications` com filtro por recipient_id
+- useCommunityLastSeen: migrado de localStorage + useSyncExternalStore para React Query + Supabase
+⚠️ Ação manual: criar tabela `community_last_seen` no Supabase (SQL abaixo) e habilitar Realtime na tabela `notifications`
 
 ---
 
