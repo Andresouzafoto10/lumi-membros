@@ -8,15 +8,15 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const PLATFORM_URL = Deno.env.get("PLATFORM_URL") ?? "https://app.membrosmaster.com.br";
 const PLATFORM_NAME = Deno.env.get("PLATFORM_NAME") ?? "Membros Master";
 const FROM_EMAIL = `${PLATFORM_NAME} <enviar@membrosmaster.com.br>`;
+const ALLOWED_ORIGIN = Deno.env.get("APP_URL") || "*";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {

@@ -8,10 +8,10 @@
 ## 📈 PROGRESSO DA CORREÇÃO
 
 🚨 Críticos: 5/5 concluídos
-⚠️ Bugs: 4/8 concluídos
+⚠️ Bugs: 6/8 concluídos
 🔧 Melhorias: 0/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 9/41**
+**Total: 11/41**
 
 ---
 
@@ -173,9 +173,10 @@
 - **Descrição:** Dentro do loop de enrollments, as queries de profiles e classes usam `.single()` sem error handling. Se um aluno ou turma foi deletado mas o enrollment ainda existe, `.single()` retorna erro e o `for` loop quebra silenciosamente, deixando `recentEnrollments` incompleto ou causando exceção não tratada.
 - **Impacto:** Médio — Dashboard Admin pode quebrar com dados inconsistentes
 - **Decisão:**
-  - [ ] Corrigir automaticamente (trocar .single() por .maybeSingle() e usar fallback "—" — já parcialmente feito mas incompleto)
+  - [x] Corrigir automaticamente (trocar .single() por .maybeSingle() e usar fallback "—" — já parcialmente feito mas incompleto)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07 (junto com CRIT-004 — for-loop e .single() eliminados por batch queries)
 
 ---
 
@@ -184,9 +185,13 @@
 - **Descrição:** Todas as Edge Functions (`download-material`, `email-scheduler`, `notify-email`, `resend-access-email`) têm `"Access-Control-Allow-Origin": "*"`. Em desenvolvimento é aceitável, mas em produção permite chamadas cross-origin de qualquer domínio. Embora a autenticação JWT mitigue o risco, é má prática expor funções sensíveis (envio de email, DRM) com CORS aberto.
 - **Impacto:** Médio — vetor de abuse em produção; não segue security best practices
 - **Decisão:**
-  - [ ] Corrigir automaticamente (substituir por `process.env.APP_URL` ou valor fixo do domínio em produção)
+  - [x] Corrigir automaticamente (substituir por `process.env.APP_URL` ou valor fixo do domínio em produção)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (JWT protege suficientemente)
+✅ Corrigido em 2026-04-07
+- Todas as 6 Edge Functions agora usam `Deno.env.get("APP_URL") || "*"`
+- Em dev funciona como antes (fallback "*"), em prod restringe ao domínio configurado
+⚠️ Ação manual: setar `supabase secrets set APP_URL=https://app.membrosmaster.com.br` e redeploy
 
 ---
 

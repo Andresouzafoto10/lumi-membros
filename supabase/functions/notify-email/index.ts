@@ -39,8 +39,9 @@ interface NotifyEmailPayload {
   context?: Record<string, string | number | undefined>;
 }
 
+const ALLOWED_ORIGIN = Deno.env.get("APP_URL") || "*";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
