@@ -14,6 +14,7 @@ import {
   Trophy,
   Mail,
   Link2,
+  Plug2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -43,6 +44,7 @@ const navLinks: {
   { to: "/admin/comentarios", label: "Moderação", icon: Shield, exact: false, permission: "moderation" },
   { to: "/admin/emails", label: "Emails", icon: Mail, exact: false, permission: "settings" },
   { to: "/admin/gamificacao", label: "Gamificação", icon: Trophy, exact: false, permission: "settings" },
+  { to: "/admin/integracoes", label: "Integrações", icon: Plug2, exact: false, permission: "settings" },
   { to: "/admin/configuracoes", label: "Configurações", icon: Settings, exact: false, permission: "settings" },
 ];
 

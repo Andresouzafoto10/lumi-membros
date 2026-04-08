@@ -10,8 +10,8 @@
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
 🔧 Melhorias: 8/8 concluídas
-💡 Features: 2/20 decididas
-**Total: 23/41**
+💡 Features: 4/20 decididas
+**Total: 25/41**
 
 ---
 
@@ -366,7 +366,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-07 — requer configuração de conta Stripe e planejamento separado
 
 ---
 
@@ -377,8 +378,15 @@
 - **Impacto:** 7/10
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
-  - [ ] Adicionar com minha direção (descreva ajustes)
+  - [x] Adicionar com minha direção (página /admin/integracoes com plataformas, mapeamentos e histórico)
   - [ ] Não adicionar agora
+✅ Implementado em 2026-04-07
+- Edge Function `webhook-intake` (HMAC validation, 4 plataformas: Ticto/Hotmart/Eduzz/Monetizze)
+- Hook `useWebhookIntegrations` (CRUD platforms, mappings, logs)
+- Página `/admin/integracoes` com 3 tabs (Plataformas, Mapeamentos, Histórico)
+- Rota + link "Integrações" (Plug2) no AdminLayout sidebar
+- Tabelas: webhook_platforms, webhook_mappings, webhook_logs (migração aplicada)
+⚠️ Ação manual: deploy da Edge Function `supabase functions deploy webhook-intake`
 
 ---
 

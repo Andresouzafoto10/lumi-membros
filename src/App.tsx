@@ -98,6 +98,9 @@ const AdminEmailsPage = lazy(
 const InviteLinksPage = lazy(
   () => import("@/pages/admin/InviteLinksPage")
 );
+const AdminIntegrationsPage = lazy(
+  () => import("@/pages/admin/AdminIntegrationsPage")
+);
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
 // ---------------------------------------------------------------------------
@@ -232,6 +235,7 @@ export default function App() {
           <Route path="/admin/comentarios" element={<AdminModerationPage />} />
           <Route path="/admin/emails" element={<AdminEmailsPage />} />
           <Route path="/admin/gamificacao" element={<AdminGamificationPage />} />
+          <Route path="/admin/integracoes" element={<AdminIntegrationsPage />} />
           <Route path="/admin/configuracoes" element={<AdminSettingsPage />} />
           <Route
             path="/admin/configuracoes/perfis"
