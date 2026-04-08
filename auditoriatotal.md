@@ -9,9 +9,9 @@
 
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
-🔧 Melhorias: 0/8 concluídas
+🔧 Melhorias: 1/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 13/41**
+**Total: 14/41**
 
 ---
 
@@ -226,9 +226,11 @@
 - **Descrição:** Esses componentes são renderizados em listas com `map()` (até 20+ por vez no feed da comunidade). Sem `React.memo`, cada mudança de estado no componente pai (ex: busca, filtros) re-renderiza todos os cards mesmo sem mudança nas props.
 - **Impacto:** Médio — re-renders desnecessários; feed da comunidade com 20+ posts especialmente afetado
 - **Decisão:**
-  - [ ] Corrigir automaticamente (envolver com `export default React.memo(ComponentName)`)
+  - [x] Corrigir automaticamente (envolver com `export default React.memo(ComponentName)`)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
+- CourseCard, PostCard e CertificateCard envolvidos com `memo()`
 
 ---
 

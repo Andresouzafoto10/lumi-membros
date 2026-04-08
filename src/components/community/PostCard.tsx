@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { memo, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import {
@@ -293,7 +293,7 @@ function PostPollDisplay({
 // ---------------------------------------------------------------------------
 // PostCard
 // ---------------------------------------------------------------------------
-export function PostCard({
+export const PostCard = memo(function PostCard({
   post,
   showCommunity = true,
   isPinned = false,
@@ -702,4 +702,4 @@ export function PostCard({
       )}
     </div>
   );
-}
+});

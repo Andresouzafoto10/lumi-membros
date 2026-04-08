@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { memo, useState, useRef } from "react";
 import { Download, Calendar, Clock, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -19,7 +19,7 @@ type Props = {
   certificate: EarnedCertificate;
 };
 
-export function CertificateCard({ certificate }: Props) {
+export const CertificateCard = memo(function CertificateCard({ certificate }: Props) {
   const { getTemplateById, markDownloaded, generateCertificateData } =
     useCertificates();
   const { findCourse } = useCourses();
@@ -135,4 +135,4 @@ export function CertificateCard({ certificate }: Props) {
       </div>
     </>
   );
-}
+});
