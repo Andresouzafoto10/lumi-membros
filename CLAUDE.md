@@ -15,7 +15,7 @@ Lumi Membros is a member-area / course platform for managing and consuming onlin
 - **Auth Users:** https://supabase.com/dashboard/project/gdbkbeurjjtjgmrmfngk/auth/users
 - **Owner account:** `fotografoandresouza@gmail.com` / role: `owner`
 - **NEVER use project `zowcnbpzojesyvmcjtri`** — that is a different product (Lumi Fotos)
-- MCP Supabase tools are connected to a different account and **cannot access `gdbkbeurjjtjgmrmfngk`**. For DDL/SQL operations, use the SQL Editor in the dashboard or use `curl` with the service role key from `.env` (`VITE_SUPABASE_SERVICE_ROLE_KEY`).
+- MCP Supabase tools are connected to a different account and **cannot access `gdbkbeurjjtjgmrmfngk`**. For DDL/SQL operations, use the SQL Editor in the dashboard or use `curl` with the service role key from `.env` (`SUPABASE_SERVICE_ROLE_KEY`).
 - After any schema change, always update `supabase/migrations/001_initial_schema.sql` to keep the local file in sync.
 
 ## Commands
