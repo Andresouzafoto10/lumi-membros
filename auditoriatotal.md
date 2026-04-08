@@ -8,10 +8,10 @@
 ## 📈 PROGRESSO DA CORREÇÃO
 
 🚨 Críticos: 5/5 concluídos
-⚠️ Bugs: 0/8 concluídos
+⚠️ Bugs: 1/8 concluídos
 🔧 Melhorias: 0/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 5/41**
+**Total: 6/41**
 
 ---
 
@@ -119,9 +119,12 @@
 - **Descrição:** Não existe `<Route path="*">` catch-all no router. Qualquer URL inválida (ex: `/pagina-que-nao-existe`) resulta em tela em branco sem feedback para o usuário.
 - **Impacto:** Alto — UX quebrada; usuário sem orientação ao acessar link errado
 - **Decisão:**
-  - [ ] Corrigir automaticamente (criar `NotFoundPage` simples com link para /cursos e adicionar rota catch-all)
+  - [x] Corrigir automaticamente (criar `NotFoundPage` simples com link para /cursos e adicionar rota catch-all)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
+- Criado `src/pages/NotFoundPage.tsx` (ícone, mensagem, botão "Voltar para Cursos")
+- Adicionado `<Route path="*">` catch-all em App.tsx (lazy-loaded)
 
 ---
 

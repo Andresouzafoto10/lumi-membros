@@ -98,6 +98,7 @@ const AdminEmailsPage = lazy(
 const InviteLinksPage = lazy(
   () => import("@/pages/admin/InviteLinksPage")
 );
+const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
 // ---------------------------------------------------------------------------
 // Loading fallback
@@ -237,6 +238,9 @@ export default function App() {
             element={<AdminAccessProfilesPage />}
           />
         </Route>
+
+        {/* 404 catch-all */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   );
