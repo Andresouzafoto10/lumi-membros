@@ -7,11 +7,11 @@
 
 ## 📈 PROGRESSO DA CORREÇÃO
 
-🚨 Críticos: 2/5 concluídos
+🚨 Críticos: 3/5 concluídos
 ⚠️ Bugs: 0/8 concluídos
 🔧 Melhorias: 0/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 2/41**
+**Total: 3/41**
 
 ---
 
@@ -28,8 +28,8 @@
 | **Total de itens** | **41** |
 
 **Estado do build:** ✅ Passa limpo (0 erros TypeScript)
-**Estado do lint:** ❌ ESLint não configurado no projeto
-**Bundle principal:** ⚠️ 2,069 KB (excede limite recomendado de 500 KB)
+**Estado do lint:** ✅ ESLint configurado — 12 erros (hooks condicionais), 62 warnings
+**Bundle principal:** ⚠️ 1,850 KB (reduzido de 2,069 após remover S3 client)
 
 ---
 
@@ -42,9 +42,14 @@
 - **Descrição:** O script `"lint": "eslint ."` existe no package.json, mas o ESLint não está instalado nas devDependencies e não existe arquivo `eslint.config.js` / `.eslintrc.*`. Ao rodar `npm run lint` o comando falha com erro. O projeto não tem nenhuma análise estática de código funcionando.
 - **Impacto:** Crítico — bugs de lint passam despercebidos; o script de CI/CD de lint está quebrado
 - **Decisão:**
-  - [ ] Corrigir automaticamente (instalar eslint + @typescript-eslint + react-hooks plugin, gerar config padrão)
+  - [x] Corrigir automaticamente (instalar eslint + @typescript-eslint + react-hooks plugin, gerar config padrão)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
+- ESLint 8 + @typescript-eslint + eslint-plugin-react-hooks@4 instalados
+- `.eslintrc.cjs` criado com config para React + TypeScript
+- `npm run lint` funciona — resultado: 12 erros (hooks condicionais em 3 arquivos), 62 warnings
+- 12 erros de rules-of-hooks descobertos: bugs reais em CourseBannersCarousel, AdminCourseEditPage, CourseDetailPage
 
 ---
 
