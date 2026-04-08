@@ -10,8 +10,8 @@
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
 🔧 Melhorias: 8/8 concluídas
-💡 Features: 4/20 decididas
-**Total: 25/41**
+💡 Features: 7/20 decididas
+**Total: 28/41**
 
 ---
 
@@ -398,7 +398,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-07
 
 ---
 
@@ -410,7 +411,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-07
 
 ---
 
@@ -420,9 +422,14 @@
 - **Esforço:** P (1-2 dias)
 - **Impacto:** 7/10
 - **Decisão:**
-  - [ ] Adicionar (implementar como descrito)
+  - [x] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
   - [ ] Não adicionar agora
+✅ Implementado em 2026-04-07
+- RankingPage com 3 tabs: Global / Este Mes / Hall da Fama
+- Monthly ranking calculado via aggregation de points_log do mes atual
+- Hall of Fame com tabela ranking_hall_of_fame (top 3 por periodo)
+- Medals emoji (🥇🥈🥉) + agrupamento por mes
 
 ---
 

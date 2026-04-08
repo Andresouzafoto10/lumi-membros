@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Trophy, Crown, Medal, Star } from "lucide-react";
+import { Trophy, Crown, Medal, Star, CalendarDays } from "lucide-react";
 import { useGamificationConfig } from "@/hooks/useGamificationConfig";
+import type { RankingUser, HallOfFameEntry } from "@/hooks/useGamificationConfig";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LevelBadge } from "@/components/gamification/LevelBadge";
 import { GamificationGuide } from "@/components/gamification/GamificationGuide";
@@ -10,16 +11,19 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { key: "global", label: "Global" },
-  { key: "month", label: "Este mês" },
+  { key: "month", label: "Este mes" },
+  { key: "fame", label: "Hall da Fama" },
 ] as const;
 
-export default function RankingPage() {
-  const { ranking, rankingLoading, levels } = useGamificationConfig();
-  const { currentUserId } = useCurrentUser();
-  const [activeTab, setActiveTab] = useState<"global" | "month">("global");
+type Tab = (typeof TABS)[number]["key"];
 
-  // For now both tabs show the same ranking (monthly filtering would need points_log aggregation)
-  const displayRanking = useMemo(() => ranking, [ranking]);
+export default function RankingPage() {
+  const { ranking, rankingLoading, monthlyRanking, monthlyRankingLoading, hallOfFame, levels } = useGamificationConfig();
+  const { currentUserId } = useCurrentUser();
+  const [activeTab, setActiveTab] = useState<Tab>("global");
+
+  const displayRanking = activeTab === "month" ? monthlyRanking : ranking;
+  const isLoading = activeTab === "month" ? monthlyRankingLoading : rankingLoading;
 
   const top3 = displayRanking.slice(0, 3);
   const rest = displayRanking.slice(3);
@@ -27,6 +31,17 @@ export default function RankingPage() {
   // Find current user's rank
   const myRank = displayRanking.findIndex((r) => r.studentId === currentUserId) + 1;
   const myData = displayRanking.find((r) => r.studentId === currentUserId);
+
+  // Group hall of fame by period
+  const hallByPeriod = useMemo(() => {
+    const map = new Map<string, HallOfFameEntry[]>();
+    for (const entry of hallOfFame) {
+      const arr = map.get(entry.period) ?? [];
+      arr.push(entry);
+      map.set(entry.period, arr);
+    }
+    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [hallOfFame]);
 
   return (
     <div className="mx-auto max-w-6xl pb-20 sm:pb-12 px-4">
@@ -66,80 +81,147 @@ export default function RankingPage() {
             ))}
           </div>
 
-          {rankingLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
-              ))}
-            </div>
-          ) : displayRanking.length === 0 ? (
-            <div className="text-center py-16">
-              <Trophy className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-lg font-medium text-muted-foreground">
-                Nenhum aluno no ranking ainda
-              </p>
-              <p className="text-sm text-muted-foreground/60 mt-1">
-                Complete aulas e interaja na comunidade para aparecer aqui!
-              </p>
-            </div>
-          ) : (
+          {/* Global & Monthly tabs */}
+          {activeTab !== "fame" && (
             <>
-              {/* Podium - Top 3 */}
-              {top3.length >= 3 && (
-                <div className="flex items-end justify-center gap-2 mb-6 px-1 sm:gap-3 sm:mb-8 sm:px-2">
-                  <PodiumCard user={top3[1]} rank={2} height="h-28" />
-                  <PodiumCard user={top3[0]} rank={1} height="h-36" highlight />
-                  <PodiumCard user={top3[2]} rank={3} height="h-24" />
-                </div>
-              )}
-
-              {/* If less than 3, show inline */}
-              {top3.length < 3 && top3.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  {top3.map((user) => (
-                    <RankRow key={user.studentId} user={user} isMe={user.studentId === currentUserId} levels={levels} />
+              {isLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
                   ))}
                 </div>
-              )}
-
-              {/* Rest of ranking */}
-              {rest.length > 0 && (
-                <div className="space-y-1.5">
-                  {rest.map((user) => (
-                    <RankRow key={user.studentId} user={user} isMe={user.studentId === currentUserId} levels={levels} />
-                  ))}
+              ) : displayRanking.length === 0 ? (
+                <div className="text-center py-16">
+                  <Trophy className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-lg font-medium text-muted-foreground">
+                    {activeTab === "month"
+                      ? "Nenhum ponto registrado este mes"
+                      : "Nenhum aluno no ranking ainda"}
+                  </p>
+                  <p className="text-sm text-muted-foreground/60 mt-1">
+                    Complete aulas e interaja na comunidade para aparecer aqui!
+                  </p>
                 </div>
-              )}
-
-              {/* My position if not in top 50 */}
-              {myRank === 0 && myData && (
-                <div className="mt-6 border-t border-border/40 pt-4">
-                  <p className="text-xs text-muted-foreground mb-2">Sua posicao</p>
-                  <RankRow user={{ ...myData, rank: 0 }} isMe levels={levels} />
-                </div>
-              )}
-
-              {/* My position highlight */}
-              {myRank > 0 && myData && (
-                <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Sua posicao</p>
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-primary">#{myRank}</span>
-                    <div className="flex-1">
-                      <p className="font-semibold">{myData.name}</p>
-                      <LevelBadge
-                        iconName={myData.levelIconName}
-                        iconColor={myData.levelIconColor}
-                        levelName={myData.levelName}
-                      />
+              ) : (
+                <>
+                  {/* Podium - Top 3 */}
+                  {top3.length >= 3 && (
+                    <div className="flex items-end justify-center gap-2 mb-6 px-1 sm:gap-3 sm:mb-8 sm:px-2">
+                      <PodiumCard user={top3[1]} rank={2} height="h-28" />
+                      <PodiumCard user={top3[0]} rank={1} height="h-36" highlight />
+                      <PodiumCard user={top3[2]} rank={3} height="h-24" />
                     </div>
-                    <span className="text-lg font-bold text-primary">
-                      {myData.totalPoints.toLocaleString()} pts
-                    </span>
-                  </div>
-                </div>
+                  )}
+
+                  {/* If less than 3, show inline */}
+                  {top3.length < 3 && top3.length > 0 && (
+                    <div className="space-y-2 mb-4">
+                      {top3.map((user) => (
+                        <RankRow key={user.studentId} user={user} isMe={user.studentId === currentUserId} levels={levels} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Rest of ranking */}
+                  {rest.length > 0 && (
+                    <div className="space-y-1.5">
+                      {rest.map((user) => (
+                        <RankRow key={user.studentId} user={user} isMe={user.studentId === currentUserId} levels={levels} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* My position highlight */}
+                  {myRank > 0 && myData && (
+                    <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                      <p className="text-xs text-muted-foreground mb-1">Sua posicao</p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl font-bold text-primary">#{myRank}</span>
+                        <div className="flex-1">
+                          <p className="font-semibold">{myData.name}</p>
+                          <LevelBadge
+                            iconName={myData.levelIconName}
+                            iconColor={myData.levelIconColor}
+                            levelName={myData.levelName}
+                          />
+                        </div>
+                        <span className="text-lg font-bold text-primary">
+                          {myData.totalPoints.toLocaleString()} pts
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {myRank === 0 && myData && (
+                    <div className="mt-6 border-t border-border/40 pt-4">
+                      <p className="text-xs text-muted-foreground mb-2">Sua posicao</p>
+                      <RankRow user={{ ...myData, rank: 0 }} isMe levels={levels} />
+                    </div>
+                  )}
+                </>
               )}
             </>
+          )}
+
+          {/* Hall of Fame tab */}
+          {activeTab === "fame" && (
+            <div className="space-y-6">
+              {hallByPeriod.length === 0 ? (
+                <div className="text-center py-16">
+                  <CalendarDays className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-lg font-medium text-muted-foreground">
+                    Nenhum registro no Hall da Fama
+                  </p>
+                  <p className="text-sm text-muted-foreground/60 mt-1">
+                    Os top 3 de cada mes aparecerao aqui ao final do periodo.
+                  </p>
+                </div>
+              ) : (
+                hallByPeriod.map(([period, entries]) => {
+                  const [year, month] = period.split("-");
+                  const monthNames = ["", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+                  const label = `${monthNames[Number(month)]} ${year}`;
+                  const medals = ["🥇", "🥈", "🥉"];
+
+                  return (
+                    <div key={period} className="rounded-xl border border-border/50 overflow-hidden">
+                      <div className="bg-muted/30 px-4 py-2.5 border-b border-border/30">
+                        <p className="text-sm font-semibold flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4 text-primary" />
+                          {label}
+                        </p>
+                      </div>
+                      <div className="divide-y divide-border/20">
+                        {entries.sort((a, b) => a.position - b.position).map((entry) => (
+                          <Link
+                            key={`${entry.period}-${entry.position}`}
+                            to={`/perfil/${entry.studentId}`}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
+                          >
+                            <span className="text-xl">{medals[entry.position - 1] ?? "🏅"}</span>
+                            <div className="h-9 w-9 rounded-full overflow-hidden bg-muted shrink-0">
+                              {entry.avatarUrl ? (
+                                <img src={entry.avatarUrl} alt={entry.name} loading="lazy" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary text-sm font-bold">
+                                  {entry.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{entry.name}</p>
+                            </div>
+                            <span className="text-sm font-bold text-primary">
+                              {entry.points.toLocaleString()} pts
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           )}
         </div>
 
@@ -165,10 +247,10 @@ export default function RankingPage() {
 function PodiumCard({
   user,
   rank,
-  height,
+  height: _height,
   highlight,
 }: {
-  user: { studentId: string; name: string; avatarUrl: string; totalPoints: number; levelIconName: string; levelIconColor: string; levelName: string };
+  user: RankingUser;
   rank: number;
   height: string;
   highlight?: boolean;
@@ -221,7 +303,7 @@ function RankRow({
   isMe,
   levels: allLevels = [],
 }: {
-  user: { rank: number; studentId: string; name: string; avatarUrl: string; totalPoints: number; levelIconName: string; levelIconColor: string; levelName: string };
+  user: RankingUser;
   isMe?: boolean;
   levels?: { levelNumber: number; pointsRequired: number; iconName: string; name: string }[];
 }) {

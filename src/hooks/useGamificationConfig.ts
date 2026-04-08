@@ -81,6 +81,17 @@ const QK_POINTS = ["points-config"] as const;
 const QK_LEVELS = ["levels"] as const;
 const QK_MISSIONS = ["missions-config"] as const;
 const QK_RANKING = ["ranking"] as const;
+const QK_MONTHLY_RANKING = ["ranking-monthly"] as const;
+const QK_HALL_OF_FAME = ["ranking-hall-of-fame"] as const;
+
+export type HallOfFameEntry = {
+  period: string;
+  position: number;
+  points: number;
+  studentId: string;
+  name: string;
+  avatarUrl: string;
+};
 
 // ---------------------------------------------------------------------------
 // Fetchers
@@ -196,6 +207,102 @@ async function fetchRanking(): Promise<RankingUser[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Monthly ranking (aggregated from points_log for current month)
+// ---------------------------------------------------------------------------
+
+async function fetchMonthlyRanking(): Promise<RankingUser[]> {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  // Sum points per student for current month
+  const { data: logData, error: lErr } = await supabase
+    .from("points_log")
+    .select("student_id, points")
+    .gte("created_at", monthStart);
+  if (lErr) throw lErr;
+
+  // Aggregate per student
+  const totals = new Map<string, number>();
+  for (const row of logData ?? []) {
+    const sid = row.student_id as string;
+    totals.set(sid, (totals.get(sid) ?? 0) + (row.points as number));
+  }
+
+  // Sort and take top 50
+  const sorted = [...totals.entries()]
+    .filter(([, pts]) => pts > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 50);
+
+  if (sorted.length === 0) return [];
+
+  // Fetch profiles + levels
+  const studentIds = sorted.map(([id]) => id);
+  const [{ data: profilesData }, { data: levelsData }, { data: gamData }] = await Promise.all([
+    supabase.from("profiles").select("id, name, display_name, avatar_url").in("id", studentIds),
+    supabase.from("levels").select("*").order("points_required"),
+    supabase.from("gamification").select("student_id, current_level").in("student_id", studentIds),
+  ]);
+
+  const profileMap = new Map((profilesData ?? []).map((p) => [p.id as string, p]));
+  const levelMap = new Map((gamData ?? []).map((g) => [g.student_id as string, g.current_level as number]));
+  const levels = (levelsData ?? []) as Record<string, unknown>[];
+
+  return sorted.map(([studentId, pts], idx) => {
+    const profile = profileMap.get(studentId);
+    const currentLevel = levelMap.get(studentId) ?? 1;
+    const lvl = levels.find((l) => (l.level_number as number) === currentLevel);
+    return {
+      rank: idx + 1,
+      studentId,
+      name: (profile?.display_name as string) || (profile?.name as string) || "Aluno",
+      avatarUrl: (profile?.avatar_url as string) ?? "",
+      totalPoints: pts,
+      currentLevel,
+      levelName: (lvl?.name as string) ?? "Iniciante",
+      levelIconName: (lvl?.icon_name as string) ?? "🌱",
+      levelIconColor: (lvl?.icon_color as string) ?? "#94a3b8",
+      badges: [],
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Hall of Fame
+// ---------------------------------------------------------------------------
+
+async function fetchHallOfFame(): Promise<HallOfFameEntry[]> {
+  const { data, error } = await supabase
+    .from("ranking_hall_of_fame")
+    .select("*")
+    .order("period", { ascending: false })
+    .order("position")
+    .limit(30); // last 10 months × 3 positions
+  if (error) throw error;
+  if (!data || data.length === 0) return [];
+
+  const studentIds = [...new Set(data.map((r) => r.student_id as string))];
+  const { data: profilesData } = await supabase
+    .from("profiles")
+    .select("id, name, display_name, avatar_url")
+    .in("id", studentIds);
+
+  const profileMap = new Map((profilesData ?? []).map((p) => [p.id as string, p]));
+
+  return data.map((r) => {
+    const profile = profileMap.get(r.student_id as string);
+    return {
+      period: r.period as string,
+      position: r.position as number,
+      points: r.points as number,
+      studentId: r.student_id as string,
+      name: (profile?.display_name as string) || (profile?.name as string) || "Aluno",
+      avatarUrl: (profile?.avatar_url as string) ?? "",
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 
@@ -229,11 +336,25 @@ export function useGamificationConfig() {
     staleTime: 1000 * 30,
   });
 
+  const { data: monthlyRanking = [], isLoading: monthlyRankingLoading } = useQuery({
+    queryKey: QK_MONTHLY_RANKING,
+    queryFn: fetchMonthlyRanking,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const { data: hallOfFame = [] } = useQuery({
+    queryKey: QK_HALL_OF_FAME,
+    queryFn: fetchHallOfFame,
+    staleTime: 1000 * 60 * 10,
+  });
+
   const invalidateAll = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: QK_POINTS });
     queryClient.invalidateQueries({ queryKey: QK_LEVELS });
     queryClient.invalidateQueries({ queryKey: QK_MISSIONS });
     queryClient.invalidateQueries({ queryKey: QK_RANKING });
+    queryClient.invalidateQueries({ queryKey: QK_MONTHLY_RANKING });
+    queryClient.invalidateQueries({ queryKey: QK_HALL_OF_FAME });
   }, [queryClient]);
 
   // ---- Points Config CRUD ----
@@ -530,6 +651,9 @@ export function useGamificationConfig() {
     achievements, // legacy alias
     ranking,
     rankingLoading,
+    monthlyRanking,
+    monthlyRankingLoading,
+    hallOfFame,
     // Points config
     updatePointsAction,
     togglePointsAction,
