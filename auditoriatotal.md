@@ -9,9 +9,9 @@
 
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
-🔧 Melhorias: 3/8 concluídas
+🔧 Melhorias: 4/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 16/41**
+**Total: 17/41**
 
 ---
 
@@ -265,9 +265,13 @@
 - **Descrição:** Toda a lógica de aparência, certificados, avaliações, scripts e perfis está em um único arquivo. Isso gera um chunk de 120KB minificado e torna o componente difícil de manter. Cada mudança em qualquer tab refaz o render do componente inteiro.
 - **Impacto:** Médio — DX ruim; chunk grande; renders desnecessários entre tabs
 - **Decisão:**
-  - [ ] Corrigir automaticamente (extrair `ThemeSection`, `CertificateSection`, `RatingsSection`, `ScriptsSection` como componentes memoizados em arquivos separados)
+  - [x] Corrigir automaticamente (extrair `ThemeSection`, `CertificateSection`, `RatingsSection`, `ScriptsSection` como componentes memoizados em arquivos separados)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (justifique)
+✅ Corrigido em 2026-04-07
+- Extraído ScriptsTabContent + ScriptDialog → `settings/ScriptsTab.tsx`
+- Extraído MenuTabContent + MenuItemList + MenuItemDialog → `settings/MenuTab.tsx`
+- AdminSettingsPage: 1558 → 1017 linhas (−35%)
 
 ---
 
