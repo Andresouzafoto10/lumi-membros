@@ -8,10 +8,10 @@
 ## 📈 PROGRESSO DA CORREÇÃO
 
 🚨 Críticos: 5/5 concluídos
-⚠️ Bugs: 6/8 concluídos
+⚠️ Bugs: 8/8 concluídos
 🔧 Melhorias: 0/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 11/41**
+**Total: 13/41**
 
 ---
 
@@ -200,6 +200,7 @@
 - **Descrição:** O script de lint está configurado mas o binário `eslint` não existe nas devDependencies. Qualquer pipeline de CI que rodar `npm run lint` vai falhar imediatamente. (Vinculado a CRIT-001 mas listado aqui como bug funcional do script.)
 - **Impacto:** Alto — CI/CD quebrado para lint; processo de qualidade inexistente
 - **Decisão:** (resolvido junto com CRIT-001)
+✅ Corrigido em 2026-04-07 (junto com CRIT-001)
 
 ---
 
@@ -208,9 +209,11 @@
 - **Descrição:** `fetchStudents()` busca `profiles` e `enrollments` completos sem verificar se o usuário tem permissão de admin. Embora o RLS controle o acesso, qualquer componente que importar `useStudents()` pode acessar dados de todos os alunos. Não há verificação de `isAdmin` no hook.
 - **Impacto:** Médio — sem redundância de segurança; dados sensíveis (emails, CPFs) acessíveis via console
 - **Decisão:**
-  - [ ] Corrigir automaticamente (adicionar verificação `if (!isAdmin) return { students: [], enrollments: [] }` no início)
+  - [x] Corrigir automaticamente (adicionar verificação `if (!isAdmin) return { students: [], enrollments: [] }` no início)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (confio no RLS e nos componentes que usam o hook)
+✅ Corrigido em 2026-04-07
+- Adicionado `enabled: isAdmin` no useQuery — query nem executa se não for admin
 
 ---
 

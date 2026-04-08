@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Student, Enrollment, StudentStatus, StudentRole } from "@/types/student";
 
 const QK = ["students"] as const;
@@ -48,9 +49,11 @@ async function fetchStudents(): Promise<{ students: Student[]; enrollments: Enro
 
 export function useStudents() {
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: QK,
     queryFn: fetchStudents,
+    enabled: isAdmin,
     staleTime: 1000 * 60 * 2,
   });
 
