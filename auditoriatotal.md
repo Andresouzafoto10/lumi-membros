@@ -8,10 +8,10 @@
 ## 📈 PROGRESSO DA CORREÇÃO
 
 🚨 Críticos: 5/5 concluídos
-⚠️ Bugs: 3/8 concluídos
+⚠️ Bugs: 4/8 concluídos
 🔧 Melhorias: 0/8 concluídas
 💡 Features: 0/20 decididas
-**Total: 8/41**
+**Total: 9/41**
 
 ---
 
@@ -160,9 +160,11 @@
 - **Descrição:** As funções `approvePost()` e `rejectPost()` atualizam o status de posts sem nenhuma verificação de `isAdmin` ou role no frontend. A proteção depende apenas do RLS. Se chamadas por código inesperado ou via console do browser (o hook é importado globalmente), podem ser abusadas.
 - **Impacto:** Médio — qualquer usuário com acesso ao hook pode tentar aprovar/rejeitar posts (mitigado pelo RLS mas sem redundância)
 - **Decisão:**
-  - [ ] Corrigir automaticamente (adicionar `if (!isAdmin) throw new Error("Sem permissão")` no início das funções)
+  - [x] Corrigir automaticamente (adicionar `if (!isAdmin) throw new Error("Sem permissão")` no início das funções)
   - [ ] Corrigir com minha direção (descreva como quer)
   - [ ] Deixar como está (confio no RLS)
+✅ Corrigido em 2026-04-07
+- Adicionado `useAuth()` + guard `if (!isAdmin) throw` em approvePost e rejectPost
 
 ---
 

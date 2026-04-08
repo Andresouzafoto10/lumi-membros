@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { deleteFromR2, isR2Url } from "@/lib/r2Upload";
 import { onPostLiked, onPostCreated, onPollAnswered, onFirstPost } from "@/lib/gamificationEngine";
 import { notifyPostLiked, notifyPostApproved, notifyPostRejected, notifyMentions } from "@/lib/notificationTriggers";
@@ -84,6 +85,7 @@ async function fetchAllPostsAdmin(): Promise<CommunityPost[]> {
 
 export function usePosts() {
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
 
   const allPostsQuery = useQuery({
     queryKey: QK,
@@ -431,6 +433,7 @@ export function usePosts() {
 
   const approvePost = useCallback(
     async (postId: string) => {
+      if (!isAdmin) throw new Error("Sem permissão para aprovar posts");
       const post = findPost(postId);
       await updatePost(postId, { status: "published" });
       if (post) {
@@ -438,18 +441,19 @@ export function usePosts() {
         onPostCreated(post.authorId).catch(() => {});
       }
     },
-    [findPost, updatePost]
+    [isAdmin, findPost, updatePost]
   );
 
   const rejectPost = useCallback(
     async (postId: string) => {
+      if (!isAdmin) throw new Error("Sem permissão para rejeitar posts");
       const post = findPost(postId);
       await updatePost(postId, { status: "rejected" });
       if (post) {
         notifyPostRejected(postId, post.authorId).catch(() => {});
       }
     },
-    [findPost, updatePost]
+    [isAdmin, findPost, updatePost]
   );
 
   // Called by useComments to keep commentsCount in sync
