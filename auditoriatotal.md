@@ -10,8 +10,8 @@
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
 🔧 Melhorias: 8/8 concluídas
-💡 Features: 7/20 decididas
-**Total: 28/41**
+💡 Features: 8/20 decididas
+**Total: 29/41**
 
 ---
 
@@ -439,9 +439,17 @@
 - **Esforço:** G (1-2 semanas)
 - **Impacto:** 9/10
 - **Decisão:**
-  - [ ] Adicionar (implementar como descrito)
+  - [x] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
   - [ ] Não adicionar agora
+✅ Implementado em 2026-04-09
+- Tabelas `live_lessons` + `live_lesson_participants` (migração aplicada)
+- Hook `useLiveLessons` (CRUD completo + join tracking)
+- Página admin `/admin/aulas-ao-vivo` (agendamento com cover, duração, URL Zoom/Meet/Mux, link curso, turmas)
+- Página aluno `/aulas-ao-vivo` (3 seções: Ao vivo agora / Próximas / Gravações)
+- Badge "AO VIVO" animado, contador "começa em X" via date-fns
+- Link "Aulas ao Vivo" (Video icon) no StudentLayout e AdminLayout
+- Abordagem: admin cola URL da reunião (Zoom/Meet/Mux) — sem integração OAuth
 
 ---
 
