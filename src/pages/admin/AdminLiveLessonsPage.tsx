@@ -4,8 +4,9 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-import { useLiveLessons } from "@/hooks/useLiveLessons";
+import { useLiveLessons, getComputedStatus } from "@/hooks/useLiveLessons";
 import type { LiveLesson, LiveLessonStatus } from "@/hooks/useLiveLessons";
+import { LiveBadge } from "@/components/ui/LiveBadge";
 import { useClasses } from "@/hooks/useClasses";
 import { useCourses } from "@/hooks/useCourses";
 
@@ -41,6 +42,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { FileUpload } from "@/components/ui/FileUpload";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Status badges
@@ -62,6 +64,7 @@ const EMPTY_FORM = {
   scheduledAt: "",
   durationMinutes: 60,
   meetingUrl: "",
+  salesUrl: "",
   recordingUrl: "",
   courseId: "",
   classIds: [] as string[],
@@ -102,6 +105,7 @@ export default function AdminLiveLessonsPage() {
       scheduledAt: l.scheduledAt.slice(0, 16),
       durationMinutes: l.durationMinutes,
       meetingUrl: l.meetingUrl ?? "",
+      salesUrl: l.salesUrl ?? "",
       recordingUrl: l.recordingUrl ?? "",
       courseId: l.courseId ?? "",
       classIds: l.classIds,
@@ -126,6 +130,7 @@ export default function AdminLiveLessonsPage() {
         scheduledAt: new Date(form.scheduledAt).toISOString(),
         durationMinutes: form.durationMinutes,
         meetingUrl: form.meetingUrl.trim() || null,
+        salesUrl: form.salesUrl.trim() || null,
         recordingUrl: form.recordingUrl.trim() || null,
         courseId: form.courseId || null,
         classIds: form.classIds,
@@ -210,10 +215,11 @@ export default function AdminLiveLessonsPage() {
       ) : (
         <div className="space-y-3">
           {lessons.map((lesson) => {
-            const statusCfg = STATUS_CONFIG[lesson.status];
+            const cs = getComputedStatus(lesson);
+            const statusCfg = STATUS_CONFIG[cs];
             const StatusIcon = statusCfg.icon;
             return (
-              <Card key={lesson.id} className="border-border/50 hover:border-border transition-all">
+              <Card key={lesson.id} className={cn("border-border/50 hover:border-border transition-all", cs === "live" && "border-red-500/30")}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     {lesson.coverUrl ? (
@@ -232,10 +238,14 @@ export default function AdminLiveLessonsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <p className="font-medium">{lesson.title}</p>
-                        <Badge variant={statusCfg.variant} className="text-[10px] gap-1">
-                          <StatusIcon className="h-2.5 w-2.5" />
-                          {statusCfg.label}
-                        </Badge>
+                        {cs === "live" ? (
+                          <LiveBadge />
+                        ) : (
+                          <Badge variant={statusCfg.variant} className="text-[10px] gap-1">
+                            <StatusIcon className="h-2.5 w-2.5" />
+                            {statusCfg.label}
+                          </Badge>
+                        )}
                         {lesson.courseId && courseMap[lesson.courseId] && (
                           <Badge variant="outline" className="text-[10px]">
                             {courseMap[lesson.courseId]}
@@ -354,6 +364,19 @@ export default function AdminLiveLessonsPage() {
               />
               <p className="text-xs text-muted-foreground">
                 Cole o link gerado na sua plataforma de videoconferência.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>URL para nao matriculados (venda / landing page)</Label>
+              <Input
+                value={form.salesUrl}
+                onChange={(e) => setForm({ ...form, salesUrl: e.target.value })}
+                placeholder="https://... (link de checkout, pagina de vendas)"
+                type="url"
+              />
+              <p className="text-xs text-muted-foreground">
+                Este link aparece para visitantes sem matricula ativa.
               </p>
             </div>
 

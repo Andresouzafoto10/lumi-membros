@@ -23,6 +23,7 @@ import { useClasses } from "@/hooks/useClasses";
 import { useLessonProgress } from "@/hooks/useLessonProgress";
 import { useAuth } from "@/contexts/AuthContext";
 import { isStudentEnrolled } from "@/lib/accessControl";
+import { UpcomingLiveBanner } from "@/components/courses/UpcomingLiveBanner";
 
 export default function CoursesPage() {
   const { sessions, activeBanners } = useCourses();
@@ -112,6 +113,9 @@ export default function CoursesPage() {
       {activeBanners.length > 0 && (
         <CourseBannersCarousel banners={activeBanners} />
       )}
+
+      {/* Upcoming live lessons banner */}
+      <UpcomingLiveBanner />
 
       {/* Mobile search */}
       <div className="sm:hidden">

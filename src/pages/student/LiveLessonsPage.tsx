@@ -1,27 +1,54 @@
 import { useMemo } from "react";
 import { Helmet } from "react-helmet-async";
-import { Video, Calendar, Clock, Radio, ExternalLink, PlayCircle } from "lucide-react";
+import { Video, Calendar, Clock, ExternalLink, PlayCircle, ShoppingCart } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
-import { useLiveLessons } from "@/hooks/useLiveLessons";
-import type { LiveLesson } from "@/hooks/useLiveLessons";
+import { useLiveLessons, getComputedStatus } from "@/hooks/useLiveLessons";
+import type { LiveLesson, LiveLessonStatus } from "@/hooks/useLiveLessons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { LiveBadge } from "@/components/ui/LiveBadge";
 import { cn } from "@/lib/utils";
 
-function LessonCard({ lesson, onJoin }: { lesson: LiveLesson; onJoin: (l: LiveLesson) => void }) {
-  const isLive = lesson.status === "live";
-  const isUpcoming = lesson.status === "scheduled" && new Date(lesson.scheduledAt) > new Date();
-  const isEnded = lesson.status === "ended" || lesson.status === "recorded";
+// ---------------------------------------------------------------------------
+// Status badge for non-live states
+// ---------------------------------------------------------------------------
+
+function StatusBadge({ status }: { status: LiveLessonStatus }) {
+  if (status === "live") return <LiveBadge />;
+  const cfg: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+    scheduled: { label: "Agendada", variant: "outline" },
+    ended: { label: "Encerrada", variant: "secondary" },
+    recorded: { label: "Gravada", variant: "default" },
+    cancelled: { label: "Cancelada", variant: "outline" },
+  };
+  const c = cfg[status] ?? cfg.scheduled;
+  return <Badge variant={c.variant} className="text-[10px]">{c.label}</Badge>;
+}
+
+// ---------------------------------------------------------------------------
+// Lesson card — uses computed status
+// ---------------------------------------------------------------------------
+
+function LessonCard({
+  lesson,
+  onJoin,
+  isEnrolled,
+}: {
+  lesson: LiveLesson;
+  onJoin: (l: LiveLesson) => void;
+  isEnrolled: boolean;
+}) {
+  const cs = getComputedStatus(lesson);
   const hasRecording = !!lesson.recordingUrl;
 
   return (
     <Card className={cn(
       "border-border/50 hover:border-border transition-all overflow-hidden",
-      isLive && "border-destructive/40 shadow-lg shadow-destructive/10"
+      cs === "live" && "border-red-500/40 shadow-lg shadow-red-500/10"
     )}>
       {lesson.coverUrl && (
         <div className="aspect-video bg-muted overflow-hidden">
@@ -36,12 +63,7 @@ function LessonCard({ lesson, onJoin }: { lesson: LiveLesson; onJoin: (l: LiveLe
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold line-clamp-2 flex-1">{lesson.title}</h3>
-          {isLive && (
-            <Badge variant="destructive" className="text-[10px] gap-1 animate-pulse shrink-0">
-              <Radio className="h-2.5 w-2.5" />
-              AO VIVO
-            </Badge>
-          )}
+          <StatusBadge status={cs} />
         </div>
 
         {lesson.description && (
@@ -57,40 +79,67 @@ function LessonCard({ lesson, onJoin }: { lesson: LiveLesson; onJoin: (l: LiveLe
             <Clock className="h-3 w-3" />
             {lesson.durationMinutes}min
           </span>
+          {lesson.instructorName && (
+            <span>por {lesson.instructorName}</span>
+          )}
         </div>
 
-        {isUpcoming && (
+        {/* ---- Action buttons based on computed status + enrollment ---- */}
+
+        {cs === "scheduled" && isEnrolled && lesson.meetingUrl && (
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/30">
             <span className="text-xs text-muted-foreground">
-              Começa {formatDistanceToNow(new Date(lesson.scheduledAt), { locale: ptBR, addSuffix: true })}
+              {formatDistanceToNow(new Date(lesson.scheduledAt), { locale: ptBR, addSuffix: true })}
             </span>
-            {lesson.meetingUrl && (
-              <Button size="sm" variant="outline" disabled>
-                Em breve
-              </Button>
-            )}
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onJoin(lesson)}>
+              <ExternalLink className="h-3.5 w-3.5" />
+              Salvar link
+            </Button>
           </div>
         )}
 
-        {isLive && lesson.meetingUrl && (
-          <Button size="sm" className="w-full gap-2" onClick={() => onJoin(lesson)}>
-            <ExternalLink className="h-3.5 w-3.5" />
-            Entrar na aula
+        {cs === "scheduled" && !isEnrolled && lesson.salesUrl && (
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/30">
+            <span className="text-xs text-muted-foreground">
+              {formatDistanceToNow(new Date(lesson.scheduledAt), { locale: ptBR, addSuffix: true })}
+            </span>
+            <Button size="sm" variant="outline" className="gap-1.5" asChild>
+              <a href={lesson.salesUrl} target="_blank" rel="noreferrer">
+                <ShoppingCart className="h-3.5 w-3.5" />
+                Quero participar
+              </a>
+            </Button>
+          </div>
+        )}
+
+        {cs === "live" && isEnrolled && lesson.meetingUrl && (
+          <Button size="sm" className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white" onClick={() => onJoin(lesson)}>
+            <PlayCircle className="h-3.5 w-3.5" />
+            Entrar agora
           </Button>
         )}
 
-        {isEnded && hasRecording && (
-          <Button size="sm" variant="secondary" className="w-full gap-2" asChild>
-            <a href={lesson.recordingUrl!} target="_blank" rel="noreferrer">
-              <PlayCircle className="h-3.5 w-3.5" />
-              Assistir gravação
+        {cs === "live" && !isEnrolled && lesson.salesUrl && (
+          <Button size="sm" variant="outline" className="w-full gap-2" asChild>
+            <a href={lesson.salesUrl} target="_blank" rel="noreferrer">
+              <ShoppingCart className="h-3.5 w-3.5" />
+              Quero participar
             </a>
           </Button>
         )}
 
-        {isEnded && !hasRecording && (
+        {(cs === "ended" || cs === "recorded") && hasRecording && (
+          <Button size="sm" variant="secondary" className="w-full gap-2" asChild>
+            <a href={lesson.recordingUrl!} target="_blank" rel="noreferrer">
+              <PlayCircle className="h-3.5 w-3.5" />
+              Ver gravacao
+            </a>
+          </Button>
+        )}
+
+        {(cs === "ended" || cs === "recorded") && !hasRecording && (
           <p className="text-xs text-center text-muted-foreground py-1">
-            Gravação ainda não disponível
+            Gravacao ainda nao disponivel
           </p>
         )}
       </CardContent>
@@ -98,24 +147,27 @@ function LessonCard({ lesson, onJoin }: { lesson: LiveLesson; onJoin: (l: LiveLe
   );
 }
 
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
 export default function LiveLessonsPage() {
   const { lessons, loading, joinLesson } = useLiveLessons();
 
+  // TODO: real enrollment check — for now assume enrolled if authenticated
+  const isEnrolled = true;
+
   const { upcoming, live, past } = useMemo(() => {
-    const now = new Date();
     const upcoming: LiveLesson[] = [];
     const live: LiveLesson[] = [];
     const past: LiveLesson[] = [];
 
     for (const l of lessons) {
-      if (l.status === "cancelled") continue;
-      if (l.status === "live") {
-        live.push(l);
-      } else if (l.status === "scheduled" && new Date(l.scheduledAt) > now) {
-        upcoming.push(l);
-      } else {
-        past.push(l);
-      }
+      const cs = getComputedStatus(l);
+      if (cs === "cancelled") continue;
+      if (cs === "live") live.push(l);
+      else if (cs === "scheduled") upcoming.push(l);
+      else past.push(l);
     }
 
     upcoming.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
@@ -126,14 +178,10 @@ export default function LiveLessonsPage() {
 
   const handleJoin = async (lesson: LiveLesson) => {
     if (!lesson.meetingUrl) {
-      toast.error("Link da reunião não disponível");
+      toast.error("Link da reuniao nao disponivel");
       return;
     }
-    try {
-      await joinLesson(lesson.id);
-    } catch {
-      // Non-blocking
-    }
+    try { await joinLesson(lesson.id); } catch { /* non-blocking */ }
     window.open(lesson.meetingUrl, "_blank");
   };
 
@@ -161,27 +209,24 @@ export default function LiveLessonsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Aulas ao Vivo</h1>
           <p className="text-sm text-muted-foreground">
-            Participe das aulas ao vivo e assista gravações anteriores
+            Participe das aulas ao vivo e assista gravacoes anteriores
           </p>
         </div>
       </div>
 
-      {/* Live now */}
       {live.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Radio className="h-4 w-4 text-destructive animate-pulse" />
-            Ao vivo agora
+            <LiveBadge />
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {live.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} />)}
+            {live.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} isEnrolled={isEnrolled} />)}
           </div>
         </section>
       )}
 
-      {/* Upcoming */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold mb-3">Próximas</h2>
+        <h2 className="text-sm font-semibold mb-3">Proximas</h2>
         {upcoming.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
@@ -193,17 +238,16 @@ export default function LiveLessonsPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {upcoming.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} />)}
+            {upcoming.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} isEnrolled={isEnrolled} />)}
           </div>
         )}
       </section>
 
-      {/* Past */}
       {past.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold mb-3">Gravações anteriores</h2>
+          <h2 className="text-sm font-semibold mb-3">Gravacoes anteriores</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {past.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} />)}
+            {past.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} isEnrolled={isEnrolled} />)}
           </div>
         </section>
       )}
