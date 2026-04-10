@@ -10,8 +10,8 @@
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
 🔧 Melhorias: 8/8 concluídas
-💡 Features: 11/20 decididas
-**Total: 32/41**
+💡 Features: 12/20 decididas
+**Total: 33/41**
 
 ---
 
@@ -503,9 +503,14 @@
 - **Esforço:** M (3-5 dias)
 - **Impacto:** 7/10
 - **Decisão:**
-  - [ ] Adicionar (implementar como descrito)
+  - [x] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
   - [ ] Não adicionar agora
+✅ Implementado em 2026-04-09
+- Hook `useStudyAnalytics` agrega lesson_progress.watch_time_seconds (total/mes/semana, streak de dias, top course, avg/dia ativo)
+- Componente `StudyAnalyticsCard` com 4 stats grandes (mes/streak/concluidas/cursos) + linha detalhada (total/media/top)
+- Integrado na tab "Sobre" do MyProfilePage e no AdminStudentProfilePage
+- Helper `formatDuration` (seg → "8h 30min")
 
 ---
 

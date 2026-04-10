@@ -77,6 +77,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/courses/EmptyState";
+import { StudyAnalyticsCard } from "@/components/gamification/StudyAnalyticsCard";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -992,6 +993,9 @@ export default function AdminStudentProfilePage() {
             )}
           </CardContent>
         </Card>
+
+        {/* ---- Card: Estatisticas de Estudo ---- */}
+        <StudyAnalyticsCard studentId={studentId} />
 
         {/* ---- Card: Gamificacao ---- */}
         <Card>

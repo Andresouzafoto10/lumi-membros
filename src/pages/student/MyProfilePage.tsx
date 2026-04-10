@@ -75,6 +75,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ImageCropDialog } from "@/components/ui/ImageCropDialog";
+import { StudyAnalyticsCard } from "@/components/gamification/StudyAnalyticsCard";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -999,6 +1000,9 @@ export default function MyProfilePage() {
           {/* Tab: About */}
           <TabsContent value="about">
             <div className="mt-3 space-y-6">
+              {/* Study Analytics */}
+              <StudyAnalyticsCard />
+
               {/* Bio */}
               {profile.bio && (
                 <div>
