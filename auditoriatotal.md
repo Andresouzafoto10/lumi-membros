@@ -10,8 +10,8 @@
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
 🔧 Melhorias: 8/8 concluídas
-💡 Features: 8/20 decididas
-**Total: 29/41**
+💡 Features: 11/20 decididas
+**Total: 32/41**
 
 ---
 
@@ -461,7 +461,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-09 — depende de Stripe/Ticto para parte paga
 
 ---
 
@@ -473,7 +474,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-09
 
 ---
 
@@ -483,9 +485,15 @@
 - **Esforço:** P (1-2 dias)
 - **Impacto:** 6/10
 - **Decisão:**
-  - [ ] Adicionar (implementar como descrito)
+  - [x] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
   - [ ] Não adicionar agora
+✅ Implementado em 2026-04-09
+- Migration: campos `launch_at` + `launch_status` em courses, tabela `course_launch_interests`
+- Tipo Course expandido com `launchAt` + `launchStatus`
+- Hook `useCourseLaunchInterest` (toggleInterest com optimistic update)
+- CourseCard: overlay "Em breve" com contador (formatDistanceToNow), botão "Me notifique" / "Vou ser notificado"
+- AdminCourseEditPage: card "Lançamento" com toggle + datetime-local picker
 
 ---
 

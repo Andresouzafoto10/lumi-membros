@@ -98,6 +98,8 @@ export type CertificateConfig = {
   quizThreshold: number;
 };
 
+export type LaunchStatus = "upcoming" | "released";
+
 export type Course = {
   id: string;
   title: string;
@@ -109,6 +111,8 @@ export type Course = {
   modules: CourseModule[];
   certificateConfig?: CertificateConfig;
   commentsEnabled?: boolean;
+  launchAt?: string | null;
+  launchStatus?: LaunchStatus;
 };
 
 export interface LessonComment {

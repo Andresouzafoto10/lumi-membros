@@ -87,6 +87,8 @@ async function fetchCourseTree(): Promise<CourseSession[]> {
     isActive: c.is_active,
     access: c.access as CourseAccess,
     commentsEnabled: c.comments_enabled ?? true,
+    launchAt: (c.launch_at as string | null) ?? null,
+    launchStatus: (c.launch_status as Course["launchStatus"]) ?? "released",
     certificateConfig: c.certificate_config
       ? (c.certificate_config as Course["certificateConfig"])
       : undefined,
@@ -330,6 +332,8 @@ export function useCourses() {
           | "access"
           | "certificateConfig"
           | "commentsEnabled"
+          | "launchAt"
+          | "launchStatus"
         >
       >
     ) => {
@@ -347,6 +351,8 @@ export function useCourses() {
           ...(patch.commentsEnabled !== undefined && {
             comments_enabled: patch.commentsEnabled,
           }),
+          ...(patch.launchAt !== undefined && { launch_at: patch.launchAt }),
+          ...(patch.launchStatus !== undefined && { launch_status: patch.launchStatus }),
         })
         .eq("id", courseId);
       if (error) throw error;

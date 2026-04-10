@@ -243,6 +243,9 @@ export default function CoursesPage() {
                       isDisabled={!course.isActive}
                       locked={!hasAccess}
                       access={course.access}
+                      courseId={course.id}
+                      launchAt={course.launchAt}
+                      launchStatus={course.launchStatus}
                     />
                   </div>
                 );

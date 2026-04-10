@@ -1,6 +1,10 @@
 import { memo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Lock } from "lucide-react";
+import { Lock, Bell, BellRing, Clock3 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
+import { useCourseLaunchInterest } from "@/hooks/useCourseLaunchInterest";
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Progress } from "@/components/ui/progress";
@@ -28,6 +32,12 @@ interface CourseCardProps {
   locked?: boolean;
   /** Course access config — used for no-access behavior */
   access?: CourseAccess;
+  /** Course ID (required for upcoming launch interest) */
+  courseId?: string;
+  /** ISO date of upcoming launch */
+  launchAt?: string | null;
+  /** "upcoming" shows countdown + notify button, "released" shows normal card */
+  launchStatus?: "upcoming" | "released";
 }
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -42,12 +52,32 @@ export const CourseCard = memo(function CourseCard({
   createdAt,
   locked,
   access,
+  courseId,
+  launchAt,
+  launchStatus,
 }: CourseCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const { isInterested, toggleInterest } = useCourseLaunchInterest();
+
+  const isUpcoming = launchStatus === "upcoming" && !!launchAt;
+  const interested = courseId ? isInterested(courseId) : false;
 
   const isNew =
+    !isUpcoming &&
     createdAt != null &&
     Date.now() - new Date(createdAt).getTime() < SEVEN_DAYS_MS;
+
+  const handleNotifyClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!courseId) return;
+    try {
+      await toggleInterest(courseId);
+      toast.success(interested ? "Notificação removida" : "Voce sera notificado no lancamento!");
+    } catch {
+      toast.error("Erro ao salvar preferencia");
+    }
+  };
 
   const noAccessAction = access?.no_access_action ?? "nothing";
   const supportUrl = access?.no_access_support_url ?? "";
@@ -73,17 +103,28 @@ export const CourseCard = memo(function CourseCard({
             alt={title}
             className={cn(
               "h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105",
-              locked && "grayscale"
+              (locked || isUpcoming) && "grayscale"
             )}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+          {isUpcoming && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/40">
+              <Clock3 className="h-6 w-6 text-white" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-white">Em breve</p>
+              {launchAt && (
+                <p className="text-[11px] text-white/80">
+                  {formatDistanceToNow(new Date(launchAt), { locale: ptBR, addSuffix: true })}
+                </p>
+              )}
+            </div>
+          )}
         </AspectRatio>
         {locked && (
           <div className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm shadow-lg">
             <Lock className="h-4 w-4 text-white" />
           </div>
         )}
-        {isNew && !locked && (
+        {isNew && !locked && !isUpcoming && (
           <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground shadow-lg shadow-primary/25 animate-pulse-soft">
             Novo
           </Badge>
@@ -96,7 +137,19 @@ export const CourseCard = memo(function CourseCard({
           {description}
         </p>
 
-        {progressPercent != null && !locked && (
+        {isUpcoming && courseId && (
+          <Button
+            size="sm"
+            variant={interested ? "default" : "outline"}
+            className="mt-3 w-full gap-2"
+            onClick={handleNotifyClick}
+          >
+            {interested ? <BellRing className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+            {interested ? "Vou ser notificado" : "Me notifique"}
+          </Button>
+        )}
+
+        {progressPercent != null && !locked && !isUpcoming && (
           <div className="mt-3 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">
@@ -112,6 +165,15 @@ export const CourseCard = memo(function CourseCard({
       </CardContent>
     </Card>
   );
+
+  // Upcoming card — not a Link, only notify button is interactive
+  if (isUpcoming) {
+    return (
+      <div className="block rounded-lg group">
+        {cardContent}
+      </div>
+    );
+  }
 
   // Locked card — not a Link, uses onClick
   if (locked) {

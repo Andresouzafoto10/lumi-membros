@@ -132,6 +132,14 @@ export default function AdminCourseEditPage() {
     course?.commentsEnabled ?? true
   );
 
+  // Launch config
+  const [launchStatus, setLaunchStatus] = useState<"upcoming" | "released">(
+    course?.launchStatus ?? "released"
+  );
+  const [launchAt, setLaunchAt] = useState<string>(
+    course?.launchAt ? course.launchAt.slice(0, 16) : ""
+  );
+
   // Certificate config
   const [certTemplateId, setCertTemplateId] = useState<string>(
     course?.certificateConfig?.templateId ?? ""
@@ -270,6 +278,8 @@ export default function AdminCourseEditPage() {
       bannerUrl: bannerUrl,
       access,
       commentsEnabled,
+      launchStatus,
+      launchAt: launchStatus === "upcoming" && launchAt ? new Date(launchAt).toISOString() : null,
       certificateConfig: {
         templateId: certTemplateId || null,
         completionThreshold: certThreshold,
@@ -731,6 +741,42 @@ export default function AdminCourseEditPage() {
                   onCheckedChange={setCommentsEnabled}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* ── Row 3.5: Lancamento ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Lançamento</CardTitle>
+              <CardDescription>
+                Marque como "Em breve" para exibir contador e botão "Me notifique" aos alunos antes do lançamento
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="upcoming-toggle">Curso em lançamento (Em breve)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Ao ativar, o curso aparecerá na listagem com overlay "Em breve" e botão de notificação.
+                  </p>
+                </div>
+                <Switch
+                  id="upcoming-toggle"
+                  checked={launchStatus === "upcoming"}
+                  onCheckedChange={(v) => setLaunchStatus(v ? "upcoming" : "released")}
+                />
+              </div>
+              {launchStatus === "upcoming" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="launch-date">Data e hora do lançamento</Label>
+                  <Input
+                    id="launch-date"
+                    type="datetime-local"
+                    value={launchAt}
+                    onChange={(e) => setLaunchAt(e.target.value)}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
