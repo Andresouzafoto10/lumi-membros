@@ -16,6 +16,7 @@ import {
   Link2,
   Plug2,
   Video,
+  Route,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -39,6 +40,7 @@ const navLinks: {
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/cursos", label: "Cursos", icon: GraduationCap, exact: false, permission: "courses" },
   { to: "/admin/aulas-ao-vivo", label: "Aulas ao Vivo", icon: Video, exact: false, permission: "courses" },
+  { to: "/admin/trilhas", label: "Trilhas", icon: Route, exact: false, permission: "courses" },
   { to: "/admin/turmas", label: "Turmas", icon: UsersRound, exact: false, permission: "classes" },
   { to: "/admin/convites", label: "Convites", icon: Link2, exact: false, permission: "classes" },
   { to: "/admin/alunos", label: "Alunos", icon: Users, exact: false, permission: "students" },

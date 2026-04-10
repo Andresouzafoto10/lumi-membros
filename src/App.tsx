@@ -40,6 +40,8 @@ const CommunityFeedPage = lazy(
 );
 const CommunityPage = lazy(() => import("@/pages/student/CommunityPage"));
 const LiveLessonsPage = lazy(() => import("@/pages/student/LiveLessonsPage"));
+const LearningPathsPage = lazy(() => import("@/pages/student/LearningPathsPage"));
+const LearningPathDetailPage = lazy(() => import("@/pages/student/LearningPathDetailPage"));
 
 // Admin
 const AdminDashboardPage = lazy(
@@ -104,6 +106,12 @@ const AdminIntegrationsPage = lazy(
 );
 const AdminLiveLessonsPage = lazy(
   () => import("@/pages/admin/AdminLiveLessonsPage")
+);
+const AdminLearningPathsPage = lazy(
+  () => import("@/pages/admin/AdminLearningPathsPage")
+);
+const AdminLearningPathEditPage = lazy(
+  () => import("@/pages/admin/AdminLearningPathEditPage")
 );
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
@@ -181,6 +189,8 @@ export default function App() {
             element={<LessonPage />}
           />
           <Route path="/aulas-ao-vivo" element={<LiveLessonsPage />} />
+          <Route path="/trilhas" element={<LearningPathsPage />} />
+          <Route path="/trilhas/:pathId" element={<LearningPathDetailPage />} />
           <Route path="/ranking" element={<RankingPage />} />
           <Route path="/meu-perfil" element={<MyProfilePage />} />
           <Route path="/meus-certificados" element={<MyCertificatesPage />} />
@@ -241,6 +251,8 @@ export default function App() {
           <Route path="/admin/emails" element={<AdminEmailsPage />} />
           <Route path="/admin/gamificacao" element={<AdminGamificationPage />} />
           <Route path="/admin/aulas-ao-vivo" element={<AdminLiveLessonsPage />} />
+          <Route path="/admin/trilhas" element={<AdminLearningPathsPage />} />
+          <Route path="/admin/trilhas/:pathId/edit" element={<AdminLearningPathEditPage />} />
           <Route path="/admin/integracoes" element={<AdminIntegrationsPage />} />
           <Route path="/admin/configuracoes" element={<AdminSettingsPage />} />
           <Route

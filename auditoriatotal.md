@@ -10,8 +10,8 @@
 🚨 Críticos: 5/5 concluídos
 ⚠️ Bugs: 8/8 concluídos
 🔧 Melhorias: 8/8 concluídas
-💡 Features: 12/20 decididas
-**Total: 33/41**
+💡 Features: 20/20 decididas
+**Total: 41/41** ✅
 
 ---
 
@@ -522,7 +522,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-09
 
 ---
 
@@ -534,7 +535,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-09
 
 ---
 
@@ -546,7 +548,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-09
 
 ---
 
@@ -558,7 +561,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-09
 
 ---
 
@@ -570,7 +574,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-09
 
 ---
 
@@ -582,7 +587,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-09
 
 ---
 
@@ -594,7 +600,8 @@
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
   - [ ] Adicionar com minha direção (descreva ajustes)
-  - [ ] Não adicionar agora
+  - [x] Não adicionar agora
+⏭️ Registrado no backlog em 2026-04-09
 
 ---
 
@@ -605,8 +612,20 @@
 - **Impacto:** 8/10
 - **Decisão:**
   - [ ] Adicionar (implementar como descrito)
-  - [ ] Adicionar com minha direção (descreva ajustes)
+  - [x] Adicionar com minha direção (especificações completas — área aluno, painel admin, banco)
   - [ ] Não adicionar agora
+✅ Implementado em 2026-04-09
+- 4 tabelas: learning_paths, learning_path_courses, learning_path_access, learning_path_certificates (migration aplicada)
+- Hook `useLearningPaths` (CRUD completo + access checking + auto award certificate)
+- Página aluno `/trilhas` (grid de cards com progresso agregado)
+- Página aluno `/trilhas/:pathId` (timeline vertical com locks sequenciais, cursos com status, botão "Ver certificado")
+- Página admin `/admin/trilhas` (lista com toggle ativo, duplicar, excluir)
+- Página admin `/admin/trilhas/:pathId/edit` com 3 tabs:
+  - Conteudo: titulo, descricao, banner, sequencial toggle, lista de cursos com reorder/remove
+  - Acesso: liberar por turma (multiselect) + por aluno individual (busca + expiracao)
+  - Certificado: toggle + seletor de template
+- Sidebar: link "Trilhas" (Route icon) em StudentLayout e AdminLayout
+- Auto-award de certificado quando trilha completa 100%
 
 ---
 

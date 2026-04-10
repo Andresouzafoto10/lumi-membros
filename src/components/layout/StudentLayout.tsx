@@ -12,6 +12,7 @@ import {
   User,
   LogOut,
   Video,
+  Route,
   type LucideIcon,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
@@ -308,10 +309,12 @@ const FALLBACK_ICON_MAP: Record<string, LucideIcon> = {
   Trophy,
   Award,
   Video,
+  Route,
 };
 
 const FALLBACK_NAV = [
   { to: "/cursos", label: "Inicio", icon: Home, end: true },
+  { to: "/trilhas", label: "Trilhas", icon: Route, end: false },
   { to: "/aulas-ao-vivo", label: "Ao Vivo", icon: Video, end: true },
   { to: "/comunidade/feed", label: "Comunidade", icon: MessageSquare, end: false },
   { to: "/ranking", label: "Ranking", icon: Trophy, end: true },
