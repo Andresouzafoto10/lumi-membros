@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-04-07 | **Versão do Tracker:** 2.2.0
+**Última atualização:** 2026-04-10 | **Versão do Tracker:** 2.3.0
 
 ---
 
@@ -46,6 +46,9 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| FIX-008 | Diagnóstico imagens/Supabase — 38 img onError handlers (23 arquivos), 30+ operações Supabase com error handling (10 hooks) | DEV | 2026-04-10 |
+| FIX-009 | Renomear "Lumi Membros" → "Master Membros" — 15 arquivos com texto visível, PWA manifest, favicon, .env.example | DEV | 2026-04-10 |
+| FIX-010 | Fixar tema teal #00C2CB como padrão permanente — applyDefaultTheme() antes de render, fallbacks hardcoded em applyTheme.ts | DEV | 2026-04-10 |
 | AUDIT-002 | Auditoria total da plataforma — 41 itens (5 críticos, 8 bugs, 8 melhorias, 20 ideias) — resultado em auditoriatotal.md | TIME COMPLETO | 2026-04-07 |
 | FEAT-008 | Gestão de turmas e cursos no perfil do aluno — updateEnrollment no useStudents, card Turmas melhorado (vincular com tipo/duração automáticos da turma, editar expiração inline, mostrar cursos por turma, duração/tipo visíveis), novo card Cursos com Acesso (lista cursos derivados das turmas ativas, indica "Via: turma X", admins veem todos com badge "Acesso total"), filtro Restritos na lista de alunos | DEV | 2026-04-04 |
 | FEAT-007 | Melhorias na Moderação — Tab Aulas: "Ver na aula" (link nova aba), "Responder" inline (adminAddComment), replies agrupadas com collapse (>2). Tab Posts: "Ver na comunidade" (link nova aba), "Responder" inline (createPostComment), comentários aninhados com replies e ações moderação (excluir/restringir em cada reply). Delete dialog unificado (post/post-comment/lesson-comment). AvatarSmall helper. Separadores visuais border-l-2. | DEV | 2026-04-04 |
@@ -93,10 +96,10 @@
 
 | Métrica | Valor |
 |---------|-------|
-| Tasks criadas | 36 |
+| Tasks criadas | 39 |
 | Tasks em andamento | 0 |
 | Tasks aguardando aprovação | 0 |
-| Tasks concluídas | 22 |
+| Tasks concluídas | 25 |
 | Bugs críticos abertos | 0 |
 | Skills criadas | 0 |
 | Decisões registradas | 1 |
