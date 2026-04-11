@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-04-04 | **Versão do Tracker:** 2.2.0
+**Última atualização:** 2026-04-07 | **Versão do Tracker:** 2.2.0
 
 ---
 
@@ -46,6 +46,7 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| AUDIT-002 | Auditoria total da plataforma — 41 itens (5 críticos, 8 bugs, 8 melhorias, 20 ideias) — resultado em auditoriatotal.md | TIME COMPLETO | 2026-04-07 |
 | FEAT-008 | Gestão de turmas e cursos no perfil do aluno — updateEnrollment no useStudents, card Turmas melhorado (vincular com tipo/duração automáticos da turma, editar expiração inline, mostrar cursos por turma, duração/tipo visíveis), novo card Cursos com Acesso (lista cursos derivados das turmas ativas, indica "Via: turma X", admins veem todos com badge "Acesso total"), filtro Restritos na lista de alunos | DEV | 2026-04-04 |
 | FEAT-007 | Melhorias na Moderação — Tab Aulas: "Ver na aula" (link nova aba), "Responder" inline (adminAddComment), replies agrupadas com collapse (>2). Tab Posts: "Ver na comunidade" (link nova aba), "Responder" inline (createPostComment), comentários aninhados com replies e ações moderação (excluir/restringir em cada reply). Delete dialog unificado (post/post-comment/lesson-comment). AvatarSmall helper. Separadores visuais border-l-2. | DEV | 2026-04-04 |
 | FEAT-006 | Moderação de Comentários de Aulas — useAllLessonCommentsAdmin (join profiles+lessons+courses), adminDeleteComment mutation, tab "Comentários de Aulas" na AdminModerationPage com filtros (busca, curso, aula), cards com avatar/badges/contexto reply/truncate expandível, ações excluir + restringir autor (reusa dialog existente), paginação "Carregar mais" (50 por vez) | DEV | 2026-04-04 |
