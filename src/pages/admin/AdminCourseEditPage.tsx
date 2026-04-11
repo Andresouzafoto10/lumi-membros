@@ -897,7 +897,7 @@ export default function AdminCourseEditPage() {
                               courseName: title || "Nome do curso",
                               completionDate: "29 de marco de 2026",
                               courseHours: certHours,
-                              platformName: platformSettings.name || "Lumi Membros",
+                              platformName: platformSettings.name || "Master Membros",
                             }}
                           />
                         </div>

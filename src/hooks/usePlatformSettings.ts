@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import type { PlatformSettings, ThemeColors } from "@/types/student";
 
 const DEFAULT_SETTINGS: PlatformSettings = {
-  name: "Lumi Membros",
+  name: "Master Membros",
   logoUrl: "",
   defaultTheme: "dark",
   ratingsEnabled: true,

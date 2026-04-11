@@ -196,6 +196,7 @@ export default function PublicProfilePage() {
               alt="Capa"
               className="w-full h-full object-cover"
               style={{ objectPosition: profile.coverPosition || "50% 50%" }}
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5" />
@@ -216,6 +217,7 @@ export default function PublicProfilePage() {
                 src={profile.avatarUrl}
                 alt={profile.displayName}
                 className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-2xl font-bold">
@@ -599,6 +601,7 @@ export default function PublicProfilePage() {
                                 src={course.bannerUrl}
                                 alt={course.title}
                                 className="w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.style.display = 'none' }}
                               />
                             )}
                           </div>

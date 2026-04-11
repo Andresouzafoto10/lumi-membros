@@ -281,7 +281,7 @@ export default function AdminCommunityEditPage() {
                       return <Icon className="h-5 w-5 text-primary" />;
                     })()}
                     {detectIconType(iconUrl) === "image" && (
-                      <img src={iconUrl} alt="" className="w-full h-full object-cover" />
+                      <img src={iconUrl} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                     )}
                   </div>
                 </div>

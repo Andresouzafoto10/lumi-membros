@@ -262,7 +262,7 @@ function NotificationGroupItem({
         className="h-8 w-8 rounded-full overflow-hidden bg-muted shrink-0"
       >
         {actor?.avatarUrl ? (
-          <img src={actor.avatarUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
+          <img src={actor.avatarUrl} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-primary/20">
             <Icon className="h-3.5 w-3.5 text-primary" />

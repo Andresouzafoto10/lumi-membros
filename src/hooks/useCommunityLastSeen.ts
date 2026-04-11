@@ -49,7 +49,7 @@ export function useCommunityLastSeen() {
         [communityId]: now,
       }));
 
-      await supabase.from("community_last_seen").upsert(
+      const { error } = await supabase.from("community_last_seen").upsert(
         {
           user_id: user.id,
           community_id: communityId,
@@ -57,6 +57,7 @@ export function useCommunityLastSeen() {
         },
         { onConflict: "user_id,community_id" }
       );
+      if (error) console.error("[community_last_seen] upsert:", error.message);
     },
     [user, queryClient]
   );

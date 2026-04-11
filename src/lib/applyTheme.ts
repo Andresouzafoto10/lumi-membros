@@ -2,6 +2,20 @@ import type { ThemeColors } from "@/types/student";
 
 const CACHE_KEY = "lumi-theme-cache";
 
+/** Hardcoded teal default — applied before any fetch so the user never sees a wrong color. */
+const DEFAULT_DARK: ThemeColors = {
+  primary: "#00C2CB",
+  background: "#09090b",
+  card: "#18181b",
+  foreground: "#fafafa",
+};
+const DEFAULT_LIGHT: ThemeColors = {
+  primary: "#00C2CB",
+  background: "#ffffff",
+  card: "#f4f4f5",
+  foreground: "#09090b",
+};
+
 function hexToHsl(hex: string): string {
   const m = hex.replace("#", "").match(/([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i);
   if (!m) return "0 0% 0%";
@@ -84,6 +98,15 @@ export function applyCachedTheme(): boolean {
 }
 
 /**
+ * Apply the hardcoded teal default theme immediately.
+ * Called before React mounts as an absolute fallback — ensures the user
+ * never sees a wrong color even if cache is empty and fetch hasn't started.
+ */
+export function applyDefaultTheme(): void {
+  injectStyle(buildThemeCss(DEFAULT_DARK, DEFAULT_LIGHT));
+}
+
+/**
  * Fetch theme directly from Supabase REST API (no SDK needed).
  * Used on first visit when no cache exists — runs before React mounts so
  * the user never sees the default teal colors.
@@ -108,8 +131,14 @@ export async function fetchAndApplyTheme(): Promise<void> {
     const theme = rows?.[0]?.theme;
     if (theme?.dark?.primary && theme?.light?.primary) {
       applyThemeToCss(theme.dark, theme.light);
+    } else {
+      // DB returned no valid theme — apply hardcoded teal default
+      applyThemeToCss(DEFAULT_DARK, DEFAULT_LIGHT);
     }
-  } catch { /* network error — app will retry via React Query */ }
+  } catch {
+    // Network error — apply hardcoded teal default, app will retry via React Query
+    applyDefaultTheme();
+  }
 }
 
 /** Apply theme from Supabase settings and cache for next load. */

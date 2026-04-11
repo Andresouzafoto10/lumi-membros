@@ -139,7 +139,7 @@ export default function CommunityFeedPage() {
         {/* Avatar */}
         <div className="h-9 w-9 rounded-full overflow-hidden bg-muted shrink-0 ring-2 ring-border/30">
           {myProfile?.avatarUrl ? (
-            <img src={myProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
+            <img src={myProfile.avatarUrl} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold text-sm">
               {(myProfile?.displayName ?? "?").charAt(0).toUpperCase()}

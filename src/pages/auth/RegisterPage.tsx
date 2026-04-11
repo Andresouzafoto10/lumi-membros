@@ -72,7 +72,7 @@ export default function RegisterPage() {
   const logo = (
     <div className="mb-6 text-center">
       {logoSrc ? (
-        <img src={logoSrc} alt={settings.name} className="mx-auto h-12 object-contain" />
+        <img src={logoSrc} alt={settings.name} className="mx-auto h-12 object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
       ) : (
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
           <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="currentColor">
@@ -91,7 +91,7 @@ export default function RegisterPage() {
 
   const coverPanel = coverUrl ? (
     <div className="hidden lg:block lg:w-[60%] xl:w-[65%] relative overflow-hidden">
-      <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
+      <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-top" onError={(e) => { e.currentTarget.style.display = 'none' }} />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/30" />
       <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20" />
     </div>
@@ -299,7 +299,7 @@ export default function RegisterPage() {
         {/* ── MOBILE HERO IMAGE (below form) ── */}
         {coverUrl ? (
           <div className="lg:hidden relative min-h-[30vh]">
-            <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
+            <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-top" onError={(e) => { e.currentTarget.style.display = 'none' }} />
             <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-black/60" />
           </div>
         ) : (

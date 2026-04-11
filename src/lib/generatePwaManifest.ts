@@ -4,9 +4,9 @@ export function applyPwaManifest(settings: PlatformSettings) {
   if (!settings.pwaEnabled) return;
 
   const manifest = {
-    name: settings.pwaName || settings.name || "Lumi Membros",
+    name: settings.pwaName || settings.name || "Master Membros",
     short_name:
-      settings.pwaShortName || (settings.name || "Lumi").slice(0, 12),
+      settings.pwaShortName || (settings.name || "Master").slice(0, 12),
     start_url: "/",
     display: "standalone" as const,
     background_color: settings.pwaBackgroundColor || "#09090b",

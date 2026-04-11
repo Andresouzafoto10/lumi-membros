@@ -10,7 +10,7 @@ import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider } from "./contexts/AuthContext";
 import "./index.css";
-import { applyCachedTheme, fetchAndApplyTheme } from "./lib/applyTheme";
+import { applyDefaultTheme, applyCachedTheme, fetchAndApplyTheme } from "./lib/applyTheme";
 
 const queryClient = new QueryClient();
 
@@ -35,7 +35,11 @@ function render() {
   );
 }
 
-// 1. Try applying theme from localStorage cache (instant, no fetch)
+// 1. Apply hardcoded teal default IMMEDIATELY — guarantees correct color
+//    even before cache check or network fetch completes
+applyDefaultTheme();
+
+// 2. Try applying theme from localStorage cache (instant, overrides default)
 const hasCachedTheme = applyCachedTheme();
 
 if (hasCachedTheme) {
@@ -43,6 +47,5 @@ if (hasCachedTheme) {
   render();
 } else {
   // First visit (no cache) — fetch theme from Supabase before rendering
-  // so the user never sees the default teal colors
   fetchAndApplyTheme().finally(render);
 }

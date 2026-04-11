@@ -194,16 +194,21 @@ export function useLessonProgress() {
 
       const userId = user.id;
       debounceTimers.current[lessonId] = setTimeout(async () => {
-        await supabase.from("lesson_progress").upsert(
-          {
-            student_id: userId,
-            lesson_id: lessonId,
-            course_id: courseId,
-            module_id: moduleId,
-            last_position_seconds: Math.floor(positionSeconds),
-          },
-          { onConflict: "student_id,lesson_id" }
-        );
+        try {
+          const { error } = await supabase.from("lesson_progress").upsert(
+            {
+              student_id: userId,
+              lesson_id: lessonId,
+              course_id: courseId,
+              module_id: moduleId,
+              last_position_seconds: Math.floor(positionSeconds),
+            },
+            { onConflict: "student_id,lesson_id" }
+          );
+          if (error) console.error("[lesson_progress] upsert:", error.message);
+        } catch (err) {
+          console.error("[lesson_progress] upsert failed:", err);
+        }
         // Don't invalidate for position updates — too frequent
       }, 10000); // 10 second debounce
     },

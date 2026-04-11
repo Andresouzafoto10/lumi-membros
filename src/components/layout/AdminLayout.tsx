@@ -99,7 +99,7 @@ export function AdminLayout() {
           onClick={() => setMobileMenuOpen(false)}
         >
           {logoSrc ? (
-            <img src={logoSrc} alt={settings.name} className="h-7 object-contain" />
+            <img src={logoSrc} alt={settings.name} className="h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
           ) : (
             <span className="text-lg font-bold text-primary">
               {settings.name ? `${settings.name} Admin` : "Lumi Admin"}
@@ -169,7 +169,7 @@ export function AdminLayout() {
       <div className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4 lg:hidden">
         <Link to="/admin" className="flex items-center gap-2">
           {logoSrc ? (
-            <img src={logoSrc} alt={settings.name} className="h-7 object-contain" />
+            <img src={logoSrc} alt={settings.name} className="h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
           ) : (
             <span className="text-lg font-bold text-primary">
               {settings.name ? `${settings.name} Admin` : "Lumi Admin"}

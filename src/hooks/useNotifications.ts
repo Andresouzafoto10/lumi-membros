@@ -44,7 +44,7 @@ export async function addNotification(data: {
   targetType: AppNotification["targetType"];
   message: string;
 }) {
-  await supabase.from("notifications").insert({
+  const { error } = await supabase.from("notifications").insert({
     recipient_id: data.recipientId,
     type: data.type,
     actor_id: data.actorId,
@@ -53,6 +53,7 @@ export async function addNotification(data: {
     message: data.message,
     read: false,
   });
+  if (error) console.error("[notifications] insert:", error.message);
 }
 
 // ---------------------------------------------------------------------------
@@ -179,10 +180,11 @@ export function useNotifications() {
 
   const markAsRead = useCallback(
     async (notificationId: string) => {
-      await supabase
+      const { error } = await supabase
         .from("notifications")
         .update({ read: true })
         .eq("id", notificationId);
+      if (error) console.error("[notifications] markAsRead:", error.message);
       invalidate();
     },
     [invalidate]
@@ -192,10 +194,11 @@ export function useNotifications() {
     async (group: GroupedNotification) => {
       const unreadIds = group.items.filter((n) => !n.read).map((n) => n.id);
       if (unreadIds.length === 0) return;
-      await supabase
+      const { error } = await supabase
         .from("notifications")
         .update({ read: true })
         .in("id", unreadIds);
+      if (error) console.error("[notifications] markGroupAsRead:", error.message);
       invalidate();
     },
     [invalidate]
@@ -203,11 +206,12 @@ export function useNotifications() {
 
   const markAllAsRead = useCallback(
     async (recipientId: string) => {
-      await supabase
+      const { error } = await supabase
         .from("notifications")
         .update({ read: true })
         .eq("recipient_id", recipientId)
         .eq("read", false);
+      if (error) console.error("[notifications] markAllAsRead:", error.message);
       invalidate();
     },
     [invalidate]
@@ -215,10 +219,11 @@ export function useNotifications() {
 
   const deleteNotification = useCallback(
     async (notificationId: string) => {
-      await supabase
+      const { error } = await supabase
         .from("notifications")
         .delete()
         .eq("id", notificationId);
+      if (error) console.error("[notifications] delete:", error.message);
       invalidate();
     },
     [invalidate]
@@ -226,11 +231,12 @@ export function useNotifications() {
 
   const deleteAllRead = useCallback(
     async (recipientId: string) => {
-      await supabase
+      const { error } = await supabase
         .from("notifications")
         .delete()
         .eq("recipient_id", recipientId)
         .eq("read", true);
+      if (error) console.error("[notifications] deleteAllRead:", error.message);
       invalidate();
     },
     [invalidate]
@@ -238,10 +244,11 @@ export function useNotifications() {
 
   const clearAll = useCallback(
     async (recipientId: string) => {
-      await supabase
+      const { error } = await supabase
         .from("notifications")
         .delete()
         .eq("recipient_id", recipientId);
+      if (error) console.error("[notifications] clearAll:", error.message);
       invalidate();
     },
     [invalidate]

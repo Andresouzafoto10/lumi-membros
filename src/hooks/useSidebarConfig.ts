@@ -47,7 +47,7 @@ export function useSidebarConfig() {
 
   const updateItem = useCallback(
     async (id: string, patch: Partial<Omit<CommunitySidebarItem, "id">>) => {
-      await supabase
+      const { error } = await supabase
         .from("sidebar_config")
         .update({
           ...(patch.emoji !== undefined && { emoji: patch.emoji }),
@@ -61,6 +61,7 @@ export function useSidebarConfig() {
           }),
         })
         .eq("id", id);
+      if (error) console.error("[sidebar_config] update:", error.message);
       invalidate();
     },
     [invalidate]
@@ -68,11 +69,14 @@ export function useSidebarConfig() {
 
   const reorder = useCallback(
     async (orderedIds: string[]) => {
-      await Promise.all(
+      const results = await Promise.all(
         orderedIds.map((id, idx) =>
           supabase.from("sidebar_config").update({ order: idx }).eq("id", id)
         )
       );
+      for (const res of results) {
+        if (res.error) console.error("[sidebar_config] reorder:", res.error.message);
+      }
       invalidate();
     },
     [invalidate]
@@ -100,7 +104,8 @@ export function useSidebarConfig() {
 
   const removeItem = useCallback(
     async (id: string) => {
-      await supabase.from("sidebar_config").delete().eq("id", id);
+      const { error } = await supabase.from("sidebar_config").delete().eq("id", id);
+      if (error) console.error("[sidebar_config] delete:", error.message);
       invalidate();
     },
     [invalidate]

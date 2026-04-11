@@ -46,7 +46,7 @@ export function useLastWatched() {
     }) => {
       if (!user) return;
       setLastWatchedState({ ...data, timestamp: Date.now() });
-      await supabase.from("last_watched").upsert(
+      const { error } = await supabase.from("last_watched").upsert(
         {
           student_id: user.id,
           course_id: data.courseId,
@@ -56,6 +56,7 @@ export function useLastWatched() {
         },
         { onConflict: "student_id" }
       );
+      if (error) console.error("[last_watched] upsert:", error.message);
     },
     [user]
   );

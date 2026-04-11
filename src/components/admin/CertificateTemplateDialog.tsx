@@ -161,7 +161,7 @@ export function CertificateTemplateDialog({
       locale: ptBR,
     }),
     courseHours: 40,
-    platformName: settings.name || "Lumi Membros",
+    platformName: settings.name || "Master Membros",
   };
 
   const previewTemplate: CertificateTemplate = {

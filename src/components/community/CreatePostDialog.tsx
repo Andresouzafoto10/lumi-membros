@@ -844,7 +844,7 @@ export function CreatePostDialog({
             >
               <div className="h-6 w-6 rounded-full overflow-hidden bg-muted shrink-0">
                 {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-[10px] font-bold">
                     {profile.displayName.charAt(0).toUpperCase()}
@@ -1046,7 +1046,7 @@ export function CreatePostDialog({
                   <div className="grid grid-cols-3 gap-2">
                     {images.map((img, i) => (
                       <div key={i} className="relative rounded-lg overflow-hidden bg-muted aspect-square ring-1 ring-border/20 group/img">
-                        <img src={img} alt={`Upload ${i + 1}`} className="w-full h-full object-cover" />
+                        <img src={img} alt={`Upload ${i + 1}`} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                         <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/30 transition-colors" />
                         <button className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-black/80" onClick={() => removeImage(i)}>
                           <X className="h-3.5 w-3.5 text-white" />

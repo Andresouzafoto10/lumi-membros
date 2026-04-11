@@ -73,6 +73,7 @@ function CommentItem({
               src={author.avatarUrl}
               alt={author.displayName}
               className="w-full h-full object-cover"
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-xs font-bold">

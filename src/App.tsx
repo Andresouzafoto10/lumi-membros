@@ -136,7 +136,7 @@ function PageLoader() {
 
 function ThemeApplicator() {
   const { settings, loading } = usePlatformSettings();
-  const platformName = settings.name || "Lumi Membros";
+  const platformName = settings.name || "Master Membros";
 
   useEffect(() => {
     // Skip applying defaults while loading — the cached theme (from

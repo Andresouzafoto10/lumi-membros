@@ -106,12 +106,13 @@ export function useStudents() {
       if (pe) throw pe;
       // Create enrollments
       for (const classId of data.classIds ?? []) {
-        await supabase.from("enrollments").insert({
+        const { error: enrollError } = await supabase.from("enrollments").insert({
           student_id: tempId,
           class_id: classId,
           type: "individual",
           status: "active",
         });
+        if (enrollError) console.error("[enrollments] insert:", enrollError.message);
       }
       invalidate();
       return tempId;
@@ -140,12 +141,13 @@ export function useStudents() {
           following: [],
         });
         for (const classId of classIds) {
-          await supabase.from("enrollments").insert({
+          const { error: enrollError } = await supabase.from("enrollments").insert({
             student_id: tempId,
             class_id: classId,
             type: "individual",
             status: "active",
           });
+          if (enrollError) console.error("[enrollments] insert:", enrollError.message);
         }
       }
       invalidate();

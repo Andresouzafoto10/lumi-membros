@@ -83,6 +83,7 @@ export function ImageLightbox({
         className="relative z-[1] max-w-[90vw] max-h-[85vh] object-contain rounded-lg select-none"
         onClick={(e) => e.stopPropagation()}
         draggable={false}
+        onError={(e) => { e.currentTarget.alt = 'Erro ao carregar imagem'; e.currentTarget.style.padding = '2rem'; e.currentTarget.style.color = 'white'; }}
       />
 
       {/* Position indicator */}

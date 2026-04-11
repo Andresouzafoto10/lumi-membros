@@ -1,4 +1,4 @@
-// Auto-generated Supabase database types for Lumi Membros
+// Auto-generated Supabase database types for Master Membros
 // Reflects the schema in supabase/migrations/001_initial_schema.sql
 
 export type Json =

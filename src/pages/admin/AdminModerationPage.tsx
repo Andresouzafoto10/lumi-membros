@@ -95,7 +95,7 @@ function AvatarSmall({ url, name }: { url?: string | null; name: string }) {
   return (
     <div className="h-7 w-7 rounded-full overflow-hidden bg-muted shrink-0">
       {url ? (
-        <img src={url} alt={name} loading="lazy" className="w-full h-full object-cover" />
+        <img src={url} alt={name} loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-xs font-bold">
           {name.charAt(0).toUpperCase()}
@@ -396,7 +396,7 @@ export default function AdminModerationPage() {
                       <div className="flex items-start gap-3">
                         <div className="h-9 w-9 rounded-full overflow-hidden bg-muted shrink-0">
                           {author?.avatarUrl ? (
-                            <img src={author.avatarUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
+                            <img src={author.avatarUrl} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-sm font-bold">
                               {(author?.displayName ?? "?").charAt(0).toUpperCase()}
@@ -614,7 +614,7 @@ export default function AdminModerationPage() {
                       <div className="flex items-start gap-3">
                         <div className="h-9 w-9 rounded-full overflow-hidden bg-muted shrink-0">
                           {comment.author?.avatar_url ? (
-                            <img src={comment.author.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                            <img src={comment.author.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-sm font-bold">
                               {authorName.charAt(0).toUpperCase()}

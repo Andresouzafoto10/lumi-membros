@@ -37,16 +37,18 @@ export function useLessonRatings() {
     async (lessonId: string, rating: RatingValue | null) => {
       if (!user) return;
       if (rating === null) {
-        await supabase
+        const { error } = await supabase
           .from("lesson_ratings")
           .delete()
           .eq("lesson_id", lessonId)
           .eq("student_id", user.id);
+        if (error) console.error("[lesson_ratings] delete:", error.message);
       } else {
-        await supabase.from("lesson_ratings").upsert(
+        const { error } = await supabase.from("lesson_ratings").upsert(
           { lesson_id: lessonId, student_id: user.id, rating },
           { onConflict: "lesson_id,student_id" }
         );
+        if (error) console.error("[lesson_ratings] upsert:", error.message);
       }
       queryClient.invalidateQueries({ queryKey: QK });
       // Award points when rating (like only, not removing or disliking)

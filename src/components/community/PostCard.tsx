@@ -141,6 +141,7 @@ function ImageGrid({ images }: { images: string[] }) {
             alt="Post"
             className="w-full max-h-96 object-cover hover:opacity-95 transition-opacity cursor-pointer"
             onClick={() => setLightboxIdx(0)}
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         </div>
       );
@@ -156,6 +157,7 @@ function ImageGrid({ images }: { images: string[] }) {
               alt={`Imagem ${i + 1}`}
               className="w-full h-48 object-cover hover:opacity-95 transition-opacity cursor-pointer"
               onClick={() => setLightboxIdx(i)}
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
           ))}
         </div>
@@ -184,6 +186,7 @@ function ImageGrid({ images }: { images: string[] }) {
                 "w-full object-cover hover:opacity-95 transition-opacity",
                 images.length === 3 && i === 0 ? "h-48" : "h-36"
               )}
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
             {i === showCount - 1 && remaining > 0 && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -415,6 +418,7 @@ export const PostCard = memo(function PostCard({
                   src={author.avatarUrl}
                   alt={author.displayName}
                   className="w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold text-sm">

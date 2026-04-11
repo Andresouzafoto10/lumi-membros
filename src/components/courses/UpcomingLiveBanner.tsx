@@ -22,7 +22,7 @@ function MiniCard({ lesson }: { lesson: LiveLesson }) {
       <CardContent className="p-3 flex items-center gap-3">
         <div className="h-14 w-20 rounded-md bg-muted shrink-0 overflow-hidden">
           {lesson.coverUrl ? (
-            <img src={lesson.coverUrl} alt={lesson.title} loading="lazy" className="h-full w-full object-cover" />
+            <img src={lesson.coverUrl} alt={lesson.title} loading="lazy" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
           ) : (
             <div className="h-full w-full flex items-center justify-center">
               <Video className="h-5 w-5 text-muted-foreground/40" />

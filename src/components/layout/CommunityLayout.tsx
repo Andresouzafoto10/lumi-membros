@@ -260,7 +260,7 @@ export function CommunityLayout() {
                     <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/75">
                       <div className="h-5 w-5 rounded-full overflow-hidden bg-muted shrink-0 ring-1 ring-border/20">
                         {author?.avatarUrl ? (
-                          <img src={author.avatarUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
+                          <img src={author.avatarUrl} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-[8px] font-bold">
                             {(author?.displayName ?? "?").charAt(0).toUpperCase()}

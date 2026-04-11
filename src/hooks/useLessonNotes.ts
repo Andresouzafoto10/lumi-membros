@@ -34,7 +34,7 @@ export function useLessonNotes(
       setContent(text);
       if (!courseId || !lessonId || !user) return;
       if (text.trim()) {
-        await supabase.from("lesson_notes").upsert(
+        const { error } = await supabase.from("lesson_notes").upsert(
           {
             lesson_id: lessonId,
             student_id: user.id,
@@ -43,17 +43,19 @@ export function useLessonNotes(
           },
           { onConflict: "lesson_id,student_id" }
         );
+        if (error) console.error("[lesson_notes] upsert:", error.message);
         // Award points once per lesson note (per session)
         if (pointsAwardedRef.current !== lessonId) {
           pointsAwardedRef.current = lessonId;
           onLessonNotes(user.id, lessonId).catch(() => {});
         }
       } else {
-        await supabase
+        const { error } = await supabase
           .from("lesson_notes")
           .delete()
           .eq("lesson_id", lessonId)
           .eq("student_id", user.id);
+        if (error) console.error("[lesson_notes] delete:", error.message);
       }
     },
     [courseId, lessonId, user]

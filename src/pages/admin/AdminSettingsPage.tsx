@@ -304,7 +304,7 @@ export default function AdminSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
           <p className="text-sm text-muted-foreground">
-            Personalize a plataforma Lumi Membros
+            Personalize a plataforma Master Membros
           </p>
         </div>
       </div>
@@ -355,7 +355,7 @@ export default function AdminSettingsPage() {
                   id="plat-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Lumi Membros"
+                  placeholder="Master Membros"
                 />
                 <p className="text-xs text-muted-foreground">
                   Exibido no cabeçalho da área do aluno.
@@ -622,7 +622,7 @@ export default function AdminSettingsPage() {
                       id="pwa-name"
                       value={pwaName}
                       onChange={(e) => setPwaName(e.target.value)}
-                      placeholder={name || "Lumi Membros"}
+                      placeholder={name || "Master Membros"}
                     />
                   </div>
 
@@ -637,7 +637,7 @@ export default function AdminSettingsPage() {
                       id="pwa-short-name"
                       value={pwaShortName}
                       onChange={(e) => setPwaShortName(e.target.value.slice(0, 12))}
-                      placeholder={(name || "Lumi").slice(0, 12)}
+                      placeholder={(name || "Master").slice(0, 12)}
                       maxLength={12}
                     />
                     <p className="text-xs text-muted-foreground">
@@ -823,7 +823,7 @@ export default function AdminSettingsPage() {
                         courseName: "Fotografia para Iniciantes",
                         completionDate: "29 de março de 2026",
                         courseHours: 20,
-                        platformName: settings.name || "Lumi Membros",
+                        platformName: settings.name || "Master Membros",
                       }}
                     />
                   </div>

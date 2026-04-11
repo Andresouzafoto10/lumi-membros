@@ -522,7 +522,7 @@ export default function AdminLearningPathEditPage() {
                     className="flex items-center gap-2 w-full text-left p-2 rounded hover:bg-muted/50 transition-colors"
                   >
                     {c.bannerUrl && (
-                      <img src={c.bannerUrl} alt="" loading="lazy" className="h-8 w-12 rounded object-cover" />
+                      <img src={c.bannerUrl} alt="" loading="lazy" className="h-8 w-12 rounded object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                     )}
                     <span className="text-sm flex-1 truncate">{c.title}</span>
                   </button>

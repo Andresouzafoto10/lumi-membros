@@ -41,7 +41,7 @@ export const CertificateCard = memo(function CertificateCard({ certificate }: Pr
     studentName,
     course.title,
     course.certificateConfig?.hoursLoad ?? 0,
-    settings.name || "Lumi Membros",
+    settings.name || "Master Membros",
     certificate.templateId,
     certificate.earnedAt
   );

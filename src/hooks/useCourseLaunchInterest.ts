@@ -46,16 +46,18 @@ export function useCourseLaunchInterest() {
       queryClient.setQueryData([...QK, user.id], next);
 
       if (already) {
-        await supabase
+        const { error } = await supabase
           .from("course_launch_interests")
           .delete()
           .eq("course_id", courseId)
           .eq("student_id", user.id);
+        if (error) console.error("[course_launch_interests] delete:", error.message);
       } else {
-        await supabase.from("course_launch_interests").insert({
+        const { error } = await supabase.from("course_launch_interests").insert({
           course_id: courseId,
           student_id: user.id,
         });
+        if (error) console.error("[course_launch_interests] insert:", error.message);
       }
     },
     [user, interests, queryClient]

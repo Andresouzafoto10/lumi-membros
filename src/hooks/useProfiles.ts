@@ -168,7 +168,7 @@ export function useProfiles() {
         ? targetProfile.followers
         : [...targetProfile.followers, myStudentId];
 
-      await Promise.all([
+      const [followingRes, followersRes] = await Promise.all([
         supabase
           .from("profiles")
           .update({ following: newFollowing })
@@ -178,8 +178,10 @@ export function useProfiles() {
           .update({ followers: newFollowers })
           .eq("id", targetStudentId),
       ]);
+      if (followingRes.error) console.error("[profiles] update following:", followingRes.error.message);
+      if (followersRes.error) console.error("[profiles] update followers:", followersRes.error.message);
       // Create follow notification
-      await supabase.from("notifications").insert({
+      const { error: notifError } = await supabase.from("notifications").insert({
         recipient_id: targetStudentId,
         type: "follow",
         actor_id: myStudentId,
@@ -188,6 +190,7 @@ export function useProfiles() {
         message: `${myProfile.displayName} começou a seguir você`,
         read: false,
       });
+      if (notifError) console.error("[notifications] follow insert:", notifError.message);
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
@@ -200,7 +203,7 @@ export function useProfiles() {
       const targetProfile = findProfile(targetStudentId);
       if (!myProfile || !targetProfile) return;
 
-      await Promise.all([
+      const [unfollowRes, unfollowersRes] = await Promise.all([
         supabase
           .from("profiles")
           .update({
@@ -214,6 +217,8 @@ export function useProfiles() {
           })
           .eq("id", targetStudentId),
       ]);
+      if (unfollowRes.error) console.error("[profiles] update following:", unfollowRes.error.message);
+      if (unfollowersRes.error) console.error("[profiles] update followers:", unfollowersRes.error.message);
       invalidate();
     },
     [findProfile, invalidate]
