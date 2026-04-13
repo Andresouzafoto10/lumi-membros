@@ -159,14 +159,32 @@ export function isR2Url(url: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// fetchR2AsDataUrl — fetch an R2 image by public URL and return as data URL.
-// Used by certificate download (html2canvas). Files are publicly accessible.
+// fetchR2AsDataUrl — fetch an R2 image via Edge Function proxy and return as
+// data URL.  The proxy bypasses R2 CORS restrictions by fetching server-side.
+// Used by certificate download (html2canvas).
 // ---------------------------------------------------------------------------
 
 export async function fetchR2AsDataUrl(publicUrl: string): Promise<string> {
   if (!isR2Url(publicUrl)) throw new Error("Not an R2 URL");
 
-  const response = await fetch(publicUrl);
+  // Extract the object key from the public URL
+  const key = publicUrl.replace(R2_PUBLIC_URL + "/", "");
+
+  // Get current session token for Edge Function auth
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error("Usuário não autenticado");
+
+  // Fetch through Edge Function proxy (server-side, no CORS issues)
+  const response = await fetch(PRESIGN_FN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ action: "proxy", key }),
+  });
+
   if (!response.ok) throw new Error(`Falha ao buscar imagem R2: ${response.status}`);
 
   const blob = await response.blob();

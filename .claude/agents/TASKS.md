@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-04-10 | **Versão do Tracker:** 2.3.0
+**Última atualização:** 2026-04-11 | **Versão do Tracker:** 2.4.0
 
 ---
 
@@ -46,6 +46,7 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| FIX-011 | Certificado PNG sem fundo (CORS R2) — proxy server-side via Edge Function r2-presigned, generateCertificate.ts com 4 camadas fallback (proxy → fetch direto → canvas → cor sólida), toast de aviso, trilha onError gracioso | DEV | 2026-04-11 |
 | FIX-008 | Diagnóstico imagens/Supabase — 38 img onError handlers (23 arquivos), 30+ operações Supabase com error handling (10 hooks) | DEV | 2026-04-10 |
 | FIX-009 | Renomear "Lumi Membros" → "Master Membros" — 15 arquivos com texto visível, PWA manifest, favicon, .env.example | DEV | 2026-04-10 |
 | FIX-010 | Fixar tema teal #00C2CB como padrão permanente — applyDefaultTheme() antes de render, fallbacks hardcoded em applyTheme.ts | DEV | 2026-04-10 |
@@ -90,6 +91,8 @@
 
 *Nenhum bug aberto*
 
+> **CORS R2 (ação manual pendente):** As R2 S3 API keys não têm permissão `PutBucketCors`. Para eliminar o proxy da Edge Function (overhead), aplicar CORS diretamente via **Cloudflare Dashboard → R2 → bucket `lumi-membros` → Settings → CORS policy** com `AllowedOrigins: ["*"], AllowedMethods: ["GET","HEAD"]`.
+
 ---
 
 ## 📊 MÉTRICAS DO TIME
@@ -99,7 +102,7 @@
 | Tasks criadas | 39 |
 | Tasks em andamento | 0 |
 | Tasks aguardando aprovação | 0 |
-| Tasks concluídas | 25 |
+| Tasks concluídas | 26 |
 | Bugs críticos abertos | 0 |
 | Skills criadas | 0 |
 | Decisões registradas | 1 |

@@ -1,22 +1,28 @@
 import html2canvas from "html2canvas";
+import { toast } from "sonner";
 import { isR2Url, fetchR2AsDataUrl } from "@/lib/r2Upload";
 
-/**
- * Fetch a cross-origin URL and return it as a data URL.
- * Tries the S3 API first for R2 URLs, then falls back to regular fetch.
- */
-async function fetchAsDataUrl(url: string): Promise<string> {
-  // Try S3 API first for R2 URLs (CORS-enabled endpoint)
-  if (isR2Url(url)) {
-    try {
-      return await fetchR2AsDataUrl(url);
-    } catch {
-      // S3 API failed — fall through to regular fetch
-    }
-  }
+// ---------------------------------------------------------------------------
+// Layer 1: Edge Function proxy (R2 URLs only)
+// Server-side fetch via r2-presigned → no CORS restrictions.
+// ---------------------------------------------------------------------------
 
-  // Fallback: regular fetch on the public URL
-  const res = await fetch(url);
+async function fetchViaProxy(url: string): Promise<string> {
+  return await fetchR2AsDataUrl(url);
+}
+
+// ---------------------------------------------------------------------------
+// Layer 2: Direct fetch with credentials omitted
+// Works when R2 bucket has CORS properly configured.
+// ---------------------------------------------------------------------------
+
+async function fetchDirectAsDataUrl(url: string): Promise<string> {
+  const res = await fetch(url, {
+    mode: "cors",
+    credentials: "omit",
+    cache: "no-cache",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -26,6 +32,64 @@ async function fetchAsDataUrl(url: string): Promise<string> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Layer 3: Canvas-based <img crossOrigin="anonymous"> fallback
+// Loads image via DOM element, draws to canvas, extracts base64.
+// ---------------------------------------------------------------------------
+
+async function fetchViaCanvas(url: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/webp"));
+    };
+    img.onerror = reject;
+    // Cache-bust to avoid stale no-cors cached responses
+    img.src = url + (url.includes("?") ? "&" : "?") + "_t=" + Date.now();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// fetchAsDataUrl — tries all layers in order until one succeeds
+// ---------------------------------------------------------------------------
+
+async function fetchAsDataUrl(url: string): Promise<string> {
+  // Layer 1: Edge Function proxy (most reliable for R2 URLs)
+  if (isR2Url(url)) {
+    try {
+      return await fetchViaProxy(url);
+    } catch (e) {
+      console.warn("[Certificate] Layer 1 (proxy) failed:", e);
+    }
+  }
+
+  // Layer 2: Direct fetch with CORS
+  try {
+    return await fetchDirectAsDataUrl(url);
+  } catch (e) {
+    console.warn("[Certificate] Layer 2 (direct fetch) failed:", e);
+  }
+
+  // Layer 3: Canvas-based fallback
+  try {
+    return await fetchViaCanvas(url);
+  } catch (e) {
+    console.warn("[Certificate] Layer 3 (canvas) failed:", e);
+  }
+
+  throw new Error(`All image fetch strategies failed for: ${url}`);
+}
+
+// ---------------------------------------------------------------------------
+// isCrossOrigin
+// ---------------------------------------------------------------------------
+
 function isCrossOrigin(url: string): boolean {
   try {
     return new URL(url, window.location.href).origin !== window.location.origin;
@@ -34,16 +98,17 @@ function isCrossOrigin(url: string): boolean {
   }
 }
 
-/**
- * Convert cross-origin images to data URLs so html2canvas can render them.
- * Handles both <img> elements and elements with background-image CSS
- * (identified via data-bg-src attribute).
- * Returns a function that restores original values.
- */
+// ---------------------------------------------------------------------------
+// proxyCrossOriginImages — convert cross-origin images to data URLs so
+// html2canvas can render them. Returns a restore function and a flag
+// indicating whether any image failed all strategies.
+// ---------------------------------------------------------------------------
+
 async function proxyCrossOriginImages(
   container: HTMLElement
-): Promise<() => void> {
+): Promise<{ restore: () => void; hadFailures: boolean }> {
   const restores: Array<() => void> = [];
+  let hadFailures = false;
 
   // 1) Handle <img> elements
   const images = container.querySelectorAll("img");
@@ -54,9 +119,28 @@ async function proxyCrossOriginImages(
     try {
       const dataUrl = await fetchAsDataUrl(originalSrc);
       img.src = dataUrl;
-      restores.push(() => { img.src = originalSrc; });
+      restores.push(() => {
+        img.src = originalSrc;
+      });
     } catch {
-      console.warn("[Certificate] Failed to proxy <img>:", originalSrc);
+      console.error(
+        "[Certificate] All strategies failed for image:",
+        originalSrc
+      );
+      hadFailures = true;
+
+      // Layer 4: Solid color fallback — hide broken img, paint parent
+      const parent = img.parentElement;
+      if (parent) {
+        const originalBg = parent.style.backgroundColor;
+        const originalDisplay = img.style.display;
+        parent.style.backgroundColor = "#00C2CB";
+        img.style.display = "none";
+        restores.push(() => {
+          parent.style.backgroundColor = originalBg;
+          img.style.display = originalDisplay;
+        });
+      }
     }
   });
 
@@ -70,20 +154,30 @@ async function proxyCrossOriginImages(
       const dataUrl = await fetchAsDataUrl(originalUrl);
       const originalBg = el.style.backgroundImage;
       el.style.backgroundImage = `url(${dataUrl})`;
-      restores.push(() => { el.style.backgroundImage = originalBg; });
+      restores.push(() => {
+        el.style.backgroundImage = originalBg;
+      });
     } catch {
-      console.warn("[Certificate] Failed to proxy background-image:", originalUrl);
+      console.error(
+        "[Certificate] All strategies failed for background:",
+        originalUrl
+      );
+      hadFailures = true;
     }
   });
 
   await Promise.all([...imgPromises, ...bgPromises]);
 
-  return () => restores.forEach((fn) => fn());
+  return {
+    restore: () => restores.forEach((fn) => fn()),
+    hadFailures,
+  };
 }
 
-/**
- * Wait for all <img> elements inside the container to finish loading.
- */
+// ---------------------------------------------------------------------------
+// waitForImages — wait for all <img> elements to finish loading
+// ---------------------------------------------------------------------------
+
 async function waitForImages(container: HTMLElement): Promise<void> {
   const images = container.querySelectorAll("img");
   await Promise.all(
@@ -98,13 +192,11 @@ async function waitForImages(container: HTMLElement): Promise<void> {
   );
 }
 
-/**
- * Render an element to PNG and trigger browser download.
- * Accepts either a direct HTMLElement ref or a containerId string.
- *
- * Cross-origin images (R2 etc.) are automatically fetched as data URLs
- * before rendering so html2canvas can capture them.
- */
+// ---------------------------------------------------------------------------
+// downloadCertificateAsPng — render element to PNG and trigger download.
+// Cross-origin images are automatically proxied via Edge Function.
+// ---------------------------------------------------------------------------
+
 export async function downloadCertificateAsPng(
   elementOrId: HTMLElement | string,
   filename: string
@@ -116,8 +208,8 @@ export async function downloadCertificateAsPng(
 
   if (!element) throw new Error("Container não encontrado");
 
-  // Convert cross-origin images to data URLs
-  const restoreImages = await proxyCrossOriginImages(element);
+  // Convert cross-origin images to data URLs (layered strategy)
+  const { restore, hadFailures } = await proxyCrossOriginImages(element);
 
   // Wait for swapped images to finish loading
   await waitForImages(element);
@@ -137,7 +229,11 @@ export async function downloadCertificateAsPng(
     link.download = filename;
     link.href = canvas.toDataURL("image/png", 1.0);
     link.click();
+
+    if (hadFailures) {
+      toast.warning("Certificado baixado sem imagem de fundo (erro de CORS)");
+    }
   } finally {
-    restoreImages();
+    restore();
   }
 }

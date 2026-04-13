@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { S3Client, DeleteObjectCommand, PutObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3";
+import { S3Client, DeleteObjectCommand, PutObjectCommand, GetObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3";
 import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3";
 
 const ALLOWED_ORIGIN = Deno.env.get("APP_URL") || "*";
@@ -87,7 +87,29 @@ serve(async (req) => {
       });
     }
 
-    return new Response("action inválida. Use 'upload' ou 'delete'", {
+    // Proxy-fetch a file from R2 and return with CORS headers.
+    // Used by certificate download (html2canvas) to bypass R2 CORS restrictions.
+    if (action === "proxy") {
+      if (!key) {
+        return new Response("key é obrigatório", { status: 400, headers: corsHeaders });
+      }
+
+      const obj = await s3.send(new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+
+      if (!obj.Body) {
+        return new Response("File not found", { status: 404, headers: corsHeaders });
+      }
+
+      return new Response(obj.Body as ReadableStream, {
+        headers: {
+          "Content-Type": obj.ContentType || "application/octet-stream",
+          "Cache-Control": "public, max-age=3600",
+          ...corsHeaders,
+        },
+      });
+    }
+
+    return new Response("action inválida. Use 'upload', 'delete' ou 'proxy'", {
       status: 400,
       headers: corsHeaders,
     });

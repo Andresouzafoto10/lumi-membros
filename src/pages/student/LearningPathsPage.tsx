@@ -111,17 +111,17 @@ export default function LearningPathsPage() {
                 <Card className="overflow-hidden border-border/50 shadow-md transition-all duration-300 group-hover:shadow-xl group-hover:shadow-primary/5 group-hover:-translate-y-1 group-hover:border-primary/20">
                   <div className="relative">
                     <AspectRatio ratio={16 / 9}>
-                      {path.bannerUrl ? (
+                      <div className="h-full w-full bg-gradient-to-br from-primary/20 via-primary/10 to-background flex items-center justify-center">
+                        <Route className="h-12 w-12 text-primary/40" />
+                      </div>
+                      {path.bannerUrl && (
                         <img
                           src={path.bannerUrl}
                           alt={path.title}
                           loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
-                      ) : (
-                        <div className="h-full w-full bg-gradient-to-br from-primary/20 via-primary/10 to-background flex items-center justify-center">
-                          <Route className="h-12 w-12 text-primary/40" />
-                        </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                     </AspectRatio>

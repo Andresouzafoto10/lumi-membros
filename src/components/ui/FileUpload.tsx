@@ -205,6 +205,7 @@ export function FileUpload({
                 "w-full",
                 previewMaxHeight ? "h-auto object-contain" : "h-full object-cover"
               )}
+              onError={(e) => { e.currentTarget.style.opacity = '0.3'; }}
             />
           ) : (
             <div className="flex items-center justify-center h-full min-h-[80px] p-4">
