@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { isValidCpf, formatCpf } from "@/lib/cpf";
+import { isPasswordStrong } from "@/lib/password";
 
 export default function RegisterPage() {
   const { signUp } = useAuth();
@@ -28,16 +30,9 @@ export default function RegisterPage() {
   const [done, setDone] = useState(false);
 
   const passwordsMatch = !confirmPassword || password === confirmPassword;
-  const passwordStrong = password.length >= 6;
-  const cpfValid = cpf.replace(/\D/g, "").length === 11;
-
-  function formatCpf(value: string): string {
-    const digits = value.replace(/\D/g, "").slice(0, 11);
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-  }
+  const passwordCheck = isPasswordStrong(password);
+  const passwordStrong = passwordCheck.valid;
+  const cpfValid = isValidCpf(cpf);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -47,11 +42,11 @@ export default function RegisterPage() {
       return;
     }
     if (!passwordStrong) {
-      setError("A senha deve ter pelo menos 6 caracteres.");
+      setError(passwordCheck.reason ?? "Senha fraca.");
       return;
     }
     if (!cpfValid) {
-      setError("CPF é obrigatório.");
+      setError("CPF inválido. Verifique os dígitos.");
       return;
     }
 
@@ -72,7 +67,7 @@ export default function RegisterPage() {
   const logo = (
     <div className="mb-6 text-center">
       {logoSrc ? (
-        <img src={logoSrc} alt={settings.name} className="mx-auto h-12 object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+        <img src={logoSrc} alt={settings.name} width={180} height={48} className="mx-auto h-12 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
       ) : (
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
           <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="currentColor">
@@ -211,7 +206,7 @@ export default function RegisterPage() {
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 8 caracteres (letras e números)"
                       autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -232,7 +227,7 @@ export default function RegisterPage() {
                     </button>
                   </div>
                   {password && !passwordStrong && (
-                    <p className="text-xs text-destructive">Mínimo 6 caracteres</p>
+                    <p className="text-xs text-destructive">{passwordCheck.reason}</p>
                   )}
                 </div>
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, lazy, Suspense } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -74,8 +74,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { ImageCropDialog } from "@/components/ui/ImageCropDialog";
 import { StudyAnalyticsCard } from "@/components/gamification/StudyAnalyticsCard";
+
+// Lazy-load ImageCropDialog (pulls in react-easy-crop)
+const ImageCropDialog = lazy(() =>
+  import("@/components/ui/ImageCropDialog").then((m) => ({ default: m.ImageCropDialog }))
+);
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -1451,16 +1455,18 @@ export default function MyProfilePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Image crop dialog */}
-      <ImageCropDialog
-        open={!!cropSrc && !!cropTarget}
-        onClose={handleCropCancel}
-        onConfirm={handleCropConfirm}
-        imageSrc={cropSrc}
-        aspect={cropTarget === "avatar" ? 1 : 16 / 9}
-        shape={cropTarget === "avatar" ? "round" : "rect"}
-        title={cropTarget === "avatar" ? "Ajustar foto de perfil" : "Ajustar foto de capa"}
-      />
+      {/* Image crop dialog (lazy) */}
+      <Suspense fallback={null}>
+        <ImageCropDialog
+          open={!!cropSrc && !!cropTarget}
+          onClose={handleCropCancel}
+          onConfirm={handleCropConfirm}
+          imageSrc={cropSrc}
+          aspect={cropTarget === "avatar" ? 1 : 16 / 9}
+          shape={cropTarget === "avatar" ? "round" : "rect"}
+          title={cropTarget === "avatar" ? "Ajustar foto de perfil" : "Ajustar foto de capa"}
+        />
+      </Suspense>
 
       {/* Confirm remove cover */}
       <AlertDialog open={confirmRemoveCover} onOpenChange={setConfirmRemoveCover}>

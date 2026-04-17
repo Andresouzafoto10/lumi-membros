@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmailHtml } from "../_shared/email-template.ts";
+import { makeCorsHeaders } from "../_shared/cors.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -9,13 +10,8 @@ const PLATFORM_URL = Deno.env.get("PLATFORM_URL") ?? "https://app.membrosmaster.
 const PLATFORM_NAME = Deno.env.get("PLATFORM_NAME") ?? "Membros Master";
 const FROM_EMAIL = `${PLATFORM_NAME} <enviar@membrosmaster.com.br>`;
 
-const ALLOWED_ORIGIN = Deno.env.get("APP_URL") || "*";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req) => {
+  const corsHeaders = makeCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

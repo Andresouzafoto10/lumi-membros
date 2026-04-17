@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, lazy, Suspense } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   GraduationCap,
@@ -28,8 +28,12 @@ import { useCertificates } from "@/hooks/useCertificates";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import type { CourseAccess } from "@/types/course";
 import { uploadToR2, deleteFromR2, isR2Url } from "@/lib/r2Upload";
-import { ImageCropDialog } from "@/components/ui/ImageCropDialog";
 import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
+
+// Lazy-load ImageCropDialog (pulls in react-easy-crop, only needed when cropping)
+const ImageCropDialog = lazy(() =>
+  import("@/components/ui/ImageCropDialog").then((m) => ({ default: m.ImageCropDialog }))
+);
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -162,21 +166,6 @@ export default function AdminCourseEditPage() {
   const [moduleForm, setModuleForm] =
     useState<ModuleFormState>(emptyModuleForm);
 
-  if (!course || !courseId) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 py-20">
-        <p className="text-muted-foreground">Curso nao encontrado.</p>
-        <Button variant="outline" asChild>
-          <Link to="/admin/cursos">Voltar</Link>
-        </Button>
-      </div>
-    );
-  }
-
-  const sortedModules = [...course.modules].sort(
-    (a, b) => a.order - b.order
-  );
-
   const bannerUrl = bannerPreview || course?.bannerUrl || "";
 
   // ---------- Banner handlers ----------
@@ -251,6 +240,22 @@ export default function AdminCourseEditPage() {
     setBannerUrlDraft("");
     setBannerShowUrl(false);
   }, [bannerUrlDraft, bannerUrl]);
+
+  // Early return AFTER all hooks are declared (preserves Rules of Hooks ordering)
+  if (!course || !courseId) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-20">
+        <p className="text-muted-foreground">Curso nao encontrado.</p>
+        <Button variant="outline" asChild>
+          <Link to="/admin/cursos">Voltar</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const sortedModules = [...course.modules].sort(
+    (a, b) => a.order - b.order
+  );
 
   // ---------- Save ----------
   function handleSave() {
@@ -550,17 +555,19 @@ export default function AdminCourseEditPage() {
                   </>
                 )}
 
-                {/* Crop dialog */}
-                <ImageCropDialog
-                  open={bannerCropOpen}
-                  onClose={handleBannerCropCancel}
-                  onConfirm={handleBannerCropConfirm}
-                  imageSrc={bannerCropSrc}
-                  aspect={16 / 9}
-                  shape="rect"
-                  title="Recortar banner do curso"
-                  cropObjectFit="horizontal-cover"
-                />
+                {/* Crop dialog (lazy) */}
+                <Suspense fallback={null}>
+                  <ImageCropDialog
+                    open={bannerCropOpen}
+                    onClose={handleBannerCropCancel}
+                    onConfirm={handleBannerCropConfirm}
+                    imageSrc={bannerCropSrc}
+                    aspect={16 / 9}
+                    shape="rect"
+                    title="Recortar banner do curso"
+                    cropObjectFit="horizontal-cover"
+                  />
+                </Suspense>
 
                 {/* Confirm remove dialog */}
                 <AlertDialog open={bannerConfirmRemove} onOpenChange={setBannerConfirmRemove}>

@@ -1,5 +1,5 @@
 /**
- * Shared email HTML template builder for all Lumi Membros Edge Functions.
+ * Shared email HTML template builder for all Master Membros Edge Functions.
  * Uses the Master brand palette: #ff7b00 (orange), #09090b (dark bg), #18181b (card), #fafafa (text).
  */
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import { CheckCircle2, XCircle, RotateCcw, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +45,7 @@ type QuizState = "answering" | "submitted";
 // Component
 // ---------------------------------------------------------------------------
 
-export function LessonQuiz({ quiz, passingScore, lessonId, onPass }: LessonQuizProps) {
+function LessonQuizInner({ quiz, passingScore, lessonId, onPass }: LessonQuizProps) {
   const { currentUserId } = useCurrentUser();
   const { submitAttempt, hasPassedQuiz, getBestAttempt } = useQuizAttempts();
 
@@ -309,3 +309,5 @@ export function LessonQuiz({ quiz, passingScore, lessonId, onPass }: LessonQuizP
     </Card>
   );
 }
+
+export const LessonQuiz = memo(LessonQuizInner);

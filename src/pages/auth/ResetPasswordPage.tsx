@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { isPasswordStrong } from "@/lib/password";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -37,8 +38,9 @@ export default function ResetPasswordPage() {
       setError("As senhas não coincidem.");
       return;
     }
-    if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres.");
+    const strength = isPasswordStrong(password);
+    if (!strength.valid) {
+      setError(strength.reason ?? "Senha fraca.");
       return;
     }
     setError(null);
@@ -112,7 +114,7 @@ export default function ResetPasswordPage() {
                   <Input
                     id="new-password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="Mínimo 8 caracteres (letras e números)"
                     autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -152,7 +154,7 @@ export default function ResetPasswordPage() {
               <Button
                 type="submit"
                 className="w-full h-11 font-semibold shadow-sm shadow-primary/20 active:scale-[0.98] transition-transform"
-                disabled={loading || !password || !confirm || !passwordsMatch || password.length < 6}
+                disabled={loading || !password || !confirm || !passwordsMatch || !isPasswordStrong(password).valid}
               >
                 {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando…</> : "Salvar nova senha"}
               </Button>

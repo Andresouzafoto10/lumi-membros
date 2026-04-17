@@ -14,9 +14,23 @@ async function sendEmailNotification(payload: {
   context?: Record<string, string | number | undefined>;
 }): Promise<void> {
   try {
-    await supabase.functions.invoke("notify-email", { body: payload });
-  } catch {
-    console.warn("Failed to send email notification:", payload.type);
+    const { error } = await supabase.functions.invoke("notify-email", { body: payload });
+    if (error) {
+      console.error("[email]", {
+        type: payload.type,
+        recipientId: payload.recipient_id,
+        recipientEmail: payload.recipient_email,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.error("[email]", {
+      type: payload.type,
+      recipientId: payload.recipient_id,
+      error: err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString(),
+    });
   }
 }
 
@@ -154,33 +168,41 @@ export function useEmailNotifications() {
 
   const notifyNewCourse = useCallback(
     async (userIds: string[], courseId: string, courseName: string) => {
-      for (const userId of userIds) {
-        await sendEmailNotification({
-          type: "new_course",
-          recipient_id: userId,
-          context: {
-            course_name: courseName,
-            action_url: `${window.location.origin}/cursos/${courseId}`,
-          },
-        });
-      }
+      if (userIds.length === 0) return;
+      const context = {
+        course_name: courseName,
+        action_url: `${window.location.origin}/cursos/${courseId}`,
+      };
+      await Promise.all(
+        userIds.map((userId) =>
+          sendEmailNotification({
+            type: "new_course",
+            recipient_id: userId,
+            context,
+          })
+        )
+      );
     },
     []
   );
 
   const notifyNewLesson = useCallback(
     async (userIds: string[], courseId: string, courseName: string, lessonName: string) => {
-      for (const userId of userIds) {
-        await sendEmailNotification({
-          type: "new_lesson",
-          recipient_id: userId,
-          context: {
-            course_name: courseName,
-            lesson_name: lessonName,
-            action_url: `${window.location.origin}/cursos/${courseId}`,
-          },
-        });
-      }
+      if (userIds.length === 0) return;
+      const context = {
+        course_name: courseName,
+        lesson_name: lessonName,
+        action_url: `${window.location.origin}/cursos/${courseId}`,
+      };
+      await Promise.all(
+        userIds.map((userId) =>
+          sendEmailNotification({
+            type: "new_lesson",
+            recipient_id: userId,
+            context,
+          })
+        )
+      );
     },
     []
   );

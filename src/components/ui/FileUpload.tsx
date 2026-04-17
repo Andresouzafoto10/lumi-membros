@@ -92,6 +92,26 @@ export function FileUpload({
         return;
       }
 
+      // MIME type validation against the `accept` prop.
+      // Browsers send `file.type` from the file's magic bytes (not the extension),
+      // so this blocks renamed executables.
+      if (accept && accept !== "*" && accept.trim() !== "") {
+        const tokens = accept.split(",").map((t) => t.trim()).filter(Boolean);
+        const fileType = file.type || "";
+        const fileExt = file.name.includes(".")
+          ? "." + file.name.split(".").pop()!.toLowerCase()
+          : "";
+        const allowed = tokens.some((token) => {
+          if (token.startsWith(".")) return token.toLowerCase() === fileExt;
+          if (token.endsWith("/*")) return fileType.startsWith(token.slice(0, -1));
+          return fileType === token;
+        });
+        if (!allowed) {
+          toast.error("Tipo de arquivo não permitido.");
+          return;
+        }
+      }
+
       setUploading(true);
       setProgress(20);
 
@@ -112,7 +132,7 @@ export function FileUpload({
         setProgress(0);
       }
     },
-    [folder, value, imagePreset, maxSizeMB, onChange]
+    [folder, value, imagePreset, maxSizeMB, onChange, accept]
   );
 
   const handleInputChange = useCallback(

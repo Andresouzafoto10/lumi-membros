@@ -67,8 +67,9 @@ export function LessonMaterials({ lessonId }: { lessonId: string }) {
       const ext = fileExtension(material.file_type);
       const fileName = `${material.title}${ext}`;
       await downloadMaterial(material.id, fileName);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Erro ao baixar material.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao baixar material.";
+      toast.error(msg);
     } finally {
       setDownloadingId(null);
     }

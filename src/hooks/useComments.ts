@@ -67,18 +67,7 @@ export function useComments() {
         .select()
         .single();
       if (error) throw error;
-      // Increment comments_count on post
-      const { data: post } = await supabase
-        .from("community_posts")
-        .select("comments_count")
-        .eq("id", data.postId)
-        .single();
-      if (post) {
-        await supabase
-          .from("community_posts")
-          .update({ comments_count: (post.comments_count as number) + 1 })
-          .eq("id", data.postId);
-      }
+      // comments_count is maintained atomically by trg_sync_post_comments_count.
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       // Gamification: award points for comment
@@ -101,36 +90,21 @@ export function useComments() {
       }
       return row.id as string;
     },
-    [invalidate, queryClient]
+    [allComments, invalidate, queryClient]
   );
 
   const deleteComment = useCallback(
     async (commentId: string) => {
-      const comment = allComments.find((c) => c.id === commentId);
       const { error } = await supabase
         .from("post_comments")
         .delete()
         .eq("id", commentId);
       if (error) throw error;
-      if (comment) {
-        const { data: post } = await supabase
-          .from("community_posts")
-          .select("comments_count")
-          .eq("id", comment.postId)
-          .single();
-        if (post) {
-          await supabase
-            .from("community_posts")
-            .update({
-              comments_count: Math.max(0, (post.comments_count as number) - 1),
-            })
-            .eq("id", comment.postId);
-        }
-      }
+      // comments_count is maintained atomically by trg_sync_post_comments_count.
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
-    [allComments, invalidate, queryClient]
+    [invalidate, queryClient]
   );
 
   const toggleLikeComment = useCallback(

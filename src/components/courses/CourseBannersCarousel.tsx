@@ -19,14 +19,11 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
   const dragStartX = useRef<number | null>(null);
   const dragDeltaX = useRef(0);
 
-  if (activeBanners.length === 0) return null;
-
-  // Clone first and last for infinite loop
-  const slides = [
-    activeBanners[activeBanners.length - 1],
-    ...activeBanners,
-    activeBanners[0],
-  ];
+  // Clone first and last for infinite loop (empty-safe: avoids index -1 when no banners)
+  const slides =
+    activeBanners.length > 0
+      ? [activeBanners[activeBanners.length - 1], ...activeBanners, activeBanners[0]]
+      : [];
   const totalSlides = slides.length;
 
   const goTo = useCallback(
@@ -66,6 +63,9 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
     const interval = setInterval(goNext, 4000);
     return () => clearInterval(interval);
   }, [isPaused, goNext, activeBanners.length]);
+
+  // Early return AFTER all hooks are declared (preserves Rules of Hooks ordering)
+  if (activeBanners.length === 0) return null;
 
   // Pointer drag handlers
   const handlePointerDown = (e: React.PointerEvent) => {

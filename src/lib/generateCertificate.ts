@@ -1,4 +1,3 @@
-import html2canvas from "html2canvas";
 import { toast } from "sonner";
 import { isR2Url, fetchR2AsDataUrl } from "@/lib/r2Upload";
 
@@ -213,6 +212,9 @@ export async function downloadCertificateAsPng(
 
   // Wait for swapped images to finish loading
   await waitForImages(element);
+
+  // html2canvas is ~204KB; load it only when the user actually downloads.
+  const { default: html2canvas } = await import("html2canvas");
 
   try {
     const canvas = await html2canvas(element, {

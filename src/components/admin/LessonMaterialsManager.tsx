@@ -91,8 +91,9 @@ export function LessonMaterialsManager({ lessonId }: { lessonId: string }) {
       setDrmEnabled(true);
       setShowForm(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (err: any) {
-      toast.error(err?.message ?? "Erro ao enviar material.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao enviar material.";
+      toast.error(msg);
     } finally {
       setUploading(false);
     }
@@ -102,8 +103,9 @@ export function LessonMaterialsManager({ lessonId }: { lessonId: string }) {
     try {
       await deleteMaterial.mutateAsync(material);
       toast.success("Material removido.");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Erro ao remover material.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao remover material.";
+      toast.error(msg);
     }
   }
 

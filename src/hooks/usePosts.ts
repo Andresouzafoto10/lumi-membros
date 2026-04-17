@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -98,7 +98,8 @@ export function usePosts() {
     queryClient.invalidateQueries({ queryKey: qkFeed() });
   }, [queryClient]);
 
-  const allPosts = allPostsQuery.data ?? [];
+  // Stable reference: only changes when the underlying query data changes.
+  const allPosts = useMemo(() => allPostsQuery.data ?? [], [allPostsQuery.data]);
 
   // Posts for a specific community
   const getPostsByCommunity = useCallback(
@@ -294,11 +295,16 @@ export function usePosts() {
       // Gamification + mention notifications when post is published
       if (status === "published") {
         onPostCreated(data.authorId).catch(() => {});
-        // Check if this is the student's first post (bonus points)
-        const authorPosts = allPosts.filter(
-          (p) => p.authorId === data.authorId && p.status === "published"
-        );
-        if (authorPosts.length === 0) {
+        // Check if this is the student's first post (bonus points).
+        // Query the DB directly instead of the local `allPosts` cache —
+        // the cache may be empty/stale during load and would misreport "first post".
+        const { count } = await supabase
+          .from("community_posts")
+          .select("id", { count: "exact", head: true })
+          .eq("author_id", data.authorId)
+          .eq("status", "published")
+          .neq("id", row.id as string);
+        if ((count ?? 0) === 0) {
           onFirstPost(data.authorId, row.id as string).catch(() => {});
         }
         // Extract @mentions and notify

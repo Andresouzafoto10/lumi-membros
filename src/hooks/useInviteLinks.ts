@@ -20,20 +20,23 @@ async function fetchInviteLinks(): Promise<InviteLink[]> {
     .select("*, classes(name)")
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    name: row.name,
-    slug: row.slug,
-    class_id: row.class_id,
-    created_by: row.created_by,
-    max_uses: row.max_uses,
-    use_count: row.use_count,
-    expires_at: row.expires_at,
-    is_active: row.is_active,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    class_name: row.classes?.name ?? undefined,
-  }));
+  return (data ?? []).map((row: Record<string, unknown>) => {
+    const classes = row.classes as { name?: string } | null | undefined;
+    return {
+      id: row.id as string,
+      name: row.name as string,
+      slug: row.slug as string,
+      class_id: row.class_id as string,
+      created_by: row.created_by as string,
+      max_uses: row.max_uses as number | null,
+      use_count: row.use_count as number,
+      expires_at: row.expires_at as string | null,
+      is_active: row.is_active as boolean,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string,
+      class_name: classes?.name ?? undefined,
+    };
+  });
 }
 
 export function useInviteLinks() {

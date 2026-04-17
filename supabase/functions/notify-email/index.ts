@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmailHtml } from "../_shared/email-template.ts";
+import { makeCorsHeaders } from "../_shared/cors.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -37,19 +38,6 @@ interface NotifyEmailPayload {
   recipient_id?: string;
   actor_name?: string;
   context?: Record<string, string | number | undefined>;
-}
-
-const ALLOWED_ORIGIN = Deno.env.get("APP_URL") || "*";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-function jsonResponse(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
-  });
 }
 
 function buildSubject(type: EmailType, payload: NotifyEmailPayload): string {
@@ -264,6 +252,13 @@ function buildBody(type: EmailType, payload: NotifyEmailPayload): { heading: str
 }
 
 serve(async (req) => {
+  const corsHeaders = makeCorsHeaders(req);
+  const jsonResponse = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), {
+      status,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -347,6 +342,8 @@ serve(async (req) => {
       mission_complete: "email_mission_complete",
       badge_earned: "email_badge_earned",
       follower_milestone_10: "email_follower_milestone",
+      // Comment milestones are achievement-like (5/25/100 comments) — gated by
+      // the same preference as badge_earned by design.
       comment_milestone: "email_badge_earned",
       community_post: "email_comments",
       welcome: null,

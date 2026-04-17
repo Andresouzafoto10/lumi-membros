@@ -427,7 +427,8 @@ export function buildCourseAccessMap(
 // Progress helpers (user-scoped)
 // ---------------------------------------------------------------------------
 
-const PROGRESS_PREFIX = "lumi-membros:progress";
+const PROGRESS_PREFIX = "master-membros:progress";
+const LEGACY_PROGRESS_PREFIXES = ["lumi-membros:progress"];
 
 export function progressKey(userId: string, courseId: string): string {
   return `${PROGRESS_PREFIX}:${userId}:${courseId}`;
@@ -443,15 +444,22 @@ export function loadCompletedLessons(
     const raw = localStorage.getItem(newKey);
     if (raw) return JSON.parse(raw);
 
-    // Fall back to legacy key (without userId) for migration
-    const legacyKey = `${PROGRESS_PREFIX}:${courseId}`;
-    const legacyRaw = localStorage.getItem(legacyKey);
-    if (legacyRaw) {
-      const data = JSON.parse(legacyRaw);
-      // Migrate: save under new key and remove legacy
-      localStorage.setItem(newKey, legacyRaw);
-      localStorage.removeItem(legacyKey);
-      return data;
+    // Legacy migration: try previous prefixes (per-user form, then no-user form).
+    for (const legacyPrefix of LEGACY_PROGRESS_PREFIXES) {
+      const legacyUserKey = `${legacyPrefix}:${userId}:${courseId}`;
+      const legacyUserRaw = localStorage.getItem(legacyUserKey);
+      if (legacyUserRaw) {
+        localStorage.setItem(newKey, legacyUserRaw);
+        localStorage.removeItem(legacyUserKey);
+        return JSON.parse(legacyUserRaw);
+      }
+      const legacyCourseKey = `${legacyPrefix}:${courseId}`;
+      const legacyCourseRaw = localStorage.getItem(legacyCourseKey);
+      if (legacyCourseRaw) {
+        localStorage.setItem(newKey, legacyCourseRaw);
+        localStorage.removeItem(legacyCourseKey);
+        return JSON.parse(legacyCourseRaw);
+      }
     }
   } catch {
     // ignore

@@ -55,27 +55,40 @@ async function fetchLessonComments(
 
   if (error) throw error;
 
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    lesson_id: row.lesson_id,
-    course_id: row.course_id,
-    author_id: row.author_id,
-    parent_comment_id: row.parent_comment_id,
-    body: row.body,
-    likes_count: row.likes_count,
-    liked_by: row.liked_by ?? [],
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    author: row.profiles
+  return (data ?? []).map((row: Record<string, unknown>) => mapCommentRow(row));
+}
+
+type CommentProfile = {
+  id: string;
+  name: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  role: string;
+};
+
+function mapCommentRow(row: Record<string, unknown>): LessonComment {
+  const profiles = row.profiles as CommentProfile | null | undefined;
+  return {
+    id: row.id as string,
+    lesson_id: row.lesson_id as string,
+    course_id: row.course_id as string,
+    author_id: row.author_id as string,
+    parent_comment_id: row.parent_comment_id as string | null,
+    body: row.body as string,
+    likes_count: row.likes_count as number,
+    liked_by: (row.liked_by as string[] | null) ?? [],
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+    author: profiles
       ? {
-          id: row.profiles.id,
-          name: row.profiles.name,
-          display_name: row.profiles.display_name,
-          avatar_url: row.profiles.avatar_url,
-          role: row.profiles.role,
+          id: profiles.id,
+          name: profiles.name ?? "",
+          display_name: profiles.display_name ?? "",
+          avatar_url: profiles.avatar_url ?? "",
+          role: profiles.role,
         }
       : undefined,
-  }));
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -235,29 +248,16 @@ async function fetchAllLessonCommentsAdmin(): Promise<AdminLessonComment[]> {
 
   if (error) throw error;
 
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    lesson_id: row.lesson_id,
-    course_id: row.course_id,
-    author_id: row.author_id,
-    parent_comment_id: row.parent_comment_id,
-    body: row.body,
-    likes_count: row.likes_count,
-    liked_by: row.liked_by ?? [],
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    author: row.profiles
-      ? {
-          id: row.profiles.id,
-          name: row.profiles.name,
-          display_name: row.profiles.display_name,
-          avatar_url: row.profiles.avatar_url,
-          role: row.profiles.role,
-        }
-      : undefined,
-    lesson_title: row.course_lessons?.title ?? undefined,
-    course_title: row.courses?.title ?? undefined,
-  }));
+  return (data ?? []).map((row: Record<string, unknown>) => {
+    const base = mapCommentRow(row);
+    const lesson = row.course_lessons as { title?: string } | null | undefined;
+    const course = row.courses as { title?: string } | null | undefined;
+    return {
+      ...base,
+      lesson_title: lesson?.title ?? undefined,
+      course_title: course?.title ?? undefined,
+    };
+  });
 }
 
 export function useAllLessonCommentsAdmin() {

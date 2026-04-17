@@ -215,13 +215,15 @@ export function useLessonProgress() {
     [user]
   );
 
-  // Cleanup all pending timers when the hook unmounts
+  // Cancel all pending timers when user changes (login/logout) or on unmount.
+  // Prevents debounced upserts from firing after logout (RLS would reject).
   useEffect(() => {
     const timers = debounceTimers.current;
     return () => {
       Object.values(timers).forEach(clearTimeout);
+      debounceTimers.current = {};
     };
-  }, []);
+  }, [user]);
 
   return {
     progress,

@@ -14,6 +14,7 @@ import {
   LinkIcon,
   Download,
   Award,
+  SearchX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -276,17 +277,42 @@ export default function CourseDetailPage() {
     getModuleIdForLesson,
   ]);
 
+  // Check if the active lesson is accessible (hook declared BEFORE early return)
+  const activeLessonAccess: LessonAccessStatus | null = useMemo(() => {
+    if (!activeLessonId || !accessMap) return null;
+    return accessMap.lessonAccess[activeLessonId] ?? { allowed: true };
+  }, [activeLessonId, accessMap]);
+
   if (!course) {
     return (
-      <div className="p-6 max-w-[1400px] mx-auto">
+      <div className="mx-auto max-w-[1240px] px-4 pt-8 pb-16">
+        <Helmet>
+          <title>Curso não encontrado</title>
+        </Helmet>
         <Breadcrumb
           items={[
             { label: "Cursos", to: "/cursos" },
-            { label: "Nao encontrado" },
+            { label: "Não encontrado" },
           ]}
-          className="mb-6"
+          className="mb-8"
         />
-        <p className="text-muted-foreground">Curso nao encontrado.</p>
+        <div className="flex flex-col items-center text-center gap-4 py-16">
+          <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+            <SearchX className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold">Curso não encontrado</h2>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md">
+              Este curso pode ter sido removido ou você não tem acesso a ele.
+              Confira seus cursos disponíveis.
+            </p>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" asChild>
+              <Link to="/cursos">Ver meus cursos</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -294,12 +320,6 @@ export default function CourseDetailPage() {
   const hasContent = allLessons.length > 0;
   const isEnrolled = accessMap?.enrolled ?? false;
   const isExpired = accessMap?.expired ?? false;
-
-  // Check if the active lesson is accessible
-  const activeLessonAccess: LessonAccessStatus | null = useMemo(() => {
-    if (!activeLessonId || !accessMap) return null;
-    return accessMap.lessonAccess[activeLessonId] ?? { allowed: true };
-  }, [activeLessonId, accessMap]);
 
   const lessonBlocked = activeLessonAccess && !activeLessonAccess.allowed;
 

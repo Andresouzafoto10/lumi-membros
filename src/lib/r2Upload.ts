@@ -106,15 +106,37 @@ export async function uploadToR2(
 
   const { presignedUrl, key } = await res.json() as { presignedUrl: string; key: string };
 
-  // 2. Upload the file directly to R2 using the presigned URL (no credentials needed)
-  const uploadRes = await fetch(presignedUrl, {
-    method: "PUT",
-    body: finalFile,
-    headers: {
-      "Content-Type": finalFile.type,
-      "Cache-Control": "public, max-age=31536000, immutable",
-    },
-  });
+  // 2. Upload the file directly to R2 using the presigned URL (no credentials needed).
+  //    Retry once with a fresh presigned URL if the first attempt fails
+  //    (covers expired URLs on slow connections).
+  const doUpload = async (url: string) =>
+    fetch(url, {
+      method: "PUT",
+      body: finalFile,
+      headers: {
+        "Content-Type": finalFile.type,
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+
+  let uploadRes = await doUpload(presignedUrl);
+  if (!uploadRes.ok && (uploadRes.status === 403 || uploadRes.status === 400)) {
+    // Likely expired URL — request a new one and retry once.
+    const retryRes = await fetch(PRESIGN_FN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: authHeader },
+      body: JSON.stringify({
+        action: "upload",
+        folder,
+        fileName: finalFile.name,
+        contentType: finalFile.type,
+      }),
+    });
+    if (retryRes.ok) {
+      const retryData = (await retryRes.json()) as { presignedUrl: string; key: string };
+      uploadRes = await doUpload(retryData.presignedUrl);
+    }
+  }
 
   if (!uploadRes.ok) {
     throw new Error(`Falha no upload para R2: ${uploadRes.status}`);
@@ -135,7 +157,10 @@ export async function uploadToR2(
 export async function deleteFromR2(url: string): Promise<void> {
   if (!isR2Configured || !url || !url.startsWith(R2_PUBLIC_URL)) return;
 
-  const key = url.replace(`${R2_PUBLIC_URL}/`, "");
+  // Strip query string and fragment before extracting the object key
+  // (cache-busting params like ?v=123 would break key matching otherwise).
+  const cleanUrl = url.split("?")[0].split("#")[0];
+  const key = cleanUrl.replace(`${R2_PUBLIC_URL}/`, "");
   if (!key) return;
 
   try {

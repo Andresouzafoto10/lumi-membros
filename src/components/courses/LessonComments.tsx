@@ -20,6 +20,7 @@ import { useLessonComments } from "@/hooks/useLessonComments";
 import { useGamification } from "@/hooks/useGamification";
 import { getMemberBadges } from "@/lib/roleBadges";
 import type { LessonComment } from "@/types/course";
+import type { StudentRole } from "@/types/student";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,7 +55,7 @@ function CommentItem({
   const playerData = getPlayerData(comment.author_id);
   const completedMissions = getPlayerMissions(comment.author_id);
   const badges = getMemberBadges(
-    author?.role as any,
+    (author?.role as StudentRole | undefined),
     undefined,
     playerData.points,
     completedMissions.length

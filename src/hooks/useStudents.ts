@@ -28,16 +28,16 @@ async function fetchStudents(): Promise<{ students: Student[]; enrollments: Enro
     enrolledAt: e.enrolled_at,
   }));
 
-  const students: Student[] = (studentsRes.data ?? []).map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    email: p.email,
+  const students: Student[] = (studentsRes.data ?? []).map((p: Record<string, unknown>) => ({
+    id: p.id as string,
+    name: p.name as string,
+    email: p.email as string,
     role: p.role as StudentRole,
     status: p.status as StudentStatus,
-    createdAt: p.created_at,
-    enrollments: enrollments.filter((e) => e.studentId === p.id),
-    signupSource: p.signup_source ?? null,
-    inviteLinkId: p.invite_link_id ?? null,
+    createdAt: p.created_at as string,
+    enrollments: enrollments.filter((e) => e.studentId === (p.id as string)),
+    signupSource: (p.signup_source as string | null) ?? null,
+    inviteLinkId: (p.invite_link_id as string | null) ?? null,
   }));
 
   return { students, enrollments };
@@ -122,34 +122,41 @@ export function useStudents() {
 
   const createStudentsBulk = useCallback(
     async (items: Array<{ name: string; email: string }>, classIds: string[]) => {
-      for (const item of items) {
-        const tempId = crypto.randomUUID();
-        await supabase.from("profiles").insert({
-          id: tempId,
-          email: item.email,
-          name: item.name,
-          role: "student",
+      if (items.length === 0) return 0;
+
+      const rows = items.map((item) => ({
+        id: crypto.randomUUID(),
+        email: item.email,
+        name: item.name,
+        role: "student",
+        status: "active",
+        display_name: item.name,
+        username: item.email.split("@")[0],
+        avatar_url: "",
+        cover_url: "",
+        bio: "",
+        link: "",
+        location: "",
+        followers: [],
+        following: [],
+      }));
+
+      const { error: pErr } = await supabase.from("profiles").insert(rows);
+      if (pErr) throw pErr;
+
+      const enrollmentRows = rows.flatMap((r) =>
+        classIds.map((classId) => ({
+          student_id: r.id,
+          class_id: classId,
+          type: "individual",
           status: "active",
-          display_name: item.name,
-          username: item.email.split("@")[0],
-          avatar_url: "",
-          cover_url: "",
-          bio: "",
-          link: "",
-          location: "",
-          followers: [],
-          following: [],
-        });
-        for (const classId of classIds) {
-          const { error: enrollError } = await supabase.from("enrollments").insert({
-            student_id: tempId,
-            class_id: classId,
-            type: "individual",
-            status: "active",
-          });
-          if (enrollError) console.error("[enrollments] insert:", enrollError.message);
-        }
+        }))
+      );
+      if (enrollmentRows.length > 0) {
+        const { error: eErr } = await supabase.from("enrollments").insert(enrollmentRows);
+        if (eErr) throw eErr;
       }
+
       invalidate();
       return items.length;
     },

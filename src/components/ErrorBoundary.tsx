@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +11,10 @@ interface State {
   error: Error | null;
 }
 
+type SentryGlobal = {
+  captureException?: (err: unknown, ctx?: Record<string, unknown>) => void;
+};
+
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -19,6 +23,28 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error("[ErrorBoundary]", {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      componentStack: info.componentStack,
+      url: typeof window !== "undefined" ? window.location.href : null,
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Forward to Sentry if the global is configured at runtime.
+    const sentry = (typeof window !== "undefined"
+      ? (window as unknown as { Sentry?: SentryGlobal }).Sentry
+      : undefined);
+    if (sentry?.captureException) {
+      sentry.captureException(error, {
+        contexts: { react: { componentStack: info.componentStack } },
+      });
+    }
   }
 
   handleReset = () => {

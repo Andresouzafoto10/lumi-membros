@@ -457,7 +457,7 @@ export function StudentLayout() {
                 className="shrink-0 flex items-center gap-2 transition-opacity hover:opacity-90"
               >
                 {logoSrc ? (
-                  <img src={logoSrc} alt={settings.name} className="h-8 object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                  <img src={logoSrc} alt={settings.name} width={120} height={32} className="h-8 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                 ) : (
                   <span className="text-lg font-bold tracking-[-0.02em] text-primary">
                     {settings.name || "Master Membros"}

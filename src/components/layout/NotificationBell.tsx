@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   Bell,
@@ -33,7 +33,7 @@ const TYPE_ICONS = {
 
 type Filter = "all" | "unread" | "mentions";
 
-export function NotificationBell() {
+function NotificationBellInner() {
   const { currentUserId } = useCurrentUser();
   const {
     getGroupedForUser,
@@ -330,3 +330,5 @@ function NotificationGroupItem({
     </div>
   );
 }
+
+export const NotificationBell = memo(NotificationBellInner);

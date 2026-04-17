@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Video, Calendar, Clock, ExternalLink, PlayCircle, ShoppingCart } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -7,6 +7,11 @@ import { toast } from "sonner";
 
 import { useLiveLessons, getComputedStatus } from "@/hooks/useLiveLessons";
 import type { LiveLesson, LiveLessonStatus } from "@/hooks/useLiveLessons";
+import { useStudents } from "@/hooks/useStudents";
+import { useClasses } from "@/hooks/useClasses";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useAuth } from "@/contexts/AuthContext";
+import { isStudentEnrolled, isEnrollmentValid } from "@/lib/accessControl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -153,9 +158,35 @@ function LessonCard({
 
 export default function LiveLessonsPage() {
   const { lessons, loading, joinLesson } = useLiveLessons();
+  const { currentUserId } = useCurrentUser();
+  const { enrollments } = useStudents();
+  const { classes } = useClasses();
+  const { isAdmin } = useAuth();
 
-  // TODO: real enrollment check — for now assume enrolled if authenticated
-  const isEnrolled = true;
+  // Per-lesson enrollment check honoring accessMode / courseId / classIds.
+  const checkEnrolled = useCallback(
+    (lesson: LiveLesson): boolean => {
+      if (!currentUserId) return false;
+      if (isAdmin) return true;
+      if (lesson.accessMode === "open") return true;
+      if (lesson.accessMode === "classes") {
+        return enrollments.some(
+          (e) =>
+            e.studentId === currentUserId &&
+            lesson.classIds.includes(e.classId) &&
+            isEnrollmentValid(e)
+        );
+      }
+      // accessMode === "all"
+      if (lesson.courseId) {
+        return isStudentEnrolled(currentUserId, lesson.courseId, enrollments, classes);
+      }
+      return enrollments.some(
+        (e) => e.studentId === currentUserId && isEnrollmentValid(e)
+      );
+    },
+    [currentUserId, isAdmin, enrollments, classes]
+  );
 
   const { upcoming, live, past } = useMemo(() => {
     const upcoming: LiveLesson[] = [];
@@ -220,7 +251,7 @@ export default function LiveLessonsPage() {
             <LiveBadge />
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {live.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} isEnrolled={isEnrolled} />)}
+            {live.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} isEnrolled={checkEnrolled(l)} />)}
           </div>
         </section>
       )}
@@ -238,7 +269,7 @@ export default function LiveLessonsPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {upcoming.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} isEnrolled={isEnrolled} />)}
+            {upcoming.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} isEnrolled={checkEnrolled(l)} />)}
           </div>
         )}
       </section>
@@ -247,7 +278,7 @@ export default function LiveLessonsPage() {
         <section>
           <h2 className="text-sm font-semibold mb-3">Gravacoes anteriores</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {past.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} isEnrolled={isEnrolled} />)}
+            {past.map((l) => <LessonCard key={l.id} lesson={l} onJoin={handleJoin} isEnrolled={checkEnrolled(l)} />)}
           </div>
         </section>
       )}

@@ -118,12 +118,14 @@ export function useNotifications() {
     queryClient.invalidateQueries({ queryKey: QK });
   }, [queryClient]);
 
-  // Supabase Realtime — instant bell updates on INSERT/UPDATE/DELETE
+  // Supabase Realtime — instant bell updates on INSERT/UPDATE/DELETE.
+  // Channel is user-scoped to avoid collisions when the hook mounts in
+  // multiple components simultaneously.
   useEffect(() => {
     if (!user) return;
 
     const channel = supabase
-      .channel("notifications-realtime")
+      .channel(`notifications-realtime:${user.id}`)
       .on(
         "postgres_changes",
         {
@@ -133,7 +135,7 @@ export function useNotifications() {
           filter: `recipient_id=eq.${user.id}`,
         },
         () => {
-          invalidate();
+          queryClient.invalidateQueries({ queryKey: QK });
         }
       )
       .subscribe();
@@ -141,7 +143,7 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, invalidate]);
+  }, [user, queryClient]);
 
   const getNotificationsForUser = useCallback(
     (recipientId: string) =>

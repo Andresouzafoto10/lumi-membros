@@ -97,7 +97,7 @@ export default function LoginPage() {
   const logo = (
     <div className="mb-8 text-center">
       {logoSrc ? (
-        <img src={logoSrc} alt={settings.name} className="mx-auto h-12 object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+        <img src={logoSrc} alt={settings.name} width={180} height={48} className="mx-auto h-12 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
       ) : (
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
           <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="currentColor">

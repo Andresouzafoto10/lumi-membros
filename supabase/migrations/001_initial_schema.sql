@@ -1413,11 +1413,33 @@ create trigger script_injections_updated_at
 
 alter table public.script_injections enable row level security;
 
-create policy "Admin full access script_injections"
-  on public.script_injections for all
+-- Authenticated users read enabled scripts (so pixels/GTM load for students).
+drop policy if exists "Admin full access script_injections" on public.script_injections;
+drop policy if exists "Authenticated read enabled scripts" on public.script_injections;
+create policy "Authenticated read enabled scripts"
+  on public.script_injections for select
+  to authenticated
+  using (enabled = true);
+
+-- Only admins may create/update/delete.
+drop policy if exists "Admin write script_injections" on public.script_injections;
+create policy "Admin write script_injections"
+  on public.script_injections for insert
+  to authenticated
+  with check (public.is_admin_user());
+
+drop policy if exists "Admin update script_injections" on public.script_injections;
+create policy "Admin update script_injections"
+  on public.script_injections for update
   to authenticated
   using (public.is_admin_user())
   with check (public.is_admin_user());
+
+drop policy if exists "Admin delete script_injections" on public.script_injections;
+create policy "Admin delete script_injections"
+  on public.script_injections for delete
+  to authenticated
+  using (public.is_admin_user());
 
 -- =============================================================================
 -- 33. NAV_MENU_ITEMS
@@ -1570,6 +1592,107 @@ create trigger handle_updated_at_invite_links
 -- Add signup source tracking to profiles
 alter table public.profiles add column if not exists signup_source text default 'direct';
 alter table public.profiles add column if not exists invite_link_id uuid references public.invite_links(id) on delete set null;
+
+-- =============================================================================
+-- Atomic counter sync: community_posts.comments_count
+-- =============================================================================
+
+create or replace function public.sync_post_comments_count()
+returns trigger language plpgsql security definer as $$
+begin
+  if tg_op = 'INSERT' then
+    update public.community_posts
+       set comments_count = comments_count + 1
+     where id = new.post_id;
+    return new;
+  elsif tg_op = 'DELETE' then
+    update public.community_posts
+       set comments_count = greatest(comments_count - 1, 0)
+     where id = old.post_id;
+    return old;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists trg_sync_post_comments_count on public.post_comments;
+create trigger trg_sync_post_comments_count
+  after insert or delete on public.post_comments
+  for each row execute function public.sync_post_comments_count();
+
+-- =============================================================================
+-- Webhook Integrations (Ticto, Hotmart, Eduzz, Monetizze)
+-- Supports MULTIPLE integrations per platform (distinguished by webhook_token).
+-- =============================================================================
+
+create table if not exists public.webhook_platforms (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  slug text not null,                 -- platform type (hotmart/ticto/...)
+  label text,                         -- admin-chosen friendly name
+  webhook_token uuid not null default gen_random_uuid() unique,
+  secret_key text,
+  active boolean not null default false,
+  last_event_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_webhook_platforms_token
+  on public.webhook_platforms(webhook_token);
+create index if not exists idx_webhook_platforms_slug
+  on public.webhook_platforms(slug);
+
+create table if not exists public.webhook_mappings (
+  id uuid default gen_random_uuid() primary key,
+  platform_id uuid not null references public.webhook_platforms(id) on delete cascade,
+  external_product_id text not null,
+  -- Legacy single-class column (kept for backward compat, may be null):
+  class_id uuid references public.classes(id) on delete cascade,
+  -- Preferred: 1..N classes enrolled per purchase.
+  class_ids uuid[] not null default '{}',
+  created_at timestamptz not null default now(),
+  unique(platform_id, external_product_id)
+);
+
+create table if not exists public.webhook_logs (
+  id uuid default gen_random_uuid() primary key,
+  platform_id uuid references public.webhook_platforms(id) on delete set null,
+  payload jsonb,
+  student_email text,
+  student_name text,
+  class_id uuid references public.classes(id) on delete set null,
+  status text not null default 'pending',
+  error_message text,
+  event_type text,
+  transaction_id text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_webhook_logs_created on public.webhook_logs(created_at desc);
+create index if not exists idx_webhook_logs_platform on public.webhook_logs(platform_id);
+create index if not exists idx_webhook_logs_transaction on public.webhook_logs(transaction_id) where transaction_id is not null;
+create index if not exists idx_webhook_logs_event_type on public.webhook_logs(event_type);
+create index if not exists idx_webhook_mappings_platform on public.webhook_mappings(platform_id);
+
+drop trigger if exists set_webhook_platforms_updated on public.webhook_platforms;
+create trigger set_webhook_platforms_updated
+  before update on public.webhook_platforms
+  for each row execute function public.handle_updated_at();
+
+alter table public.webhook_platforms enable row level security;
+alter table public.webhook_mappings enable row level security;
+alter table public.webhook_logs enable row level security;
+
+drop policy if exists "Admin full access webhook_platforms" on public.webhook_platforms;
+create policy "Admin full access webhook_platforms"
+  on public.webhook_platforms for all using (public.is_admin_user());
+drop policy if exists "Admin full access webhook_mappings" on public.webhook_mappings;
+create policy "Admin full access webhook_mappings"
+  on public.webhook_mappings for all using (public.is_admin_user());
+drop policy if exists "Admin full access webhook_logs" on public.webhook_logs;
+create policy "Admin full access webhook_logs"
+  on public.webhook_logs for all using (public.is_admin_user());
 
 -- =============================================================================
 -- FIM DO SCHEMA
