@@ -26,6 +26,7 @@ import { LessonPlayer } from "@/components/courses/LessonPlayer";
 import { CourseSidebar } from "@/components/courses/CourseSidebar";
 import { LessonRating } from "@/components/courses/LessonRating";
 import { LessonNotes } from "@/components/courses/LessonNotes";
+import { NextCourseInTrailBanner } from "@/components/courses/NextCourseInTrailBanner";
 import { cn } from "@/lib/utils";
 import { useCourses } from "@/hooks/useCourses";
 import { useLastWatched } from "@/hooks/useLastWatched";
@@ -557,6 +558,12 @@ export default function CourseDetailPage() {
                       );
                     })()}
                   </div>
+
+                  {/* Next course in trail banner */}
+                  <NextCourseInTrailBanner
+                    currentCourseCompleted={percentCompleted === 100}
+                    className="max-w-[860px]"
+                  />
 
                   {/* Lesson description */}
                   {activeLesson.description && (

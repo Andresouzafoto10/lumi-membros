@@ -219,18 +219,18 @@ export default function LearningPathDetailPage() {
                       </div>
                     ) : completed ? (
                       <Button size="sm" variant="ghost" asChild>
-                        <Link to={`/cursos/${course.id}`}>
+                        <Link to={`/cursos/${course.id}?trilhaId=${path.id}`}>
                           <PlayCircle className="h-3.5 w-3.5 mr-1" />
                           Revisar
                         </Link>
                       </Button>
                     ) : started ? (
                       <Button size="sm" asChild>
-                        <Link to={`/cursos/${course.id}`}>Continuar</Link>
+                        <Link to={`/cursos/${course.id}?trilhaId=${path.id}`}>Continuar</Link>
                       </Button>
                     ) : (
                       <Button size="sm" variant="outline" asChild>
-                        <Link to={`/cursos/${course.id}`}>
+                        <Link to={`/cursos/${course.id}?trilhaId=${path.id}`}>
                           <Circle className="h-3.5 w-3.5 mr-1" />
                           Comecar
                         </Link>

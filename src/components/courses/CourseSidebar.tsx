@@ -6,6 +6,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ProgressRing } from "@/components/courses/ProgressRing";
+import { NextCourseInTrailBanner } from "@/components/courses/NextCourseInTrailBanner";
 import { cn } from "@/lib/utils";
 import type { Course } from "@/types/course";
 import type { LessonAccessStatus } from "@/lib/accessControl";
@@ -73,7 +74,7 @@ export function CourseSidebar({
       </div>
 
       <ScrollArea className="max-h-[calc(100vh-11rem)] pr-2">
-        <div className="space-y-5 pr-2">
+        <div className="space-y-5 pr-2 pb-4">
           {sortedModules.map((module) => {
             const sortedLessons = [...module.lessons]
               .filter((lesson) => lesson.isActive)
@@ -208,6 +209,12 @@ export function CourseSidebar({
               </Collapsible>
             );
           })}
+
+          <NextCourseInTrailBanner
+            currentCourseCompleted={percentCompleted === 100}
+            variant="compact"
+            className="mt-4"
+          />
         </div>
       </ScrollArea>
     </div>
