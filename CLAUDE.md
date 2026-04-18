@@ -370,11 +370,13 @@ All tables have RLS enabled. Key patterns:
 
 ### Storage
 
-- **Cloudflare R2** (primary) — Bucket `lumi-membros`. All file/image uploads go here via `@aws-sdk/client-s3` in `src/lib/r2Upload.ts`. Public URL: `VITE_R2_PUBLIC_URL`. Folders: `banners/`, `courses/banners/`, `materials/`, `certificates/backgrounds/`, `communities/covers/`, `communities/icons/`, `profiles/avatars/`, `profiles/covers/`, `posts/images/`, `posts/attachments/`. Images auto-optimized to WebP before upload. Old files deleted on replacement. CORS configured in `r2-cors.json`.
+- **Cloudflare R2** (primary) — Bucket `lumi-membros`. Frontend uploads go through `src/hooks/useR2Upload.ts`, which first calls the Supabase Edge Function `r2-presigned` and then performs a direct `PUT` to the presigned URL. Public asset base stays in `VITE_R2_PUBLIC_URL`. CORS-sensitive rendering paths use `src/lib/imageProxy.ts` and the Edge Function `image-proxy`. Folders: `banners/`, `courses/banners/`, `materials/`, `certificates/backgrounds/`, `communities/covers/`, `communities/icons/`, `profiles/avatars/`, `profiles/covers/`, `posts/images/`, `posts/attachments/`. Images auto-optimized to WebP before upload. Old files deleted on replacement. CORS configured in `r2-cors.json`.
 - **Supabase Storage** (legacy) — Bucket `lesson-materials` still referenced by Edge Function `download-material` for DRM PDF watermarking. New material uploads go to R2 (`file_path` stores full R2 URL).
 
 ## Edge Functions
 
+- **`r2-presigned`** — Authenticated R2 helper for uploads and deletes. Generates presigned upload URLs using server-only R2 credentials (`R2_ENDPOINT`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY`, `R2_SECRET_KEY`) and returns `uploadUrl` + `publicUrl` to the frontend.
+- **`image-proxy`** — Public proxy for R2 images with permissive CORS headers (`Access-Control-Allow-Origin: *`) and cache headers. Used for certificate rendering (`html2canvas`), previews, and other browser flows that fail on direct R2 CORS.
 - **`download-material`** — Secure PDF download with social DRM watermarking. Validates JWT, checks enrollment (admin bypass), injects watermark (name + email + CPF) on PDF pages via pdf-lib. Returns signed URL for non-DRM files (60s expiry).
 - **`notify-email`** — Unified email notification system via Resend. 18 email types (comment, like, follow, mention, welcome, access_reminder_7d, community_post, community_inactive_30d, new_course, new_lesson, certificate_earned, mention_community, follower_milestone_10, post_reply, mission_complete, comment_milestone, new_post, badge_earned). 4-tier check before sending: (1) `profiles.email_notifications` global user toggle, (2) `platform_settings.email_notifications_enabled` global platform toggle, (3) `email_automations.is_active` per-type toggle, (4) `notification_preferences.email_*` per-user per-type preference. Uses shared HTML template from `_shared/email-template.ts` with Master brand palette (#ff7b00 orange, transparent body background). Logs all attempts to `email_notification_log` (including skipped with reason). From: `enviar@membrosmaster.com.br`.
 - **`notify-digest`** — Weekly email digest for students with `email_notifications` enabled. Summarizes recent posts, badges earned, mentions. Uses shared HTML template. Logs to `email_notification_log`.
@@ -383,30 +385,41 @@ All tables have RLS enabled. Key patterns:
 
 ## Environment Variables (.env.example)
 
+R2 credentials are **server-only**. Never add `VITE_` to `R2_ACCESS_KEY`, `R2_SECRET_KEY`, `R2_ENDPOINT`, or `R2_BUCKET_NAME`.
+
+### Frontend-safe
+
 | Variable | Purpose |
 |----------|---------|
 | `VITE_APP_NAME` | Application name (default: "Lumi Membros") |
 | `VITE_APP_URL` | Base URL (default: localhost:5174) |
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key |
-| `VITE_R2_ACCOUNT_ID` | Cloudflare account ID |
-| `VITE_R2_ACCESS_KEY_ID` | R2 S3 API access key (⚠️ exposed in frontend, move to Edge Function for prod) |
-| `VITE_R2_SECRET_ACCESS_KEY` | R2 S3 API secret key (⚠️ same concern) |
-| `VITE_R2_ENDPOINT` | R2 S3-compatible endpoint (`https://{account_id}.r2.cloudflarestorage.com`) |
-| `VITE_R2_BUCKET_NAME` | R2 bucket name (`lumi-membros`) |
-| `VITE_R2_PUBLIC_URL` | R2 public URL for serving files |
-| `VITE_RESEND_API_KEY` | Resend email service API key |
-| `VITE_JWT_SECRET` | Secret for JWT validation |
-| `VITE_TICTO_WEBHOOK_SECRET` | Ticto payment webhook secret |
+| `VITE_R2_PUBLIC_URL` | Public R2 base URL used by the frontend to display assets |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Stripe public key |
 | `VITE_USE_MOCK_DATA` | Legacy flag (default: true) — hooks no longer check this |
 | `VITE_DEBUG` | Debug mode (default: false) |
+
+### Server-only
+
+| Variable | Purpose |
+|----------|---------|
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key for privileged server operations |
+| `R2_ENDPOINT` | R2 S3-compatible endpoint used by `r2-presigned` |
+| `R2_BUCKET_NAME` | R2 bucket name (`lumi-membros`) |
+| `R2_PUBLIC_URL` | Server-side copy of the public R2 base URL used by `image-proxy` and `r2-presigned` |
+| `R2_ACCESS_KEY` | R2 S3 API access key used only in Edge Functions |
+| `R2_SECRET_KEY` | R2 S3 API secret key used only in Edge Functions |
+| `RESEND_API_KEY` | Resend email service API key |
+| `JWT_SECRET` | Secret for JWT validation in Edge Functions |
+| `TICTO_WEBHOOK_SECRET` | Ticto payment webhook secret |
+
+Legacy aliases `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` are still accepted by the current `r2-presigned` implementation for compatibility, but new setups should use `R2_ACCESS_KEY` and `R2_SECRET_KEY`.
 
 ## Planned Integrations (Not Yet Implemented)
 
 - **Ticto webhooks** — Payment integration for automatic enrollment
 - **Stripe** — Payment processing (publishable key configured but no checkout flow)
-- **R2 server-side upload** — R2 S3 credentials currently exposed in frontend (VITE_ prefix). Need Supabase Edge Function to proxy uploads server-side before production.
 
 ## Agent Ecosystem — LUMI-CEO ATIVO
 

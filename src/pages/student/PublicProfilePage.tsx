@@ -27,6 +27,7 @@ import { usePosts } from "@/hooks/usePosts";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useGamification } from "@/hooks/useGamification";
 import { useGamificationConfig } from "@/hooks/useGamificationConfig";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { LevelBadge } from "@/components/gamification/LevelBadge";
 import { GamificationGuide } from "@/components/gamification/GamificationGuide";
 
@@ -111,6 +112,8 @@ export default function PublicProfilePage() {
   const profile = findProfile(id);
   const isOwnProfile = id === currentUserId;
   const following = id ? isFollowing(currentUserId, id) : false;
+  const profileCoverSrc = getProxiedImageUrl(profile?.coverUrl);
+  const profileAvatarSrc = getProxiedImageUrl(profile?.avatarUrl);
 
   // Gamification
   const playerData = id ? getPlayerData(id) : { points: 0, badges: [] };
@@ -192,11 +195,11 @@ export default function PublicProfilePage() {
         <div className="h-[140px] overflow-hidden rounded-[1.25rem] bg-muted sm:h-[200px] sm:rounded-xl">
           {profile.coverUrl ? (
             <img
-              src={profile.coverUrl}
+              src={profileCoverSrc}
               alt="Capa"
               className="w-full h-full object-cover"
               style={{ objectPosition: profile.coverPosition || "50% 50%" }}
-              onError={(e) => { e.currentTarget.style.display = 'none' }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5" />
@@ -214,10 +217,10 @@ export default function PublicProfilePage() {
           <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-background bg-muted shadow-lg ring-2 ring-primary/20 sm:h-28 sm:w-28">
             {profile.avatarUrl ? (
               <img
-                src={profile.avatarUrl}
+                src={profileAvatarSrc}
                 alt={profile.displayName}
                 className="w-full h-full object-cover"
-                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-2xl font-bold">
@@ -598,9 +601,10 @@ export default function PublicProfilePage() {
                           <div className="h-10 w-14 rounded bg-muted overflow-hidden shrink-0">
                             {course.bannerUrl && (
                               <img
-                                src={course.bannerUrl}
+                                src={getProxiedImageUrl(course.bannerUrl)}
                                 alt={course.title}
                                 className="w-full h-full object-cover"
+                                crossOrigin="anonymous"
                                 onError={(e) => { e.currentTarget.style.display = 'none' }}
                               />
                             )}

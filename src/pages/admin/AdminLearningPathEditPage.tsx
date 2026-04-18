@@ -8,6 +8,7 @@ import { useCourses } from "@/hooks/useCourses";
 import { useClasses } from "@/hooks/useClasses";
 import { useStudents } from "@/hooks/useStudents";
 import { useCertificates } from "@/hooks/useCertificates";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -322,10 +323,11 @@ export default function AdminLearningPathEditPage() {
                         <span className="text-xs text-muted-foreground font-mono shrink-0">{idx + 1}.</span>
                         {course?.bannerUrl && (
                           <img
-                            src={course.bannerUrl}
+                            src={getProxiedImageUrl(course.bannerUrl)}
                             alt={course.title}
                             loading="lazy"
                             className="h-9 w-14 rounded object-cover shrink-0"
+                            crossOrigin="anonymous"
                           />
                         )}
                         <p className="flex-1 text-sm truncate">{course?.title ?? "Curso removido"}</p>

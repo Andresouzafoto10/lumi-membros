@@ -1,4 +1,5 @@
 import { memo, useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   Bell,
@@ -19,6 +20,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useNotifications } from "@/hooks/useNotifications";
 import type { GroupedNotification } from "@/hooks/useNotifications";
 import { useProfiles } from "@/hooks/useProfiles";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -48,6 +50,7 @@ function NotificationBellInner() {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const allGroups = getGroupedForUser(currentUserId);
   const count = unreadCount(currentUserId);
@@ -60,7 +63,10 @@ function NotificationBellInner() {
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideTrigger = containerRef.current?.contains(target);
+      const insidePanel = panelRef.current?.contains(target);
+      if (!insideTrigger && !insidePanel) {
         setOpen(false);
       }
     }
@@ -95,10 +101,13 @@ function NotificationBellInner() {
         )}
       </Button>
 
-      {open && (
+      {open && createPortal(
         <>
-        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setOpen(false)} />
-        <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col rounded-t-2xl border-t bg-popover shadow-lg animate-slide-up md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-10 md:w-96 md:max-h-[28rem] md:rounded-lg md:border md:animate-fade-in">
+        <div className="fixed inset-0 z-[190] bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setOpen(false)} />
+        <div
+          ref={panelRef}
+          className="fixed inset-x-0 bottom-0 z-[200] flex max-h-[75vh] flex-col rounded-t-2xl border-t bg-popover shadow-lg animate-slide-up md:inset-x-auto md:bottom-auto md:right-4 md:top-[4.5rem] md:w-96 md:max-w-[calc(100vw-2rem)] md:max-h-[28rem] md:rounded-lg md:border md:animate-fade-in"
+        >
           <div className="mx-auto my-2 h-1 w-10 rounded-full bg-muted-foreground/30 md:hidden" />
           {/* Header */}
           <div className="px-4 py-2.5 border-b shrink-0">
@@ -195,7 +204,8 @@ function NotificationBellInner() {
             </div>
           )}
         </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
@@ -262,7 +272,7 @@ function NotificationGroupItem({
         className="h-8 w-8 rounded-full overflow-hidden bg-muted shrink-0"
       >
         {actor?.avatarUrl ? (
-          <img src={actor.avatarUrl} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+          <img src={getProxiedImageUrl(actor.avatarUrl)} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-primary/20">
             <Icon className="h-3.5 w-3.5 text-primary" />

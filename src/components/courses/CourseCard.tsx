@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { cn } from "@/lib/utils";
 import type { CourseAccess } from "@/types/course";
 
@@ -58,6 +59,7 @@ export const CourseCard = memo(function CourseCard({
 }: CourseCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const { isInterested, toggleInterest } = useCourseLaunchInterest();
+  const bannerSrc = getProxiedImageUrl(bannerUrl);
 
   const isUpcoming = launchStatus === "upcoming" && !!launchAt;
   const interested = courseId ? isInterested(courseId) : false;
@@ -99,12 +101,13 @@ export const CourseCard = memo(function CourseCard({
       <div className="relative">
         <AspectRatio ratio={16 / 9}>
           <img
-            src={bannerUrl}
+            src={bannerSrc}
             alt={title}
             className={cn(
               "h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105",
               (locked || isUpcoming) && "grayscale"
             )}
+            crossOrigin="anonymous"
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />

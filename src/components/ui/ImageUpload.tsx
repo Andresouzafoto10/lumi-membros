@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { Upload, Loader2, ImageIcon, Trash2 } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
 import { deleteFromR2, isR2Url, type ImagePreset } from "@/lib/r2Upload";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -57,6 +58,7 @@ export function ImageUpload({
   const [dragOver, setDragOver] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const previewSrc = getProxiedImageUrl(value);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -128,9 +130,10 @@ export function ImageUpload({
           )}
         >
           <img
-            src={value}
+            src={previewSrc}
             alt="Upload preview"
             className="w-full h-full object-cover"
+            crossOrigin="anonymous"
           />
           <div className="absolute inset-0 bg-black/0 hover:bg-black/40 transition-colors group">
             <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">

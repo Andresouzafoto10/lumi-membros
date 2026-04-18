@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
-import { uploadToR2, deleteFromR2, type ImagePreset } from "@/lib/r2Upload";
+import { useCallback } from "react";
+import { deleteFromR2, type ImagePreset } from "@/lib/r2Upload";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import { toast } from "sonner";
 
 type UploadOptions = {
@@ -19,8 +20,7 @@ type UploadOptions = {
 };
 
 export function useUpload() {
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const { uploadFile: uploadWithR2, uploading, progress } = useR2Upload();
 
   const uploadFile = useCallback(
     async (
@@ -44,30 +44,21 @@ export function useUpload() {
         return null;
       }
 
-      setUploading(true);
-      setProgress(0);
-
       try {
-        setProgress(30);
-
-        const url = await uploadToR2(file, effectiveFolder, {
-          oldUrl: previousUrl,
+        const url = await uploadWithR2({
+          file,
+          folder: effectiveFolder,
+          previousUrl,
           preset,
+          errorMessage: "Erro no upload.",
         });
 
-        setProgress(100);
-
         return { url, path: url };
-      } catch (err) {
-        console.error("[useUpload]", err);
-        toast.error("Erro no upload.");
+      } catch {
         return null;
-      } finally {
-        setUploading(false);
-        setProgress(0);
       }
     },
-    []
+    [uploadWithR2]
   );
 
   const deleteFile = useCallback(async (_bucket: string, urlOrPath: string) => {

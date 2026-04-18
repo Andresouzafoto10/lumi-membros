@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { isValidCpf, formatCpf } from "@/lib/cpf";
 import { isPasswordStrong } from "@/lib/password";
 import type { InviteLink } from "@/types/student";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 export default function InviteRegisterPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -21,8 +22,8 @@ export default function InviteRegisterPage() {
   const navigate = useNavigate();
   const { settings } = usePlatformSettings();
 
-  const logoSrc = settings.logoUploadUrl || settings.logoUrl || null;
-  const coverUrl = settings.loginCoverUrl || null;
+  const logoSrc = getProxiedImageUrl(settings.logoUploadUrl || settings.logoUrl || null);
+  const coverUrl = getProxiedImageUrl(settings.loginCoverUrl || null);
 
   // Invite link state
   const [inviteLink, setInviteLink] = useState<InviteLink | null>(null);

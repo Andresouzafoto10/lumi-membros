@@ -1,7 +1,10 @@
 import type { PlatformSettings } from "@/types/student";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 export function applyPwaManifest(settings: PlatformSettings) {
   if (!settings.pwaEnabled) return;
+
+  const pwaIconUrl = getProxiedImageUrl(settings.pwaIconUrl);
 
   const manifest = {
     name: settings.pwaName || settings.name || "Master Membros",
@@ -11,10 +14,10 @@ export function applyPwaManifest(settings: PlatformSettings) {
     display: "standalone" as const,
     background_color: settings.pwaBackgroundColor || "#09090b",
     theme_color: settings.pwaThemeColor || "#00C2CB",
-    icons: settings.pwaIconUrl
+    icons: pwaIconUrl
       ? [
-          { src: settings.pwaIconUrl, sizes: "192x192", type: "image/png" },
-          { src: settings.pwaIconUrl, sizes: "512x512", type: "image/png" },
+          { src: pwaIconUrl, sizes: "192x192", type: "image/png" },
+          { src: pwaIconUrl, sizes: "512x512", type: "image/png" },
         ]
       : [],
   };
@@ -37,6 +40,7 @@ export function applyPwaManifest(settings: PlatformSettings) {
 
 export function applyFavicon(faviconUrl: string | null | undefined) {
   if (!faviconUrl) return;
+  const proxiedFaviconUrl = getProxiedImageUrl(faviconUrl);
 
   let link = document.querySelector(
     "link[rel='icon']"
@@ -46,5 +50,5 @@ export function applyFavicon(faviconUrl: string | null | undefined) {
     link.rel = "icon";
     document.head.appendChild(link);
   }
-  link.href = faviconUrl;
+  link.href = proxiedFaviconUrl;
 }

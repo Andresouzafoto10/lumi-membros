@@ -8,7 +8,7 @@
  *   const corsHeaders = makeCorsHeaders(req);
  *   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
  *
- * APP_URL env var accepts a comma-separated list of allowed origins, e.g.:
+ * APP_URL or VITE_APP_URL accept a comma-separated list of allowed origins, e.g.:
  *   APP_URL="https://app.membrosmaster.com.br,https://teste.membrosmaster.com.br"
  */
 
@@ -19,7 +19,10 @@ const FALLBACK_ORIGINS = [
 ];
 
 export function getAllowedOrigins(): string[] {
-  const env = Deno.env.get("APP_URL") ?? "";
+  const env =
+    Deno.env.get("APP_URL") ??
+    Deno.env.get("VITE_APP_URL") ??
+    "";
   if (!env.trim()) return FALLBACK_ORIGINS;
   return env
     .split(",")

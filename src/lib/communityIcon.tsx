@@ -5,6 +5,7 @@ import {
   MessageSquare,
   type LucideIcon,
 } from "lucide-react";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
   Camera, Image, Users, MessageCircle, Heart, Star, Trophy, Zap,
@@ -47,9 +48,11 @@ export function renderCommunityIcon(
     case "image":
       return (
         <img
-          src={iconUrl!}
+          src={getProxiedImageUrl(iconUrl!)}
           alt=""
           className="w-full h-full object-cover"
+          crossOrigin="anonymous"
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
         />
       );
     default:

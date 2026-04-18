@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   ChevronDown,
   ChevronLeft,
@@ -558,8 +560,37 @@ export default function CourseDetailPage() {
 
                   {/* Lesson description */}
                   {activeLesson.description && (
-                    <div className="prose prose-sm max-w-[820px] text-muted-foreground">
-                      <p>{activeLesson.description}</p>
+                    <div className="prose prose-sm dark:prose-invert max-w-[820px] prose-img:rounded-lg prose-img:max-w-full">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: "hsl(var(--primary))" }}
+                              className="underline font-medium hover:opacity-80 transition-opacity break-words"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          img: ({ src, alt }) => (
+                            <img
+                              src={src}
+                              alt={alt}
+                              className="rounded-lg max-w-full"
+                            />
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-foreground/80 leading-relaxed">
+                              {children}
+                            </p>
+                          ),
+                        }}
+                      >
+                        {activeLesson.description}
+                      </ReactMarkdown>
                     </div>
                   )}
 

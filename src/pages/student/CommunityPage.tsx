@@ -9,6 +9,7 @@ import { useProfiles } from "@/hooks/useProfiles";
 import { useRestrictions } from "@/hooks/useRestrictions";
 import { useStudents } from "@/hooks/useStudents";
 import { renderCommunityIcon, detectIconType } from "@/lib/communityIcon";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import type { CommunityPost } from "@/types/student";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export default function CommunityPage() {
     () => getCommunitiesForStudent(currentUserId),
     [getCommunitiesForStudent, currentUserId]
   );
+  const communityCoverSrc = getProxiedImageUrl(community?.coverUrl);
   const hasAccess = myCommunities.some((c) => c.slug === slug);
 
   const communityPosts = useMemo(
@@ -132,9 +134,11 @@ export default function CommunityPage() {
       {community.coverUrl && (
         <div className="w-full h-[120px] sm:h-[200px] rounded-xl overflow-hidden">
           <img
-            src={community.coverUrl}
+            src={communityCoverSrc}
             alt={community.name}
             className="w-full h-full object-cover"
+            crossOrigin="anonymous"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
         </div>
       )}
@@ -192,7 +196,7 @@ export default function CommunityPage() {
         >
           <div className="h-9 w-9 rounded-full overflow-hidden bg-muted shrink-0 ring-2 ring-border/30">
             {myProfile?.avatarUrl ? (
-              <img src={myProfile.avatarUrl} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+              <img src={getProxiedImageUrl(myProfile.avatarUrl)} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold text-sm">
                 {(myProfile?.displayName ?? "?").charAt(0).toUpperCase()}

@@ -7,6 +7,7 @@ import { useLearningPaths } from "@/hooks/useLearningPaths";
 import { useCourses } from "@/hooks/useCourses";
 import { useLessonProgress } from "@/hooks/useLessonProgress";
 import { useAuth } from "@/contexts/AuthContext";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -98,7 +99,7 @@ export default function LearningPathDetailPage() {
       <div className="mt-4 rounded-xl overflow-hidden border border-border/50 mb-6">
         {path.bannerUrl ? (
           <div className="relative aspect-[3/1]">
-            <img src={path.bannerUrl} alt={path.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+            <img src={getProxiedImageUrl(path.bannerUrl)} alt={path.title} className="w-full h-full object-cover" crossOrigin="anonymous" onError={(e) => { e.currentTarget.style.display = 'none' }} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-6">
               <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">{path.title}</h1>
@@ -189,7 +190,7 @@ export default function LearningPathDetailPage() {
                   {/* Thumbnail */}
                   <div className="hidden sm:block h-14 w-20 rounded-md bg-muted shrink-0 overflow-hidden">
                     {course.bannerUrl ? (
-                      <img src={course.bannerUrl} alt={course.title} loading="lazy" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                      <img src={getProxiedImageUrl(course.bannerUrl)} alt={course.title} loading="lazy" className="h-full w-full object-cover" crossOrigin="anonymous" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                     ) : (
                       <div className="h-full w-full bg-muted" />
                     )}

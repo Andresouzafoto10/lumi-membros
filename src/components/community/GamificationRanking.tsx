@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Trophy, Medal, Crown } from "lucide-react";
 import { useGamificationConfig } from "@/hooks/useGamificationConfig";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { LevelBadge } from "@/components/gamification/LevelBadge";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +67,7 @@ export function GamificationRanking({
             {/* Avatar */}
             <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/50">
               {player.avatarUrl ? (
-                <img src={player.avatarUrl} alt={player.name} loading="lazy" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                <img src={getProxiedImageUrl(player.avatarUrl)} alt={player.name} loading="lazy" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
               ) : (
                 <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary text-xs font-bold">
                   {player.name.charAt(0).toUpperCase()}

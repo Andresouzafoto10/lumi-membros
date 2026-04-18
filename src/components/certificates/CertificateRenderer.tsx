@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import type { CertificateTemplate, CertificateBlock } from "@/types/student";
 import { cn } from "@/lib/utils";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 // A4 landscape at 150 DPI: 1754 x 1240
 const REFERENCE_WIDTH = 1754;
@@ -58,6 +59,7 @@ export function CertificateRenderer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [fontScale, setFontScale] = useState(1);
   const hasBackground = !!template.backgroundUrl;
+  const backgroundSrc = getProxiedImageUrl(template.backgroundUrl);
 
   const bgFit = template.backgroundConfig?.fit ?? "cover";
   const bgPosition = template.backgroundConfig?.position ?? "50% 50%";
@@ -99,9 +101,10 @@ export function CertificateRenderer({
     >
       {hasBackground ? (
         <img
-          key={template.backgroundUrl}
-          src={template.backgroundUrl}
+          key={backgroundSrc}
+          src={backgroundSrc}
           alt=""
+          crossOrigin="anonymous"
           style={{
             position: "absolute",
             inset: 0,

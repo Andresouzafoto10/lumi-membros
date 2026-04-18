@@ -81,3 +81,12 @@ Brand color is **Lumi teal** (`#00C2CB`, HSL `183 100% 40%`) used as `--primary`
 ### Planned Backend
 
 `.env.example` references Supabase (database/auth), Cloudflare R2 (media uploads), Resend (transactional emails), and payment integrations (Ticto webhooks, Stripe).
+
+
+<claude-mem-context>
+# Memory Context
+
+# [lumi-membros] recent context, 2026-04-18 6:04pm GMT-3
+
+No previous sessions found.
+</claude-mem-context>

@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTheme } from "next-themes";
+import MDEditor from "@uiw/react-md-editor";
+import "@uiw/react-md-editor/markdown-editor.css";
 import {
   GraduationCap,
   Plus,
@@ -165,6 +168,7 @@ export default function AdminModuleEditPage() {
     courseId: string;
     moduleId: string;
   }>();
+  const { resolvedTheme } = useTheme();
   const {
     findCourse,
     findModule,
@@ -766,14 +770,25 @@ export default function AdminModuleEditPage() {
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="lesson-desc">Descricao</Label>
-              <Textarea
-                id="lesson-desc"
-                rows={6}
-                value={lessonForm.description}
-                onChange={(e) =>
-                  updateLessonField("description", e.target.value)
-                }
-              />
+              <div data-color-mode={resolvedTheme === "light" ? "light" : "dark"}>
+                <MDEditor
+                  value={lessonForm.description}
+                  onChange={(val) =>
+                    updateLessonField("description", val ?? "")
+                  }
+                  preview="edit"
+                  height={220}
+                  visibleDragbar={false}
+                  textareaProps={{
+                    id: "lesson-desc",
+                    placeholder:
+                      "Use **negrito**, *italico*, listas, links (https://...) e imagens ![alt](url)",
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Suporta Markdown: **negrito**, *italico*, listas, links e imagens.
+              </p>
             </div>
 
             {/* Ratings toggle */}

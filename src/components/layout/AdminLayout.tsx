@@ -29,6 +29,7 @@ import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useActiveScriptInjections } from "@/hooks/useScriptInjections";
 import { useNavMenuItems } from "@/hooks/useNavMenuItems";
 import { injectScripts } from "@/lib/injectScripts";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 const navLinks: {
   to: string;
@@ -57,7 +58,7 @@ export function AdminLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user } = useAuth();
   const { settings } = usePlatformSettings();
-  const logoSrc = settings.logoUploadUrl || settings.logoUrl || null;
+  const logoSrc = getProxiedImageUrl(settings.logoUploadUrl || settings.logoUrl || null);
 
   // Script injection
   const { scripts } = useActiveScriptInjections("admin");

@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-04-11 | **Versão do Tracker:** 2.4.0
+**Última atualização:** 2026-04-17 | **Versão do Tracker:** 2.4.1
 
 ---
 
@@ -46,6 +46,7 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| FEAT-009 | Descrição rich text nas aulas — MDEditor (@uiw/react-md-editor) no admin (AdminModuleEditPage) substitui Textarea, suporte a negrito/itálico/listas/links/imagens via Markdown. ReactMarkdown + remark-gfm na CourseDetailPage renderiza links clicáveis (target=_blank), autolink de URLs, imagens inline rounded. Texto legado plain funciona sem migração. | DEV | 2026-04-17 |
 | FIX-011 | Certificado PNG sem fundo (CORS R2) — proxy server-side via Edge Function r2-presigned, generateCertificate.ts com 4 camadas fallback (proxy → fetch direto → canvas → cor sólida), toast de aviso, trilha onError gracioso | DEV | 2026-04-11 |
 | FIX-008 | Diagnóstico imagens/Supabase — 38 img onError handlers (23 arquivos), 30+ operações Supabase com error handling (10 hooks) | DEV | 2026-04-10 |
 | FIX-009 | Renomear "Lumi Membros" → "Master Membros" — 15 arquivos com texto visível, PWA manifest, favicon, .env.example | DEV | 2026-04-10 |

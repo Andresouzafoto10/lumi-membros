@@ -10,14 +10,15 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { isValidCpf, formatCpf } from "@/lib/cpf";
 import { isPasswordStrong } from "@/lib/password";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 export default function RegisterPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const { settings } = usePlatformSettings();
 
-  const logoSrc = settings.logoUploadUrl || settings.logoUrl || null;
-  const coverUrl = settings.loginCoverUrl || null;
+  const logoSrc = getProxiedImageUrl(settings.logoUploadUrl || settings.logoUrl || null);
+  const coverUrl = getProxiedImageUrl(settings.loginCoverUrl || null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

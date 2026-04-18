@@ -36,10 +36,12 @@ import { useCourses } from "@/hooks/useCourses";
 import { usePosts } from "@/hooks/usePosts";
 import { useGamification } from "@/hooks/useGamification";
 import { useGamificationConfig } from "@/hooks/useGamificationConfig";
-import { uploadToR2, deleteFromR2, isR2Url } from "@/lib/r2Upload";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
+import { deleteFromR2, isR2Url } from "@/lib/r2Upload";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useCertificates } from "@/hooks/useCertificates";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import { CertificateCard } from "@/components/certificates/CertificateCard";
 import { GamificationRanking } from "@/components/community/GamificationRanking";
 import { LevelBadge } from "@/components/gamification/LevelBadge";
@@ -223,7 +225,7 @@ export default function MyProfilePage() {
   const { allCourses, findCourse } = useCourses();
   const { getPostsByAuthor, getSavedPosts } = usePosts();
   const { getPlayerData, getPlayerMissions, getPlayerMissionsInProgress } = useGamification();
-  // Upload handled directly via uploadToR2/deleteFromR2
+  const { uploadFile } = useR2Upload();
   const { findCommunity } = useCommunities();
   const { getEarnedCertificates } = useCertificates();
 
@@ -427,29 +429,69 @@ export default function MyProfilePage() {
 
     if (cropTarget === "cover") {
       setUploadingCover(true);
+      let uploadedUrl: string | null = null;
+      const previousCoverUrl = profile.coverUrl || undefined;
       try {
-        const url = await uploadToR2(croppedFile, "profiles/covers", {
-          oldUrl: profile.coverUrl || undefined,
+        uploadedUrl = await uploadFile({
+          file: croppedFile,
+          folder: "profiles/covers",
           preset: "cover",
+          errorMessage: "Erro ao atualizar capa.",
         });
-        await updateProfile(profile.id, { coverUrl: url });
+        await updateProfile(profile.id, { coverUrl: uploadedUrl });
+
+        if (previousCoverUrl && isR2Url(previousCoverUrl) && previousCoverUrl !== uploadedUrl) {
+          try {
+            await deleteFromR2(previousCoverUrl);
+          } catch (error) {
+            console.error("[MyProfilePage] Failed to delete previous cover from R2", error);
+            toast.error("Capa atualizada, mas nao foi possivel remover a imagem anterior do armazenamento.");
+          }
+        }
+
         toast.success("Capa atualizada!");
       } catch {
-        toast.error("Erro ao atualizar capa.");
+        if (uploadedUrl && isR2Url(uploadedUrl)) {
+          await deleteFromR2(uploadedUrl).catch(() => {});
+        }
+
+        if (uploadedUrl) {
+          toast.error("Erro ao atualizar capa.");
+        }
       } finally {
         setUploadingCover(false);
       }
     } else {
       setUploadingAvatar(true);
+      let uploadedUrl: string | null = null;
+      const previousAvatarUrl = profile.avatarUrl || undefined;
       try {
-        const url = await uploadToR2(croppedFile, "profiles/avatars", {
-          oldUrl: profile.avatarUrl || undefined,
+        uploadedUrl = await uploadFile({
+          file: croppedFile,
+          folder: "profiles/avatars",
           preset: "avatar",
+          errorMessage: "Erro ao atualizar avatar.",
         });
-        await updateProfile(profile.id, { avatarUrl: url });
+        await updateProfile(profile.id, { avatarUrl: uploadedUrl });
+
+        if (previousAvatarUrl && isR2Url(previousAvatarUrl) && previousAvatarUrl !== uploadedUrl) {
+          try {
+            await deleteFromR2(previousAvatarUrl);
+          } catch (error) {
+            console.error("[MyProfilePage] Failed to delete previous avatar from R2", error);
+            toast.error("Avatar atualizado, mas nao foi possivel remover a imagem anterior do armazenamento.");
+          }
+        }
+
         toast.success("Avatar atualizado!");
       } catch {
-        toast.error("Erro ao atualizar avatar.");
+        if (uploadedUrl && isR2Url(uploadedUrl)) {
+          await deleteFromR2(uploadedUrl).catch(() => {});
+        }
+
+        if (uploadedUrl) {
+          toast.error("Erro ao atualizar avatar.");
+        }
       } finally {
         setUploadingAvatar(false);
       }
@@ -557,6 +599,8 @@ export default function MyProfilePage() {
   const coverObjectPosition = repositioning
     ? `50% ${Math.round(dragPos.y)}%`
     : profile.coverPosition || "50% 50%";
+  const profileCoverSrc = getProxiedImageUrl(profile.coverUrl);
+  const profileAvatarSrc = getProxiedImageUrl(profile.avatarUrl);
 
   return (
     <div className="mx-auto max-w-3xl pb-20 sm:pb-12">
@@ -578,10 +622,11 @@ export default function MyProfilePage() {
         >
           {profile.coverUrl ? (
             <img
-              src={profile.coverUrl}
+              src={profileCoverSrc}
               alt="Capa"
               className="w-full h-full object-cover transition-opacity duration-300 select-none pointer-events-none"
               style={{ objectPosition: coverObjectPosition }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
               draggable={false}
             />
           ) : (
@@ -700,9 +745,10 @@ export default function MyProfilePage() {
             <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-background bg-muted shadow-lg ring-2 ring-primary/20 sm:h-28 sm:w-28">
               {profile.avatarUrl ? (
                 <img
-                  src={profile.avatarUrl}
+                  src={profileAvatarSrc}
                   alt={profile.displayName}
                   className="w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-2xl font-bold">
@@ -1179,9 +1225,10 @@ export default function MyProfilePage() {
                           <div className="h-10 w-14 rounded bg-muted overflow-hidden shrink-0">
                             {course.bannerUrl && (
                               <img
-                                src={course.bannerUrl}
+                                src={getProxiedImageUrl(course.bannerUrl)}
                                 alt={course.title}
                                 className="w-full h-full object-cover"
+                                crossOrigin="anonymous"
                               />
                             )}
                           </div>

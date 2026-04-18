@@ -8,6 +8,7 @@ import { useCourses } from "@/hooks/useCourses";
 import { useLessonProgress } from "@/hooks/useLessonProgress";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -116,10 +117,11 @@ export default function LearningPathsPage() {
                       </div>
                       {path.bannerUrl && (
                         <img
-                          src={path.bannerUrl}
+                          src={getProxiedImageUrl(path.bannerUrl)}
                           alt={path.title}
                           loading="lazy"
                           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                          crossOrigin="anonymous"
                           onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
                       )}

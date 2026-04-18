@@ -38,6 +38,7 @@ import { useClasses } from "@/hooks/useClasses";
 import { useCourses } from "@/hooks/useCourses";
 import { useProfiles } from "@/hooks/useProfiles";
 import { usePosts } from "@/hooks/usePosts";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useRestrictions } from "@/hooks/useRestrictions";
 import { useCertificates } from "@/hooks/useCertificates";
@@ -563,9 +564,10 @@ export default function AdminStudentProfilePage() {
           <div className="h-16 w-16 shrink-0 rounded-full overflow-hidden bg-primary/10 ring-2 ring-primary/20 shadow-lg">
             {profile?.avatarUrl ? (
               <img
-                src={profile.avatarUrl}
+                src={getProxiedImageUrl(profile.avatarUrl)}
                 alt={student.name}
                 className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-primary font-bold text-2xl">

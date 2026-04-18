@@ -1,13 +1,31 @@
 import { toast } from "sonner";
-import { isR2Url, fetchR2AsDataUrl } from "@/lib/r2Upload";
+import { isR2Url } from "@/lib/r2Upload";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 // ---------------------------------------------------------------------------
 // Layer 1: Edge Function proxy (R2 URLs only)
-// Server-side fetch via r2-presigned → no CORS restrictions.
+// Server-side fetch via image-proxy → correct CORS headers for html2canvas.
 // ---------------------------------------------------------------------------
 
 async function fetchViaProxy(url: string): Promise<string> {
-  return await fetchR2AsDataUrl(url);
+  const proxyUrl = getProxiedImageUrl(url);
+  if (proxyUrl === url) {
+    throw new Error("Proxy indisponível para esta URL");
+  }
+
+  const res = await fetch(proxyUrl, {
+    mode: "cors",
+    credentials: "omit",
+    cache: "no-cache",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -50,7 +68,8 @@ async function fetchViaCanvas(url: string): Promise<string> {
     };
     img.onerror = reject;
     // Cache-bust to avoid stale no-cors cached responses
-    img.src = url + (url.includes("?") ? "&" : "?") + "_t=" + Date.now();
+    const imageUrl = getProxiedImageUrl(url);
+    img.src = imageUrl + (imageUrl.includes("?") ? "&" : "?") + "_t=" + Date.now();
   });
 }
 
@@ -116,6 +135,7 @@ async function proxyCrossOriginImages(
     if (!originalSrc || !isCrossOrigin(originalSrc)) return;
 
     try {
+      img.crossOrigin = "anonymous";
       const dataUrl = await fetchAsDataUrl(originalSrc);
       img.src = dataUrl;
       restores.push(() => {
@@ -150,7 +170,7 @@ async function proxyCrossOriginImages(
     if (!originalUrl || !isCrossOrigin(originalUrl)) return;
 
     try {
-      const dataUrl = await fetchAsDataUrl(originalUrl);
+      const dataUrl = await fetchAsDataUrl(getProxiedImageUrl(originalUrl));
       const originalBg = el.style.backgroundImage;
       el.style.backgroundImage = `url(${dataUrl})`;
       restores.push(() => {

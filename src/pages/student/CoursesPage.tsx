@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
-import { BookOpen, Search, SearchX, X } from "lucide-react";
+import { BookOpen, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -21,6 +20,8 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
 import { useLessonProgress } from "@/hooks/useLessonProgress";
+import { useEnrolledCourses } from "@/hooks/useEnrolledCourses";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { isStudentEnrolled } from "@/lib/accessControl";
 import { UpcomingLiveBanner } from "@/components/courses/UpcomingLiveBanner";
@@ -34,8 +35,11 @@ export default function CoursesPage() {
   const { classes } = useClasses();
   const { getCourseProgress } = useLessonProgress();
   const { isAdmin } = useAuth();
+  const { settings } = usePlatformSettings();
+  const enrolledCourses = useEnrolledCourses();
 
   const [selectedSessionId, setSelectedSessionId] = useState("all");
+  const showMyCourses = (settings.showMyCourses ?? true) && enrolledCourses.length > 0;
 
   // Set of course IDs the current student is enrolled in
   const enrolledCourseIds = useMemo(() => {
@@ -117,29 +121,6 @@ export default function CoursesPage() {
       {/* Upcoming live lessons banner */}
       <UpcomingLiveBanner />
 
-      {/* Mobile search */}
-      <div className="sm:hidden">
-        <div className="relative group/search">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within/search:text-primary" />
-          <Input
-            placeholder="Buscar cursos..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-9 border-border/60 focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-              onClick={() => setSearchQuery("")}
-            >
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-      </div>
-
       {/* Continue watching + session filter */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="min-w-0">
@@ -168,6 +149,51 @@ export default function CoursesPage() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Meus Cursos — exibido no topo para alunos com matricula ativa */}
+      {showMyCourses && (
+        <section>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-1 rounded-full bg-primary" />
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-lg font-bold tracking-tight sm:text-xl">Meus Cursos</h2>
+                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                    {enrolledCourses.length} {enrolledCourses.length === 1 ? "curso" : "cursos"}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Continue de onde parou nos cursos em que voce esta matriculado.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {enrolledCourses.map((course, idx) => (
+              <div
+                key={course.id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${idx * 60}ms` }}
+              >
+                <CourseCard
+                  to={`/cursos/${course.id}`}
+                  title={course.title}
+                  description={course.description}
+                  bannerUrl={course.bannerUrl}
+                  progressPercent={course.progressPercent}
+                  isDisabled={!course.isActive}
+                  access={course.access}
+                  courseId={course.id}
+                  launchAt={course.launchAt}
+                  launchStatus={course.launchStatus}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* No courses at all */}
       {!isFiltering && activeSessions.length === 0 && (

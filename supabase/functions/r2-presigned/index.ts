@@ -5,18 +5,69 @@ import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3";
 import { makeCorsHeaders } from "../_shared/cors.ts";
 
 const R2_ENDPOINT = Deno.env.get("R2_ENDPOINT") ?? "";
-const R2_ACCESS_KEY_ID = Deno.env.get("R2_ACCESS_KEY_ID") ?? "";
-const R2_SECRET_ACCESS_KEY = Deno.env.get("R2_SECRET_ACCESS_KEY") ?? "";
+const R2_ACCESS_KEY =
+  Deno.env.get("R2_ACCESS_KEY") ??
+  Deno.env.get("R2_ACCESS_KEY_ID") ??
+  "";
+const R2_SECRET_KEY =
+  Deno.env.get("R2_SECRET_KEY") ??
+  Deno.env.get("R2_SECRET_ACCESS_KEY") ??
+  "";
 const R2_BUCKET = Deno.env.get("R2_BUCKET_NAME") ?? "";
+const R2_PUBLIC_URL = (
+  Deno.env.get("R2_PUBLIC_URL") ??
+  Deno.env.get("VITE_R2_PUBLIC_URL") ??
+  ""
+).replace(/\/$/, "");
 
 const s3 = new S3Client({
   region: "auto",
   endpoint: R2_ENDPOINT,
   credentials: {
-    accessKeyId: R2_ACCESS_KEY_ID,
-    secretAccessKey: R2_SECRET_ACCESS_KEY,
+    accessKeyId: R2_ACCESS_KEY,
+    secretAccessKey: R2_SECRET_KEY,
   },
 });
+
+type UploadRequestBody = {
+  key?: string;
+  contentType?: string;
+  action?: string;
+  folder?: string;
+  fileName?: string;
+};
+
+function sanitizePathSegment(value: string): string {
+  return value
+    .trim()
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/\/{2,}/g, "/");
+}
+
+function sanitizeFileName(fileName: string): string {
+  return fileName
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function normalizeUploadKey(body: UploadRequestBody): string | null {
+  if (body.key) {
+    const key = sanitizePathSegment(body.key);
+    if (!key || key.includes("..")) return null;
+    return key;
+  }
+
+  if (body.action === "upload" && body.folder && body.fileName) {
+    const folder = sanitizePathSegment(body.folder);
+    const fileName = sanitizeFileName(body.fileName);
+    if (!folder || !fileName) return null;
+    return `${folder}/${Date.now()}-${fileName}`;
+  }
+
+  return null;
+}
 
 serve(async (req) => {
   const corsHeaders = makeCorsHeaders(req);
@@ -25,6 +76,13 @@ serve(async (req) => {
   }
 
   try {
+    if (!R2_ENDPOINT || !R2_ACCESS_KEY || !R2_SECRET_KEY || !R2_BUCKET) {
+      return new Response("R2 não configurado nas secrets da Edge Function", {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
     // Validate JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -42,36 +100,54 @@ serve(async (req) => {
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
 
-    const { action, folder, fileName, contentType, key } = await req.json();
+    const body = await req.json() as UploadRequestBody;
+    const { action } = body;
 
     // Generate presigned PUT URL for upload
-    if (action === "upload") {
-      if (!folder || !fileName || !contentType) {
-        return new Response("folder, fileName e contentType são obrigatórios", {
+    if (!action || action === "upload") {
+      const uploadKey = normalizeUploadKey(body);
+      const contentType = typeof body.contentType === "string" ? body.contentType : "";
+
+      if (!uploadKey || !contentType) {
+        return new Response("key e contentType são obrigatórios", {
           status: 400,
           headers: corsHeaders,
         });
       }
 
-      const ext = fileName.split(".").pop() ?? "bin";
-      const fileKey = `${folder}/${crypto.randomUUID()}-${Date.now()}.${ext}`;
+      if (!R2_PUBLIC_URL) {
+        return new Response("R2_PUBLIC_URL não configurado", {
+          status: 500,
+          headers: corsHeaders,
+        });
+      }
 
       const command = new PutObjectCommand({
         Bucket: R2_BUCKET,
-        Key: fileKey,
+        Key: uploadKey,
         ContentType: contentType,
         CacheControl: "public, max-age=31536000, immutable",
       });
 
-      const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 300 }); // 5 min
+      const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
+      const publicUrl = `${R2_PUBLIC_URL}/${uploadKey}`;
 
-      return new Response(JSON.stringify({ presignedUrl, key: fileKey }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          uploadUrl,
+          publicUrl,
+          presignedUrl: uploadUrl,
+          key: uploadKey,
+        }),
+        {
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
     }
 
     // Delete a file by key
     if (action === "delete") {
+      const key = typeof body.key === "string" ? body.key : "";
       if (!key) {
         return new Response("key é obrigatório", { status: 400, headers: corsHeaders });
       }
@@ -86,6 +162,7 @@ serve(async (req) => {
     // Proxy-fetch a file from R2 and return with CORS headers.
     // Used by certificate download (html2canvas) to bypass R2 CORS restrictions.
     if (action === "proxy") {
+      const key = typeof body.key === "string" ? body.key : "";
       if (!key) {
         return new Response("key é obrigatório", { status: 400, headers: corsHeaders });
       }

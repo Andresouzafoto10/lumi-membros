@@ -8,7 +8,8 @@ import {
   FileUp,
   Trash2,
 } from "lucide-react";
-import { uploadToR2, deleteFromR2, isR2Url, type ImagePreset } from "@/lib/r2Upload";
+import { deleteFromR2, isR2Url, type ImagePreset } from "@/lib/r2Upload";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useR2Upload } from "@/hooks/useR2Upload";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,13 +74,13 @@ export function FileUpload({
   className,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlDraft, setUrlDraft] = useState("");
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const { uploadFile, uploading, progress } = useR2Upload();
+  const previewSrc = getProxiedImageUrl(value);
 
   // -----------------------------------------------------------------------
   // Upload handler
@@ -112,27 +114,21 @@ export function FileUpload({
         }
       }
 
-      setUploading(true);
-      setProgress(20);
-
       try {
-        setProgress(40);
-        const url = await uploadToR2(file, folder, {
-          oldUrl: value,
+        const url = await uploadFile({
+          file,
+          folder,
+          previousUrl: value,
           preset: imagePreset,
+          errorMessage: "Erro no upload. Tente novamente.",
         });
-        setProgress(100);
         onChange(url);
         toast.success("Upload concluido!");
-      } catch (err) {
-        console.error("[FileUpload]", err);
-        toast.error("Erro no upload. Tente novamente.");
-      } finally {
-        setUploading(false);
-        setProgress(0);
+      } catch {
+        // useR2Upload already reports the error to the user
       }
     },
-    [folder, value, imagePreset, maxSizeMB, onChange, accept]
+    [accept, folder, imagePreset, maxSizeMB, onChange, uploadFile, value]
   );
 
   const handleInputChange = useCallback(
@@ -219,12 +215,13 @@ export function FileUpload({
         >
           {isImage ? (
             <img
-              src={value}
+              src={previewSrc}
               alt="Preview"
               className={cn(
                 "w-full",
                 previewMaxHeight ? "h-auto object-contain" : "h-full object-cover"
               )}
+              crossOrigin="anonymous"
               onError={(e) => { e.currentTarget.style.opacity = '0.3'; }}
             />
           ) : (

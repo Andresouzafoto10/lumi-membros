@@ -34,7 +34,9 @@ import { useCommunities } from "@/hooks/useCommunities";
 import { usePosts } from "@/hooks/usePosts";
 import { useRestrictions } from "@/hooks/useRestrictions";
 import { useProfiles } from "@/hooks/useProfiles";
-import { uploadToR2, deleteFromR2, isR2Url } from "@/lib/r2Upload";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
+import { deleteFromR2, isR2Url } from "@/lib/r2Upload";
+import { useR2Upload } from "@/hooks/useR2Upload";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -177,6 +179,7 @@ export function CreatePostDialog({
     communityId: string;
   };
 }) {
+  const { uploadFile } = useR2Upload();
   const { currentUserId } = useCurrentUser();
   const { getCommunitiesForStudent } = useCommunities();
   const { createPost, updatePost } = usePosts();
@@ -636,13 +639,18 @@ export function CreatePostDialog({
         continue;
       }
       try {
-        const url = await uploadToR2(file, "posts/images", { preset: "banner" });
+        const url = await uploadFile({
+          file,
+          folder: "posts/images",
+          preset: "banner",
+          errorMessage: `Erro ao enviar "${file.name}".`,
+        });
         setImages((prev) => {
           if (prev.length >= 4) return prev;
           return [...prev, url];
         });
       } catch {
-        toast.error(`Erro ao enviar "${file.name}".`);
+        // useR2Upload already reports the failure
       }
     }
     e.target.value = "";
@@ -671,13 +679,17 @@ export function CreatePostDialog({
         continue;
       }
       try {
-        const url = await uploadToR2(file, "posts/attachments");
+        const url = await uploadFile({
+          file,
+          folder: "posts/attachments",
+          errorMessage: `Erro ao enviar "${file.name}".`,
+        });
         setAttachments((prev) => {
           if (prev.length >= MAX_ATTACHMENTS) return prev;
           return [...prev, { name: file.name, size: file.size, type: file.type, dataUrl: url }];
         });
       } catch {
-        toast.error(`Erro ao enviar "${file.name}".`);
+        // useR2Upload already reports the failure
       }
     }
     e.target.value = "";
@@ -844,7 +856,7 @@ export function CreatePostDialog({
             >
               <div className="h-6 w-6 rounded-full overflow-hidden bg-muted shrink-0">
                 {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                  <img src={getProxiedImageUrl(profile.avatarUrl)} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-[10px] font-bold">
                     {profile.displayName.charAt(0).toUpperCase()}

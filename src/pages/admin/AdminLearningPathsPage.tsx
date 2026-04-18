@@ -4,6 +4,7 @@ import { Route, Plus, Pencil, Trash2, Copy, BookOpen, Users } from "lucide-react
 import { toast } from "sonner";
 
 import { useLearningPaths } from "@/hooks/useLearningPaths";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -134,10 +135,11 @@ export default function AdminLearningPathsPage() {
                 <div className="flex items-center gap-4">
                   {path.bannerUrl ? (
                     <img
-                      src={path.bannerUrl}
+                      src={getProxiedImageUrl(path.bannerUrl)}
                       alt={path.title}
                       loading="lazy"
                       className="h-16 w-24 rounded-md object-cover shrink-0"
+                      crossOrigin="anonymous"
                     />
                   ) : (
                     <div className="h-16 w-24 rounded-md bg-muted flex items-center justify-center shrink-0">

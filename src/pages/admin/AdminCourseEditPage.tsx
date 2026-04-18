@@ -26,8 +26,10 @@ import { toast } from "sonner";
 import { useCourses } from "@/hooks/useCourses";
 import { useCertificates } from "@/hooks/useCertificates";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import type { CourseAccess } from "@/types/course";
-import { uploadToR2, deleteFromR2, isR2Url } from "@/lib/r2Upload";
+import { deleteFromR2, isR2Url } from "@/lib/r2Upload";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
 
 // Lazy-load ImageCropDialog (pulls in react-easy-crop, only needed when cropping)
@@ -165,8 +167,10 @@ export default function AdminCourseEditPage() {
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [moduleForm, setModuleForm] =
     useState<ModuleFormState>(emptyModuleForm);
+  const { uploadFile: uploadBannerFile } = useR2Upload();
 
   const bannerUrl = bannerPreview || course?.bannerUrl || "";
+  const bannerPreviewSrc = getProxiedImageUrl(bannerUrl);
 
   // ---------- Banner handlers ----------
   const handleBannerFileSelect = useCallback(
@@ -192,20 +196,22 @@ export default function AdminCourseEditPage() {
       setBannerCropSrc("");
       setBannerUploading(true);
       try {
-        const url = await uploadToR2(croppedFile, "courses/banners", {
-          oldUrl: bannerUrl,
+        const url = await uploadBannerFile({
+          file: croppedFile,
+          folder: "courses/banners",
+          previousUrl: bannerUrl,
           preset: "banner",
+          errorMessage: "Erro no upload. Tente novamente.",
         });
         setBannerPreview(url);
         toast.success("Banner atualizado!");
       } catch (err) {
         console.error("[BannerUpload]", err);
-        toast.error("Erro no upload. Tente novamente.");
       } finally {
         setBannerUploading(false);
       }
     },
-    [bannerUrl, bannerCropSrc]
+    [bannerCropSrc, bannerUrl, uploadBannerFile]
   );
 
   const handleBannerCropCancel = useCallback(() => {
@@ -442,9 +448,11 @@ export default function AdminCourseEditPage() {
                   <div className="relative group">
                     <div className="aspect-video rounded-xl overflow-hidden border border-border/50 bg-muted">
                       <img
-                        src={bannerUrl}
+                        src={bannerPreviewSrc}
                         alt="Banner preview"
                         className="h-full w-full object-cover"
+                        crossOrigin="anonymous"
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                     </div>

@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { uploadToR2, deleteFromR2 } from "@/lib/r2Upload";
+import { deleteFromR2 } from "@/lib/r2Upload";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import type { LessonMaterial } from "@/types/course";
 
 export function useLessonMaterials(lessonId: string | undefined) {
   const qc = useQueryClient();
+  const { uploadFile } = useR2Upload();
 
   const { data: materials = [], isLoading } = useQuery({
     queryKey: ["lesson-materials", lessonId],
@@ -42,7 +44,11 @@ export function useLessonMaterials(lessonId: string | undefined) {
               : "other";
 
       // Upload to R2 (no image optimisation for documents)
-      const url = await uploadToR2(file, `materials/${lessonId}`);
+      const url = await uploadFile({
+        file,
+        folder: `materials/${lessonId}`,
+        errorMessage: "Erro no upload do material.",
+      });
 
       const { error: dbError } = await supabase
         .from("lesson_materials")

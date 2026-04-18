@@ -19,6 +19,7 @@ import { useProfiles } from "@/hooks/useProfiles";
 import { useComments } from "@/hooks/useComments";
 import { useRestrictions } from "@/hooks/useRestrictions";
 import { useGamification } from "@/hooks/useGamification";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { getMemberBadges } from "@/lib/roleBadges";
 
 import { Button } from "@/components/ui/button";
@@ -70,10 +71,10 @@ function CommentItem({
         <div className="h-7 w-7 rounded-full overflow-hidden bg-muted ring-1 ring-border/30">
           {author?.avatarUrl ? (
             <img
-              src={author.avatarUrl}
+              src={getProxiedImageUrl(author.avatarUrl)}
               alt={author.displayName}
               className="w-full h-full object-cover"
-              onError={(e) => { e.currentTarget.style.display = 'none' }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-xs font-bold">

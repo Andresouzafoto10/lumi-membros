@@ -28,6 +28,7 @@ import { useRestrictions } from "@/hooks/useRestrictions";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAllLessonCommentsAdmin } from "@/hooks/useLessonComments";
 import type { AdminLessonComment } from "@/hooks/useLessonComments";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -396,7 +397,7 @@ export default function AdminModerationPage() {
                       <div className="flex items-start gap-3">
                         <div className="h-9 w-9 rounded-full overflow-hidden bg-muted shrink-0">
                           {author?.avatarUrl ? (
-                            <img src={author.avatarUrl} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                            <img src={getProxiedImageUrl(author.avatarUrl)} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary text-sm font-bold">
                               {(author?.displayName ?? "?").charAt(0).toUpperCase()}

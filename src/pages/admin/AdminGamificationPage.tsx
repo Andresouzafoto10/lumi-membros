@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useGamificationConfig } from "@/hooks/useGamificationConfig";
 import type { MissionRow, LevelRow, PointsConfigRow } from "@/hooks/useGamificationConfig";
 import type { MissionConditionType } from "@/types/student";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { Switch } from "@/components/ui/switch";
 import { LevelBadge } from "@/components/gamification/LevelBadge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -182,7 +183,7 @@ function AdminRankRow({
       </span>
       <div className="h-9 w-9 shrink-0 rounded-full overflow-hidden bg-muted">
         {user.avatarUrl ? (
-          <img src={user.avatarUrl} alt="" loading="lazy" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+          <img src={getProxiedImageUrl(user.avatarUrl)} alt="" loading="lazy" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
         ) : (
           <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary text-xs font-bold">
             {user.name.charAt(0).toUpperCase()}

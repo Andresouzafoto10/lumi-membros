@@ -1,9 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Outlet, Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
+  BookOpen,
   ChevronDown,
   Home,
   MessageSquare,
+  PlayCircle,
   Settings,
   Search,
   X,
@@ -28,7 +31,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
-import { SearchProvider, useSearchContext } from "@/hooks/useSearchContext";
+import { MobileSearchOverlay } from "@/components/layout/MobileSearchOverlay";
+import { SearchResultItem } from "@/components/layout/SearchResultItem";
+import { SearchProvider } from "@/hooks/useSearchContext";
+import { useGlobalSearch } from "@/hooks/useGlobalSearch";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,6 +46,7 @@ import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useActiveScriptInjections } from "@/hooks/useScriptInjections";
 import { useNavMenuItems } from "@/hooks/useNavMenuItems";
 import { injectScripts } from "@/lib/injectScripts";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 /** Tracks daily login + streak (fires once per day per user) */
 function DailyLoginTracker() {
@@ -64,29 +71,160 @@ function DailyLoginTracker() {
   return null;
 }
 
-function HeaderSearchInput() {
-  const { searchQuery, setSearchQuery } = useSearchContext();
+function DesktopGlobalSearch() {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { courses, lessons, posts, loading, total } = useGlobalSearch(query);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const showDropdown = open && query.trim().length >= 2;
+  const showNoResults = showDropdown && !loading && total === 0;
+
+  const handleNavigate = (href: string) => {
+    navigate(href);
+    setOpen(false);
+    setQuery("");
+  };
+
   return (
-    <div className="relative hidden sm:block">
+    <div ref={containerRef} className="relative hidden sm:block">
       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
       <Input
-        placeholder="Buscar cursos..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Buscar cursos, aulas, posts..."
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
         className="pl-8 pr-8 h-9 w-[200px] lg:w-[280px] text-sm"
       />
-      {searchQuery && (
+      {query && (
         <Button
           variant="ghost"
           size="icon"
           className="absolute right-0.5 top-1/2 -translate-y-1/2 h-7 w-7"
-          onClick={() => setSearchQuery("")}
+          onClick={() => {
+            setQuery("");
+            setOpen(false);
+          }}
           aria-label="Limpar busca"
         >
           <X className="h-3 w-3" />
         </Button>
       )}
+
+      {showDropdown && (
+        <div className="absolute right-0 top-full z-[200] mt-2 max-h-[70vh] w-[340px] overflow-y-auto rounded-lg border border-border/70 bg-popover p-2 shadow-xl animate-fade-in lg:w-[400px]">
+          {loading && (
+            <div className="space-y-3 p-2">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-muted animate-pulse-soft" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-3/4 rounded bg-muted animate-pulse-soft" />
+                    <div className="h-2 w-1/2 rounded bg-muted animate-pulse-soft" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showNoResults && (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+              Nenhum resultado para "{query.trim()}"
+            </p>
+          )}
+
+          {!loading && total > 0 && (
+            <>
+              {courses.length > 0 && (
+                <section className="mb-2">
+                  <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Cursos
+                  </p>
+                  {courses.slice(0, 3).map((c) => (
+                    <SearchResultItem
+                      key={c.id}
+                      icon={BookOpen}
+                      title={c.title}
+                      subtitle={c.sessionTitle ? `Sessao: ${c.sessionTitle}` : undefined}
+                      badge="Curso"
+                      badgeColor="bg-primary/15 text-primary"
+                      query={query}
+                      onClick={() => handleNavigate(`/cursos/${c.id}`)}
+                    />
+                  ))}
+                </section>
+              )}
+
+              {lessons.length > 0 && (
+                <section className="mb-2">
+                  <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Aulas
+                  </p>
+                  {lessons.slice(0, 3).map((l) => (
+                    <SearchResultItem
+                      key={l.id}
+                      icon={PlayCircle}
+                      title={l.title}
+                      subtitle={`em: ${l.courseTitle}`}
+                      badge="Aula"
+                      badgeColor="bg-amber-500/15 text-amber-500"
+                      query={query}
+                      onClick={() => handleNavigate(`/cursos/${l.courseId}/aulas/${l.id}`)}
+                    />
+                  ))}
+                </section>
+              )}
+
+              {posts.length > 0 && (
+                <section>
+                  <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Comunidade
+                  </p>
+                  {posts.slice(0, 2).map((p) => (
+                    <SearchResultItem
+                      key={p.id}
+                      icon={MessageSquare}
+                      title={p.title}
+                      subtitle={`por @${p.authorName}`}
+                      badge="Post"
+                      badgeColor="bg-violet-500/15 text-violet-500"
+                      query={query}
+                      onClick={() =>
+                        handleNavigate(`/comunidade/${p.communitySlug}?post=${p.id}`)
+                      }
+                    />
+                  ))}
+                </section>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+function MobileSearchButton({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      onClick={onOpen}
+      aria-label="Buscar"
+      className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-90 sm:hidden"
+    >
+      <Search className="h-4 w-4" />
+    </button>
   );
 }
 
@@ -148,9 +286,10 @@ function ProfileHeaderButton() {
       <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-2 ring-primary/15 md:h-9 md:w-9">
         {profile?.avatarUrl ? (
           <img
-            src={profile.avatarUrl}
+            src={getProxiedImageUrl(profile.avatarUrl)}
             alt={profile.displayName}
             className="h-full w-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         ) : (
           <span className="flex h-full w-full items-center justify-center bg-primary/10 text-sm font-bold text-primary">
@@ -175,7 +314,12 @@ function ProfileHeaderButton() {
               {avatarEl}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent
+            align="end"
+            sideOffset={8}
+            collisionPadding={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="w-56 z-[200]"
+          >
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">
@@ -227,22 +371,23 @@ function ProfileHeaderButton() {
         >
           {avatarEl}
         </button>
-        {sheetOpen && (
+        {sheetOpen && createPortal(
           <>
             <div
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              className="fixed inset-0 z-[190] bg-black/50 backdrop-blur-sm"
               onClick={() => setSheetOpen(false)}
             />
-            <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t bg-popover animate-slide-up">
+            <div className="fixed inset-x-0 bottom-0 z-[200] rounded-t-2xl border-t bg-popover shadow-lg animate-slide-up">
               <div className="mx-auto my-3 h-1 w-10 rounded-full bg-muted-foreground/30" />
               <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-primary/15">
                     {profile?.avatarUrl ? (
                       <img
-                        src={profile.avatarUrl}
+                        src={getProxiedImageUrl(profile.avatarUrl)}
                         alt={profile.displayName}
                         className="h-full w-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
                       />
                     ) : (
                       <span className="flex h-full w-full items-center justify-center bg-primary/10 text-sm font-bold text-primary">
@@ -296,7 +441,8 @@ function ProfileHeaderButton() {
                 </div>
               </div>
             </div>
-          </>
+          </>,
+          document.body
         )}
       </div>
     </>
@@ -442,7 +588,8 @@ function DesktopNav() {
 
 export function StudentLayout() {
   const { settings } = usePlatformSettings();
-  const logoSrc = settings.logoUploadUrl || settings.logoUrl || null;
+  const logoSrc = getProxiedImageUrl(settings.logoUploadUrl || settings.logoUrl || null);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   return (
     <SearchProvider>
@@ -469,7 +616,8 @@ export function StudentLayout() {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-              <HeaderSearchInput />
+              <DesktopGlobalSearch />
+              <MobileSearchButton onOpen={() => setMobileSearchOpen(true)} />
               <NotificationBell />
               <ProfileHeaderButton />
               <div className="hidden sm:block">
@@ -478,6 +626,11 @@ export function StudentLayout() {
             </div>
           </div>
         </nav>
+
+        <MobileSearchOverlay
+          open={mobileSearchOpen}
+          onClose={() => setMobileSearchOpen(false)}
+        />
 
         <main className="flex w-full flex-1 flex-col pb-20 pt-14 md:pb-0 md:pt-16">
           <div className="flex-1">

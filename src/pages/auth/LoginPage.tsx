@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 type Mode = "login" | "forgot" | "magic";
 
@@ -31,8 +32,8 @@ export default function LoginPage() {
 
   const from = (location.state as { from?: string } | null)?.from ?? "/cursos";
   const { settings } = usePlatformSettings();
-  const logoSrc = settings.logoUploadUrl || settings.logoUrl || null;
-  const coverUrl = settings.loginCoverUrl || null;
+  const logoSrc = getProxiedImageUrl(settings.logoUploadUrl || settings.logoUrl || null);
+  const coverUrl = getProxiedImageUrl(settings.loginCoverUrl || null);
 
   // Handle beforeunload sign-out when rememberMe is off
   useEffect(() => {

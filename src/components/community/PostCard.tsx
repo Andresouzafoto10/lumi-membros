@@ -26,6 +26,7 @@ import { usePosts } from "@/hooks/usePosts";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useGamification } from "@/hooks/useGamification";
 import { useGamificationConfig } from "@/hooks/useGamificationConfig";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { getMemberBadges } from "@/lib/roleBadges";
 import { LevelBadge } from "@/components/gamification/LevelBadge";
 
@@ -415,10 +416,10 @@ export const PostCard = memo(function PostCard({
             <div className="h-9 w-9 rounded-full overflow-hidden bg-muted ring-2 ring-border/30 hover:ring-primary/30 transition-all sm:h-10 sm:w-10">
               {author?.avatarUrl ? (
                 <img
-                  src={author.avatarUrl}
+                  src={getProxiedImageUrl(author.avatarUrl)}
                   alt={author.displayName}
                   className="w-full h-full object-cover"
-                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold text-sm">

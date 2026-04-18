@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useCertificates } from "@/hooks/useCertificates";
 import type { ThemeColors, CertificateTemplate } from "@/types/student";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -136,6 +137,7 @@ export default function AdminSettingsPage() {
   const [darkColors, setDarkColors] = useState<ThemeColors>({ ...settings.theme.dark });
   const [lightColors, setLightColors] = useState<ThemeColors>({ ...settings.theme.light });
   const [ratingsEnabled, setRatingsEnabled] = useState(settings.ratingsEnabled);
+  const [showMyCoursesEnabled, setShowMyCoursesEnabled] = useState(settings.showMyCourses ?? true);
 
   // Favicon
   const [faviconUrl, setFaviconUrl] = useState(settings.faviconUrl ?? "");
@@ -203,6 +205,7 @@ export default function AdminSettingsPage() {
     setDarkColors({ ...settings.theme.dark });
     setLightColors({ ...settings.theme.light });
     setRatingsEnabled(settings.ratingsEnabled);
+    setShowMyCoursesEnabled(settings.showMyCourses ?? true);
     setFaviconUrl(settings.faviconUrl ?? "");
     setFaviconMode(settings.faviconUrl?.startsWith("http") && !settings.faviconUrl?.includes("r2") ? "url" : settings.faviconUrl ? "upload" : "url");
     setLoginCoverUrl(settings.loginCoverUrl ?? "");
@@ -232,6 +235,7 @@ export default function AdminSettingsPage() {
         pwaThemeColor: pwaThemeColor || null,
         pwaBackgroundColor: pwaBackgroundColor || null,
         theme: { dark: darkColors, light: lightColors },
+        showMyCourses: showMyCoursesEnabled,
       });
       applyThemeToCss(darkColors, lightColors);
       applyFavicon(faviconUrl || null);
@@ -398,9 +402,10 @@ export default function AdminSettingsPage() {
                     />
                     {logoUrl && (
                       <img
-                        src={logoUrl}
+                        src={getProxiedImageUrl(logoUrl)}
                         alt="Preview do logo"
                         className="h-10 object-contain rounded border bg-muted p-1"
+                        crossOrigin="anonymous"
                       />
                     )}
                   </div>
@@ -459,9 +464,10 @@ export default function AdminSettingsPage() {
                     {faviconUrl && (
                       <div className="flex items-center gap-2">
                         <img
-                          src={faviconUrl}
+                          src={getProxiedImageUrl(faviconUrl)}
                           alt="Favicon preview"
                           className="h-8 w-8 object-contain rounded border bg-muted p-0.5"
+                          crossOrigin="anonymous"
                         />
                         <span className="text-xs text-muted-foreground">Preview</span>
                       </div>
@@ -503,9 +509,10 @@ export default function AdminSettingsPage() {
                 {loginCoverUrl && (
                   <div className="rounded-lg border border-border/50 overflow-hidden">
                     <img
-                      src={loginCoverUrl}
+                      src={getProxiedImageUrl(loginCoverUrl)}
                       alt="Preview da capa de login"
                       className="w-full h-40 object-cover"
+                      crossOrigin="anonymous"
                     />
                   </div>
                 )}
@@ -590,6 +597,27 @@ export default function AdminSettingsPage() {
                 />
               </div>
               <ThemePreview colors={lightColors} label="Preview — Tema Claro" />
+            </CardContent>
+          </Card>
+
+          {/* Seções da página de cursos */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Seções da página de cursos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Seção "Meus Cursos"</p>
+                  <p className="text-sm text-muted-foreground">
+                    Exibe no topo da página de cursos os cursos em que o aluno está matriculado, com barra de progresso.
+                  </p>
+                </div>
+                <Switch
+                  checked={showMyCoursesEnabled}
+                  onCheckedChange={setShowMyCoursesEnabled}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -678,9 +706,10 @@ export default function AdminSettingsPage() {
                         />
                         {pwaIconUrl && (
                           <img
-                            src={pwaIconUrl}
+                            src={getProxiedImageUrl(pwaIconUrl)}
                             alt="PWA icon preview"
                             className="h-16 w-16 object-contain rounded-lg border bg-muted p-1"
+                            crossOrigin="anonymous"
                           />
                         )}
                       </div>
@@ -1014,4 +1043,3 @@ export default function AdminSettingsPage() {
     </div>
   );
 }
-
