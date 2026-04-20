@@ -2,15 +2,15 @@ import type { ThemeColors } from "@/types/student";
 
 const CACHE_KEY = "lumi-theme-cache";
 
-/** Hardcoded teal default — applied before any fetch so the user never sees a wrong color. */
+/** Hardcoded orange default — applied before any fetch so the user never sees a wrong color. */
 const DEFAULT_DARK: ThemeColors = {
-  primary: "#00C2CB",
+  primary: "#ff7b00",
   background: "#09090b",
   card: "#18181b",
   foreground: "#fafafa",
 };
 const DEFAULT_LIGHT: ThemeColors = {
-  primary: "#00C2CB",
+  primary: "#ff7b00",
   background: "#ffffff",
   card: "#f4f4f5",
   foreground: "#09090b",

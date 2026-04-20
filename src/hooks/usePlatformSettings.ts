@@ -15,13 +15,13 @@ const DEFAULT_SETTINGS: PlatformSettings = {
     "Certificamos que {{nome}} concluiu com êxito o curso {{curso}}, com carga horária de {{horas}} horas.",
   theme: {
     dark: {
-      primary: "#00C2CB",
+      primary: "#ff7b00",
       background: "#09090b",
       card: "#18181b",
       foreground: "#fafafa",
     },
     light: {
-      primary: "#00C2CB",
+      primary: "#ff7b00",
       background: "#ffffff",
       card: "#f4f4f5",
       foreground: "#09090b",
