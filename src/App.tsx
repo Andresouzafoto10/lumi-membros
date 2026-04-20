@@ -18,6 +18,7 @@ import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import InviteRegisterPage from "@/pages/auth/InviteRegisterPage";
 import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
+import NewPasswordPage from "@/pages/auth/NewPasswordPage";
 import LandingPage from "@/pages/LandingPage";
 
 // ---------------------------------------------------------------------------
@@ -173,6 +174,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cadastro" element={<RegisterPage />} />
         <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
+        <Route path="/nova-senha" element={<NewPasswordPage />} />
         <Route path="/convite/:slug" element={<InviteRegisterPage />} />
 
         {/* Student routes — require authentication */}
