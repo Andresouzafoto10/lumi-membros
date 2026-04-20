@@ -31,6 +31,20 @@ const DEFAULT_SETTINGS: PlatformSettings = {
 
 const QK = ["platform-settings"] as const;
 
+const SETTINGS_CACHE_KEY = "lumi-settings-v1";
+
+function saveSettingsToCache(s: PlatformSettings): void {
+  try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(s)); } catch { /* quota */ }
+}
+
+function loadSettingsFromCache(): PlatformSettings | undefined {
+  try {
+    const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+    if (raw) return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<PlatformSettings>) };
+  } catch { /* corrupt */ }
+  return undefined;
+}
+
 function mergeTheme(
   raw: unknown
 ): PlatformSettings["theme"] {
@@ -99,8 +113,14 @@ export function usePlatformSettings() {
 
   const { data: settings = DEFAULT_SETTINGS, isLoading } = useQuery({
     queryKey: QK,
-    queryFn: fetchSettings,
+    queryFn: async () => {
+      const result = await fetchSettings();
+      saveSettingsToCache(result);
+      return result;
+    },
     staleTime: 1000 * 60 * 10,
+    initialData: loadSettingsFromCache,
+    initialDataUpdatedAt: 0,
   });
 
   const invalidate = useCallback(() => {

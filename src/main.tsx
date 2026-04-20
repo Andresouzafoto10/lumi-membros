@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -25,6 +26,7 @@ function render() {
                 <AuthProvider>
                   <App />
                   <Toaster richColors position="bottom-right" />
+                  <SpeedInsights />
                 </AuthProvider>
               </BrowserRouter>
             </QueryClientProvider>
