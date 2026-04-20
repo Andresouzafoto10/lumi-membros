@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 
@@ -24,96 +25,96 @@ import LandingPage from "@/pages/LandingPage";
 // ---------------------------------------------------------------------------
 
 // Student
-const CoursesPage = lazy(() => import("@/pages/student/CoursesPage"));
-const CourseDetailPage = lazy(() => import("@/pages/student/CourseDetailPage"));
-const LessonPage = lazy(() => import("@/pages/student/LessonPage"));
-const MyProfilePage = lazy(() => import("@/pages/student/MyProfilePage"));
-const MyCertificatesPage = lazy(
+const CoursesPage = lazyWithRetry(() => import("@/pages/student/CoursesPage"));
+const CourseDetailPage = lazyWithRetry(() => import("@/pages/student/CourseDetailPage"));
+const LessonPage = lazyWithRetry(() => import("@/pages/student/LessonPage"));
+const MyProfilePage = lazyWithRetry(() => import("@/pages/student/MyProfilePage"));
+const MyCertificatesPage = lazyWithRetry(
   () => import("@/pages/student/MyCertificatesPage")
 );
-const PublicProfilePage = lazy(
+const PublicProfilePage = lazyWithRetry(
   () => import("@/pages/student/PublicProfilePage")
 );
-const RankingPage = lazy(() => import("@/pages/student/RankingPage"));
-const CommunityFeedPage = lazy(
+const RankingPage = lazyWithRetry(() => import("@/pages/student/RankingPage"));
+const CommunityFeedPage = lazyWithRetry(
   () => import("@/pages/student/CommunityFeedPage")
 );
-const CommunityPage = lazy(() => import("@/pages/student/CommunityPage"));
-const LiveLessonsPage = lazy(() => import("@/pages/student/LiveLessonsPage"));
-const LearningPathsPage = lazy(() => import("@/pages/student/LearningPathsPage"));
-const LearningPathDetailPage = lazy(() => import("@/pages/student/LearningPathDetailPage"));
+const CommunityPage = lazyWithRetry(() => import("@/pages/student/CommunityPage"));
+const LiveLessonsPage = lazyWithRetry(() => import("@/pages/student/LiveLessonsPage"));
+const LearningPathsPage = lazyWithRetry(() => import("@/pages/student/LearningPathsPage"));
+const LearningPathDetailPage = lazyWithRetry(() => import("@/pages/student/LearningPathDetailPage"));
 
 // Admin
-const AdminDashboardPage = lazy(
+const AdminDashboardPage = lazyWithRetry(
   () => import("@/pages/admin/AdminDashboardPage")
 );
-const AdminCoursesPage = lazy(
+const AdminCoursesPage = lazyWithRetry(
   () => import("@/pages/admin/AdminCoursesPage")
 );
-const AdminSessionPage = lazy(
+const AdminSessionPage = lazyWithRetry(
   () => import("@/pages/admin/AdminSessionPage")
 );
-const AdminCourseEditPage = lazy(
+const AdminCourseEditPage = lazyWithRetry(
   () => import("@/pages/admin/AdminCourseEditPage")
 );
-const AdminModuleEditPage = lazy(
+const AdminModuleEditPage = lazyWithRetry(
   () => import("@/pages/admin/AdminModuleEditPage")
 );
-const AdminBannersPage = lazy(
+const AdminBannersPage = lazyWithRetry(
   () => import("@/pages/admin/AdminBannersPage")
 );
-const AdminSectionsPage = lazy(
+const AdminSectionsPage = lazyWithRetry(
   () => import("@/pages/admin/AdminSectionsPage")
 );
-const AdminClassesPage = lazy(
+const AdminClassesPage = lazyWithRetry(
   () => import("@/pages/admin/AdminClassesPage")
 );
-const AdminClassEditPage = lazy(
+const AdminClassEditPage = lazyWithRetry(
   () => import("@/pages/admin/AdminClassEditPage")
 );
-const AdminStudentsPage = lazy(
+const AdminStudentsPage = lazyWithRetry(
   () => import("@/pages/admin/AdminStudentsPage")
 );
-const AdminStudentProfilePage = lazy(
+const AdminStudentProfilePage = lazyWithRetry(
   () => import("@/pages/admin/AdminStudentProfilePage")
 );
-const AdminSettingsPage = lazy(
+const AdminSettingsPage = lazyWithRetry(
   () => import("@/pages/admin/AdminSettingsPage")
 );
-const AdminAccessProfilesPage = lazy(
+const AdminAccessProfilesPage = lazyWithRetry(
   () => import("@/pages/admin/AdminAccessProfilesPage")
 );
-const AdminGamificationPage = lazy(
+const AdminGamificationPage = lazyWithRetry(
   () => import("@/pages/admin/AdminGamificationPage")
 );
-const AdminCommunitiesPage = lazy(
+const AdminCommunitiesPage = lazyWithRetry(
   () => import("@/pages/admin/AdminCommunitiesPage")
 );
-const AdminCommunityEditPage = lazy(
+const AdminCommunityEditPage = lazyWithRetry(
   () => import("@/pages/admin/AdminCommunityEditPage")
 );
-const AdminModerationPage = lazy(
+const AdminModerationPage = lazyWithRetry(
   () => import("@/pages/admin/AdminModerationPage")
 );
-const AdminEmailsPage = lazy(
+const AdminEmailsPage = lazyWithRetry(
   () => import("@/pages/admin/AdminEmailsPage")
 );
-const InviteLinksPage = lazy(
+const InviteLinksPage = lazyWithRetry(
   () => import("@/pages/admin/InviteLinksPage")
 );
-const AdminIntegrationsPage = lazy(
+const AdminIntegrationsPage = lazyWithRetry(
   () => import("@/pages/admin/AdminIntegrationsPage")
 );
-const AdminLiveLessonsPage = lazy(
+const AdminLiveLessonsPage = lazyWithRetry(
   () => import("@/pages/admin/AdminLiveLessonsPage")
 );
-const AdminLearningPathsPage = lazy(
+const AdminLearningPathsPage = lazyWithRetry(
   () => import("@/pages/admin/AdminLearningPathsPage")
 );
-const AdminLearningPathEditPage = lazy(
+const AdminLearningPathEditPage = lazyWithRetry(
   () => import("@/pages/admin/AdminLearningPathEditPage")
 );
-const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
+const NotFoundPage = lazyWithRetry(() => import("@/pages/NotFoundPage"));
 
 // ---------------------------------------------------------------------------
 // Loading fallback

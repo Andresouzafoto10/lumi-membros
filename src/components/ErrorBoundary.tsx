@@ -15,10 +15,22 @@ type SentryGlobal = {
   captureException?: (err: unknown, ctx?: Record<string, unknown>) => void;
 };
 
+const CHUNK_RELOAD_KEY = "chunk_reload_attempted";
+
+function isChunkError(error: Error): boolean {
+  return (
+    error.message?.includes("Failed to fetch dynamically imported module") ||
+    error.message?.includes("Importing a module script failed") ||
+    error.name === "ChunkLoadError"
+  );
+}
+
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
+    // Clear flag on fresh mount so future chunk errors can still trigger reload
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY);
   }
 
   static getDerivedStateFromError(error: Error): State {
@@ -26,6 +38,14 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    if (isChunkError(error)) {
+      if (!sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+        window.location.reload();
+        return;
+      }
+    }
+
     console.error("[ErrorBoundary]", {
       message: error.message,
       name: error.name,
