@@ -29,7 +29,7 @@ create table if not exists public.profiles (
                     check (role in ('owner','admin','support','moderator','student')),
   status          text not null default 'active'
                     check (status in ('active','inactive','expired')),
-  username        text unique default '',
+  username        text unique default null,
   display_name    text not null default '',
   avatar_url      text not null default '',
   cover_url       text not null default '',
@@ -825,6 +825,13 @@ alter table public.platform_settings enable row level security;
 create policy "platform_settings: todos autenticados lêem"
   on public.platform_settings for select
   using (auth.uid() is not null);
+
+-- Allows unauthenticated visitors to read platform settings (logo, cover image, theme)
+-- so the login page renders correctly before the user has a session.
+create policy "platform_settings_public_read"
+  on public.platform_settings for select
+  to anon
+  using (true);
 
 create policy "platform_settings: owner atualiza"
   on public.platform_settings for update
@@ -1693,6 +1700,14 @@ create policy "Admin full access webhook_mappings"
 drop policy if exists "Admin full access webhook_logs" on public.webhook_logs;
 create policy "Admin full access webhook_logs"
   on public.webhook_logs for all using (public.is_admin_user());
+
+-- =============================================================================
+-- FIX: username default NULL (2026-04-20)
+-- Coluna username tinha default '' que causava UNIQUE violation no 2º cadastro.
+-- NULL não viola UNIQUE constraint no PostgreSQL (NULL != NULL).
+-- =============================================================================
+ALTER TABLE public.profiles ALTER COLUMN username SET DEFAULT NULL;
+UPDATE public.profiles SET username = NULL WHERE username = '';
 
 -- =============================================================================
 -- FIM DO SCHEMA

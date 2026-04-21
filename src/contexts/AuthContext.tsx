@@ -194,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { name } },
+        options: { data: { name, cpf } },
       });
       if (error) {
         return { error: translateAuthError(error.message) };

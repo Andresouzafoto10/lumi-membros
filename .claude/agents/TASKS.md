@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-04-17 | **Versão do Tracker:** 2.4.1
+**Última atualização:** 2026-04-20 | **Versão do Tracker:** 2.4.2
 
 ---
 
@@ -46,6 +46,11 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| FIX-016 | "Database error saving new user" no cadastro — raiz: `username text unique default ''` causava violação UNIQUE a partir do 2º usuário. Fix: `ALTER TABLE profiles ALTER COLUMN username SET DEFAULT NULL` + `UPDATE profiles SET username = NULL WHERE username = ''`. Bônus: AuthContext.signUp agora passa `cpf` nos metadata do Supabase. | DEV | 2026-04-20 |
+| FIX-015 | Stale chunk 404 após deploy Vercel — lazyWithRetry wrapper para todos os lazy imports (App.tsx), ErrorBoundary detecta ChunkLoadError e faz reload automático 1x via sessionStorage flag, vercel.json com /assets/* imutável + HTML no-cache | DEV | 2026-04-20 |
+| FIX-014 | RLS platform_settings: nova policy `platform_settings_public_read` (anon SELECT USING true) — login page carrega logo/cover/tema sem sessão ativa. Causa: policy antiga exigia auth.uid() IS NOT NULL, bloqueando usuários não autenticados | DEV | 2026-04-20 |
+| FIX-013 | vercel.json: index.html com no-cache + /assets/* imutáveis — resolve 404 em chunks JS após novo deploy (hash mudou, HTML cacheado no browser) | DEV | 2026-04-20 |
+| FIX-012 | usePlatformSettings: initialData + saveSettingsToCache — logo/cover/tema disponíveis imediatamente no render (stale-while-revalidate via localStorage lumi-settings-v1) | DEV | 2026-04-20 |
 | FEAT-009 | Descrição rich text nas aulas — MDEditor (@uiw/react-md-editor) no admin (AdminModuleEditPage) substitui Textarea, suporte a negrito/itálico/listas/links/imagens via Markdown. ReactMarkdown + remark-gfm na CourseDetailPage renderiza links clicáveis (target=_blank), autolink de URLs, imagens inline rounded. Texto legado plain funciona sem migração. | DEV | 2026-04-17 |
 | FIX-011 | Certificado PNG sem fundo (CORS R2) — proxy server-side via Edge Function r2-presigned, generateCertificate.ts com 4 camadas fallback (proxy → fetch direto → canvas → cor sólida), toast de aviso, trilha onError gracioso | DEV | 2026-04-11 |
 | FIX-008 | Diagnóstico imagens/Supabase — 38 img onError handlers (23 arquivos), 30+ operações Supabase com error handling (10 hooks) | DEV | 2026-04-10 |
