@@ -1,6 +1,9 @@
 import { useState, useRef, useMemo, lazy, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import type { Enrollment } from "@/types/student";
 import {
   Camera,
   MapPin,
@@ -30,7 +33,6 @@ import { ptBR } from "date-fns/locale";
 
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useProfiles } from "@/hooks/useProfiles";
-import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
 import { useCourses } from "@/hooks/useCourses";
 import { usePosts } from "@/hooks/usePosts";
@@ -220,7 +222,28 @@ export default function MyProfilePage() {
   const navigate = useNavigate();
   const { currentUserId } = useCurrentUser();
   const { findProfile, updateProfile, checkUsernameAvailable } = useProfiles();
-  const { findStudent, enrollments } = useStudents();
+  const { data: enrollments = [] } = useQuery<Enrollment[]>({
+    queryKey: ["enrollments", "self", currentUserId],
+    queryFn: async () => {
+      if (!currentUserId) return [];
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select("*")
+        .eq("student_id", currentUserId);
+      if (error) throw error;
+      return (data ?? []).map((e) => ({
+        id: e.id as string,
+        studentId: e.student_id as string,
+        classId: e.class_id as string,
+        type: e.type as Enrollment["type"],
+        expiresAt: (e.expires_at as string | null) ?? null,
+        status: e.status as Enrollment["status"],
+        enrolledAt: e.enrolled_at as string,
+      }));
+    },
+    enabled: !!currentUserId,
+    staleTime: 1000 * 60 * 2,
+  });
   const { findClass } = useClasses();
   const { allCourses, findCourse } = useCourses();
   const { getPostsByAuthor, getSavedPosts } = usePosts();
@@ -235,7 +258,6 @@ export default function MyProfilePage() {
   );
 
   const profile = findProfile(currentUserId);
-  const student = findStudent(currentUserId);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -309,7 +331,7 @@ export default function MyProfilePage() {
       .filter(Boolean) as typeof allCourses;
   }, [enrollments, currentUserId, findClass, findCourse, allCourses]);
 
-  if (!profile || !student) {
+  if (!profile) {
     return (
       <div className="p-6">
         <p className="text-muted-foreground">Perfil nao encontrado.</p>
