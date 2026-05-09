@@ -26,6 +26,8 @@ import {
   ExternalLink,
   Mail,
   ShieldCheck,
+  StickyNote,
+  PlayCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -42,6 +44,7 @@ import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { deleteFromR2, isR2Url } from "@/lib/r2Upload";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useCertificates } from "@/hooks/useCertificates";
+import { useMyLessonNotes } from "@/hooks/useMyLessonNotes";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import { useR2Upload } from "@/hooks/useR2Upload";
 import { CertificateCard } from "@/components/certificates/CertificateCard";
@@ -251,6 +254,9 @@ export default function MyProfilePage() {
   const { uploadFile } = useR2Upload();
   const { findCommunity } = useCommunities();
   const { getEarnedCertificates } = useCertificates();
+  const myLessonNotesQuery = useMyLessonNotes();
+  const lessonNotes = myLessonNotesQuery.data ?? [];
+  const lessonNotesLoading = myLessonNotesQuery.isLoading;
 
   const earnedCerts = useMemo(
     () => getEarnedCertificates(currentUserId),
@@ -1005,6 +1011,11 @@ export default function MyProfilePage() {
               <Bookmark className="h-3.5 w-3.5" />
               Salvos
             </TabsTrigger>
+            <TabsTrigger value="notes" className="shrink-0 gap-1.5">
+              <StickyNote className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Anotacoes</span>
+              <span className="sm:hidden">Notas</span>
+            </TabsTrigger>
             <TabsTrigger value="about" className="shrink-0 gap-1.5">
               <Info className="h-3.5 w-3.5" />
               Sobre
@@ -1064,6 +1075,64 @@ export default function MyProfilePage() {
                     createdAt={post.createdAt}
                     onClick={() => handlePostClick(post.id, post.communityId)}
                   />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Tab: Notes */}
+          <TabsContent value="notes">
+            {lessonNotesLoading ? (
+              <div className="mt-3 space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
+                ))}
+              </div>
+            ) : lessonNotes.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Voce ainda nao escreveu anotacoes nas aulas.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-3">
+                {lessonNotes.map((note) => (
+                  <Link
+                    key={note.id}
+                    to={`/cursos/${note.courseId}?lesson=${note.lessonId}`}
+                    className="block rounded-xl border border-border/50 bg-card/50 p-4 transition-all hover:border-primary/30 hover:bg-card hover:shadow-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="h-9 w-9 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <StickyNote className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
+                          <span className="truncate">{note.courseTitle}</span>
+                          {note.moduleTitle && (
+                            <>
+                              <span className="text-muted-foreground/50">·</span>
+                              <span className="truncate">{note.moduleTitle}</span>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-sm font-semibold truncate">
+                          {note.lessonTitle}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">
+                          {note.content}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground/70">
+                          <CalendarDays className="h-3 w-3" />
+                          <span>
+                            {format(new Date(note.updatedAt), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                          </span>
+                          <span className="ml-auto inline-flex items-center gap-1 text-primary">
+                            <PlayCircle className="h-3 w-3" />
+                            Ver aula
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
                 ))}
               </div>
             )}
