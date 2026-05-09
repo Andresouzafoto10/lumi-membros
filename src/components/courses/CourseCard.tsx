@@ -214,8 +214,9 @@ export const CourseCard = memo(function CourseCard({
           {cardContent}
         </button>
 
-        {/* Restricted access modal */}
-        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        {/* Restricted access modal — only mount when behavior is "modal" */}
+        {lockedBehavior === "modal" && (
+          <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <div className="flex justify-center py-2">
@@ -247,6 +248,7 @@ export const CourseCard = memo(function CourseCard({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </>
     );
   }
