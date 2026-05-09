@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -19,6 +19,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export interface RichTextEditorProps {
   value: string;
@@ -43,6 +54,9 @@ export function RichTextEditor({
   className,
   compactToolbar = false,
 }: RichTextEditorProps) {
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -85,16 +99,33 @@ export function RichTextEditor({
 
   if (!editor) return null;
 
-  function toggleLink() {
+  function openLinkDialog() {
     if (!editor) return;
-    const previousUrl = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("URL do link:", previousUrl ?? "https://");
-    if (url === null) return;
-    if (url === "") {
+    const previousUrl =
+      (editor.getAttributes("link").href as string | undefined) ?? "";
+    setLinkUrl(previousUrl || "https://");
+    setLinkOpen(true);
+  }
+
+  function applyLink(e: FormEvent) {
+    e.preventDefault();
+    if (!editor) return;
+    const url = linkUrl.trim();
+    if (!url || url === "https://") {
+      // Empty URL removes the link from the current selection.
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
+    } else {
+      editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
     }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+    setLinkOpen(false);
+    setLinkUrl("");
+  }
+
+  function removeLink() {
+    if (!editor) return;
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    setLinkOpen(false);
+    setLinkUrl("");
   }
 
   type ToolbarButton = {
@@ -162,7 +193,7 @@ export function RichTextEditor({
     {
       icon: Link2,
       label: "Link",
-      onClick: toggleLink,
+      onClick: openLinkDialog,
       isActive: editor.isActive("link"),
     },
     {
@@ -209,11 +240,13 @@ export function RichTextEditor({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={btn.onClick}
                 disabled={btn.disabled}
+                aria-pressed={btn.isActive}
                 className={cn(
                   "h-7 w-7 inline-flex items-center justify-center rounded-md transition-colors",
-                  btn.isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  // Active state is signaled with color only — no background or
+                  // border — so neighbouring buttons don't visually overlap.
+                  btn.isActive && "text-primary hover:text-primary",
                   "disabled:opacity-40 disabled:cursor-not-allowed",
                 )}
               >
@@ -224,6 +257,51 @@ export function RichTextEditor({
         })}
       </div>
       <EditorContent editor={editor} />
+
+      <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Inserir link</DialogTitle>
+            <DialogDescription>
+              Cole o endereco completo (incluindo https://). Deixe vazio e
+              clique em remover para tirar o link do texto selecionado.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={applyLink} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="rte-link-url">URL</Label>
+              <Input
+                id="rte-link-url"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://exemplo.com"
+                autoFocus
+                onFocus={(e) => e.currentTarget.select()}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-2">
+              {editor.isActive("link") && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={removeLink}
+                  className="text-destructive hover:text-destructive"
+                >
+                  Remover link
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setLinkOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit">Aplicar</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
