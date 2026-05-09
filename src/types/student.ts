@@ -132,6 +132,7 @@ export type StudentProfile = {
   followers: string[];
   following: string[];
   role: StudentRole;
+  emailNotifications?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -288,6 +289,7 @@ export type GamificationData = {
   studentId: string;
   points: number;
   badges: string[];
+  currentLevel?: number;
 };
 
 // ---------------------------------------------------------------------------

@@ -100,6 +100,11 @@ serve(async (req) => {
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
 
+    const contentLength = Number(req.headers.get("Content-Length") ?? 0);
+    if (contentLength > 10240) {
+      return new Response("Payload too large", { status: 413, headers: corsHeaders });
+    }
+
     const body = await req.json() as UploadRequestBody;
     const { action } = body;
 
@@ -187,7 +192,8 @@ serve(async (req) => {
       headers: corsHeaders,
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
+    console.error("r2-presigned error:", err);
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

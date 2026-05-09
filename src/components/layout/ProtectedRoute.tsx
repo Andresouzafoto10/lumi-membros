@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { getPermissionsForRole, type AdminPermission } from "@/lib/permissions";
 
 // ---------------------------------------------------------------------------
 // Mostra spinner enquanto a sessão é carregada
@@ -23,10 +24,11 @@ function AuthLoader() {
 type Props = {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  requirePermission?: AdminPermission;
 };
 
-export function ProtectedRoute({ children, requireAdmin = false }: Props) {
-  const { isAuthenticated, isAdmin, loading } = useAuth();
+export function ProtectedRoute({ children, requireAdmin = false, requirePermission }: Props) {
+  const { isAuthenticated, isAdmin, loading, user } = useAuth();
   const location = useLocation();
 
   if (loading) return <AuthLoader />;
@@ -43,6 +45,14 @@ export function ProtectedRoute({ children, requireAdmin = false }: Props) {
 
   if (requireAdmin && !isAdmin) {
     return <Navigate to="/cursos" replace />;
+  }
+
+  if (requirePermission) {
+    const role = user?.role ?? "student";
+    const perms = getPermissionsForRole(role);
+    if (!perms[requirePermission]) {
+      return <Navigate to="/cursos" replace />;
+    }
   }
 
   return <>{children}</>;

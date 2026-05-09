@@ -7,6 +7,10 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 
+// NOTE: returns "" only briefly during AuthProvider loading state.
+// All consumers are inside ProtectedRoute, so user is normally present.
+// Mutation callers that rely on a real id MUST early-return if empty
+// (see useLessonProgress.updateWatchPosition for example pattern).
 export function useCurrentUser() {
   const { user } = useAuth();
   return {

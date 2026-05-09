@@ -63,10 +63,13 @@ function extractAllowedR2Key(candidate: string): string | null {
     const rawKey = requestedUrl.pathname
       .slice(allowedPath.length)
       .replace(/^\/+/, "");
-    const key = decodeURIComponent(rawKey);
+    const decodedOnce = decodeURIComponent(rawKey);
+    const decodedTwice = decodeURIComponent(decodedOnce);
 
-    if (!key || key.includes("..")) return null;
-    return key;
+    if (!decodedTwice) return null;
+    if (decodedOnce.includes("..") || decodedTwice.includes("..")) return null;
+    if (!/^[a-zA-Z0-9/_.\-]+$/.test(decodedTwice)) return null;
+    return decodedTwice;
   } catch {
     return null;
   }
@@ -168,20 +171,16 @@ serve(async (req) => {
       },
     });
   } catch (error) {
+    console.error("image-proxy error:", error);
     const message = String(error);
     if (/NoSuchKey|NotFound|404/.test(message)) {
       const fallback = await fetchPublicImageFallback(imageUrl);
       if (fallback) return fallback;
+      return new Response("Imagem não encontrada", { status: 404, headers: corsHeaders });
     }
-
-    const status = /NoSuchKey|NotFound|404/.test(message) ? 404 : 500;
-
-    return new Response(JSON.stringify({ error: message, key: objectKey }), {
-      status,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-      },
+    return new Response("Erro ao processar imagem", {
+      status: 500,
+      headers: corsHeaders,
     });
   }
 });

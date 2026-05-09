@@ -68,12 +68,24 @@ serve(async (req) => {
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const sinceDate = oneWeekAgo.toISOString();
 
-    const { data: students } = await supabase
-      .from("profiles")
-      .select("id, email, display_name, name, email_notifications")
-      .eq("status", "active");
+    // Paginated fetch — avoids loading 10K+ profiles in memory.
+    const PAGE_SIZE = 500;
+    type StudentRow = { id: string; email: string; display_name: string | null; name: string | null; email_notifications: boolean | null };
+    const students: StudentRow[] = [];
+    let from = 0;
+    while (true) {
+      const { data: page } = await supabase
+        .from("profiles")
+        .select("id, email, display_name, name, email_notifications")
+        .eq("status", "active")
+        .range(from, from + PAGE_SIZE - 1);
+      if (!page || page.length === 0) break;
+      students.push(...(page as StudentRow[]));
+      if (page.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
 
-    if (!students || students.length === 0) {
+    if (students.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), {
         headers: { "Content-Type": "application/json" },
       });
@@ -175,7 +187,7 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("notify-digest error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

@@ -375,7 +375,7 @@ export const PostCard = memo(function PostCard({
             </div>
             <div className="min-w-0">
               <div className="text-sm leading-relaxed [&_p]:inline">
-                <ReactMarkdown components={mdComponents}>
+                <ReactMarkdown skipHtml components={mdComponents}>
                   {preprocessBody(post.body, profiles)}
                 </ReactMarkdown>
               </div>
@@ -559,7 +559,7 @@ export const PostCard = memo(function PostCard({
 
         {/* Body */}
         <div className={cn("mt-2 pl-[52px]", PROSE_CLASSES)}>
-          <ReactMarkdown components={mdComponents}>
+          <ReactMarkdown skipHtml components={mdComponents}>
             {preprocessBody(post.body, profiles)}
           </ReactMarkdown>
         </div>

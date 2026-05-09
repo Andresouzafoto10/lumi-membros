@@ -27,11 +27,9 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Verify the caller is an admin
-    const callerSupabase = createClient(SUPABASE_URL, authHeader.replace("Bearer ", ""), {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user: caller } } = await callerSupabase.auth.getUser();
+    // Verify the caller is an admin (use service-role client + getUser(jwt))
+    const jwt = authHeader.replace("Bearer ", "");
+    const { data: { user: caller } } = await supabase.auth.getUser(jwt);
 
     if (!caller) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -83,7 +81,8 @@ serve(async (req) => {
     });
 
     if (linkError || !linkData) {
-      return new Response(JSON.stringify({ error: linkError?.message ?? "Failed to generate link" }), {
+      console.error("magicLink error:", linkError);
+      return new Response(JSON.stringify({ error: "Failed to generate link" }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -122,8 +121,9 @@ serve(async (req) => {
 
     if (!res.ok) {
       const errText = await res.text();
-      return new Response(JSON.stringify({ error: "Failed to send email", detail: errText }), {
-        status: 500,
+      console.error("Resend error:", errText);
+      return new Response(JSON.stringify({ error: "Failed to send email" }), {
+        status: 502,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
@@ -144,7 +144,7 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("resend-access-email error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

@@ -1114,6 +1114,8 @@ export interface Database {
           student_id: string;
           course_id: string;
           lesson_id: string;
+          course_title: string;
+          lesson_title: string;
           updated_at: string;
         };
         Insert: {
@@ -1121,6 +1123,8 @@ export interface Database {
           student_id: string;
           course_id: string;
           lesson_id: string;
+          course_title: string;
+          lesson_title: string;
           updated_at?: string;
         };
         Update: {
@@ -1128,6 +1132,8 @@ export interface Database {
           student_id?: string;
           course_id?: string;
           lesson_id?: string;
+          course_title?: string;
+          lesson_title?: string;
           updated_at?: string;
         };
       };

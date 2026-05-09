@@ -264,10 +264,27 @@ serve(async (req) => {
   }
 
   try {
+    const contentLength = Number(req.headers.get("Content-Length") ?? 0);
+    if (contentLength > 32768) {
+      return jsonResponse({ error: "Payload too large" }, 413);
+    }
+
     const payload: NotifyEmailPayload = await req.json();
 
-    if (!payload.type) {
-      return jsonResponse({ error: "Missing required field: type" }, 400);
+    const allowedTypes: ReadonlySet<string> = new Set([
+      "comment", "like", "follow", "mention", "new_post", "badge_earned",
+      "welcome", "access_reminder_7d", "community_post", "community_inactive_30d",
+      "new_course", "new_lesson", "certificate_earned", "mention_community",
+      "follower_milestone_10", "post_reply", "mission_complete", "comment_milestone",
+    ]);
+    if (!payload.type || !allowedTypes.has(payload.type)) {
+      return jsonResponse({ error: "Invalid or missing field: type" }, 400);
+    }
+    if (payload.recipient_email && typeof payload.recipient_email !== "string") {
+      return jsonResponse({ error: "Invalid recipient_email" }, 400);
+    }
+    if (payload.recipient_id && typeof payload.recipient_id !== "string") {
+      return jsonResponse({ error: "Invalid recipient_id" }, 400);
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -399,7 +416,7 @@ serve(async (req) => {
       const errText = await res.text();
       console.error("Resend error:", errText);
       await logEmail(supabase, payload.recipient_id ?? "", payload.type, subject, "failed", { error: errText });
-      return jsonResponse({ error: "Failed to send email", detail: errText }, 500);
+      return jsonResponse({ error: "Failed to send email" }, 502);
     }
 
     const data = await res.json();
@@ -408,7 +425,7 @@ serve(async (req) => {
     return jsonResponse({ success: true, emailId: data.id });
   } catch (err) {
     console.error("notify-email error:", err);
-    return jsonResponse({ error: String(err) }, 500);
+    return jsonResponse({ error: "Internal error" }, 500);
   }
 });
 

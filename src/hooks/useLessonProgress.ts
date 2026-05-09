@@ -194,6 +194,10 @@ export function useLessonProgress() {
 
       const userId = user.id;
       debounceTimers.current[lessonId] = setTimeout(async () => {
+        // Re-check session before write — user may have logged out during the 10s window.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || session.user.id !== userId) return;
+
         try {
           const { error } = await supabase.from("lesson_progress").upsert(
             {

@@ -121,6 +121,7 @@ function LessonQuizInner({ quiz, passingScore, lessonId, onPass }: LessonQuizPro
 
   async function handleSubmit() {
     if (!allAnswered) return;
+    if (!currentUserId) return;
     const attempt = await submitAttempt(currentUserId, lessonId, quiz, answers, passingScore);
     setLastScore(attempt.score);
     setLastPassed(attempt.passed);

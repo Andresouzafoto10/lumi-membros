@@ -80,14 +80,25 @@ serve(async (req) => {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      // Get students who haven't watched anything in 7 days
-      const { data: allStudents } = await supabase
-        .from("profiles")
-        .select("id, email, display_name, name, email_notifications")
-        .eq("status", "active")
-        .eq("role", "student");
+      // Get students who haven't watched anything in 7 days (paginated, max 500/batch)
+      type StudentRow = { id: string; email: string; display_name: string | null; name: string | null; email_notifications: boolean | null };
+      const allStudents: StudentRow[] = [];
+      let pgFrom = 0;
+      const PG = 500;
+      while (true) {
+        const { data: page } = await supabase
+          .from("profiles")
+          .select("id, email, display_name, name, email_notifications")
+          .eq("status", "active")
+          .eq("role", "student")
+          .range(pgFrom, pgFrom + PG - 1);
+        if (!page || page.length === 0) break;
+        allStudents.push(...(page as StudentRow[]));
+        if (page.length < PG) break;
+        pgFrom += PG;
+      }
 
-      for (const student of allStudents ?? []) {
+      for (const student of allStudents) {
         if (student.email_notifications === false || !student.email) continue;
 
         // Check if already sent this reminder
@@ -178,13 +189,25 @@ serve(async (req) => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const oneMonthAgo = thirtyDaysAgo.toISOString();
 
-      const { data: students } = await supabase
-        .from("profiles")
-        .select("id, email, display_name, name, email_notifications")
-        .eq("status", "active")
-        .eq("role", "student");
+      // Paginated student fetch (max 500/batch)
+      type StudentRow2 = { id: string; email: string; display_name: string | null; name: string | null; email_notifications: boolean | null };
+      const students: StudentRow2[] = [];
+      let pgFrom2 = 0;
+      const PG2 = 500;
+      while (true) {
+        const { data: page } = await supabase
+          .from("profiles")
+          .select("id, email, display_name, name, email_notifications")
+          .eq("status", "active")
+          .eq("role", "student")
+          .range(pgFrom2, pgFrom2 + PG2 - 1);
+        if (!page || page.length === 0) break;
+        students.push(...(page as StudentRow2[]));
+        if (page.length < PG2) break;
+        pgFrom2 += PG2;
+      }
 
-      for (const student of students ?? []) {
+      for (const student of students) {
         if (student.email_notifications === false || !student.email) continue;
 
         // Check if sent this month already
@@ -279,7 +302,7 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("email-scheduler error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

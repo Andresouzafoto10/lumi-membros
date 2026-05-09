@@ -294,7 +294,7 @@ export function usePosts() {
       invalidate();
       // Gamification + mention notifications when post is published
       if (status === "published") {
-        onPostCreated(data.authorId).catch(() => {});
+        onPostCreated(data.authorId).catch((err) => console.error("[gamification] onPostCreated:", err));
         // Check if this is the student's first post (bonus points).
         // Query the DB directly instead of the local `allPosts` cache —
         // the cache may be empty/stale during load and would misreport "first post".
@@ -305,13 +305,13 @@ export function usePosts() {
           .eq("status", "published")
           .neq("id", row.id as string);
         if ((count ?? 0) === 0) {
-          onFirstPost(data.authorId, row.id as string).catch(() => {});
+          onFirstPost(data.authorId, row.id as string).catch((err) => console.error("[gamification] onFirstPost:", err));
         }
         // Extract @mentions and notify
         const mentions = data.body.match(/@([\w-]+)/g);
         if (mentions) {
           const usernames = mentions.map((m) => m.slice(1));
-          notifyMentions(row.id as string, data.authorId, usernames).catch(() => {});
+          notifyMentions(row.id as string, data.authorId, usernames).catch((err) => console.error("[notifications] notifyMentions:", err));
         }
       }
       return row.id as string;

@@ -254,24 +254,30 @@ serve(async (req) => {
     const rawBody = await req.text();
     const body = JSON.parse(rawBody) as Record<string, unknown>;
 
-    // 3. Validate HMAC if secret is configured
-    if (platformRow.secret_key) {
-      const signature = getSignature(req.headers, platform);
-      if (!signature) {
-        await logEvent(supabase, platformRow.id, body, null, null, null, "error", "Assinatura HMAC ausente", null, null);
-        return new Response(
-          JSON.stringify({ error: "Assinatura ausente" }),
-          { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-      const valid = await verifyHmac(platformRow.secret_key, rawBody, signature);
-      if (!valid) {
-        await logEvent(supabase, platformRow.id, body, null, null, null, "error", "Assinatura HMAC inválida", null, null);
-        return new Response(
-          JSON.stringify({ error: "Assinatura inválida" }),
-          { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
+    // 3. HMAC is mandatory — reject if secret_key not configured (closes bypass).
+    if (!platformRow.secret_key) {
+      await logEvent(supabase, platformRow.id, body, null, null, null, "error", "Plataforma sem secret_key configurada", null, null);
+      return new Response(
+        JSON.stringify({ error: "Integração sem secret_key — configure antes de receber webhooks" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const signature = getSignature(req.headers, platform);
+    if (!signature) {
+      await logEvent(supabase, platformRow.id, body, null, null, null, "error", "Assinatura HMAC ausente", null, null);
+      return new Response(
+        JSON.stringify({ error: "Assinatura ausente" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const valid = await verifyHmac(platformRow.secret_key, rawBody, signature);
+    if (!valid) {
+      await logEvent(supabase, platformRow.id, body, null, null, null, "error", "Assinatura HMAC inválida", null, null);
+      return new Response(
+        JSON.stringify({ error: "Assinatura inválida" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     // 4. Extract student + event data
@@ -289,6 +295,23 @@ serve(async (req) => {
       await logEvent(supabase, platformRow.id, body, null, null, null, "error", "Dados do aluno não encontrados no payload", null, null);
       return new Response(
         JSON.stringify({ error: "Dados insuficientes no payload" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Validate productId format (alphanumeric, dashes, underscores only — prevents injection in DB lookups + logs)
+    if (!/^[a-zA-Z0-9_\-]{1,128}$/.test(studentData.productId)) {
+      await logEvent(supabase, platformRow.id, body, studentData.email, studentData.name, null, "error", `productId inválido: ${studentData.productId.slice(0, 32)}`, studentData.eventType, studentData.transactionId);
+      return new Response(
+        JSON.stringify({ error: "productId inválido" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentData.email) || studentData.email.length > 254) {
+      await logEvent(supabase, platformRow.id, body, studentData.email, studentData.name, null, "error", "Email inválido", studentData.eventType, studentData.transactionId);
+      return new Response(
+        JSON.stringify({ error: "Email inválido" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -437,13 +460,20 @@ serve(async (req) => {
 
       if (authUser?.user) {
         isNewUser = true;
-        await new Promise((r) => setTimeout(r, 500));
-        const { data: newProfile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", authUser.user.id)
-          .maybeSingle();
-        profile = newProfile;
+        // Wait for handle_new_user trigger to create the profile row.
+        // Retry with exponential backoff instead of fixed sleep.
+        for (let attempt = 0; attempt < 5; attempt++) {
+          await new Promise((r) => setTimeout(r, 200 * Math.pow(2, attempt)));
+          const { data: newProfile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", authUser.user.id)
+            .maybeSingle();
+          if (newProfile) {
+            profile = newProfile;
+            break;
+          }
+        }
         if (profile) {
           await supabase.from("profiles").update({ name: studentData.name }).eq("id", profile.id);
         }
@@ -539,8 +569,9 @@ serve(async (req) => {
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (err) {
+    console.error("webhook-intake error:", err);
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: "Internal error" }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
