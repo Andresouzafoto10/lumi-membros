@@ -81,15 +81,25 @@ export const CourseCard = memo(function CourseCard({
     }
   };
 
-  const noAccessAction = access?.no_access_action ?? "nothing";
+  const noAccessAction = access?.no_access_action ?? "default";
   const supportUrl = access?.no_access_support_url ?? "";
-  const redirectUrl = access?.no_access_redirect_url ?? "";
+  const redirectUrl = (access?.no_access_redirect_url ?? "").trim();
+
+  // Effective behavior:
+  // - "redirect" + URL → button + open URL
+  // - "nothing"        → button + modal
+  // - "default" OR "redirect" with empty URL → render as Link to course page
+  const lockedBehavior: "link" | "modal" | "redirect" =
+    noAccessAction === "redirect" && redirectUrl
+      ? "redirect"
+      : noAccessAction === "nothing"
+      ? "modal"
+      : "link";
 
   function handleLockedClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-
-    if (noAccessAction === "redirect" && redirectUrl) {
+    if (lockedBehavior === "redirect") {
       window.open(redirectUrl, "_blank");
     } else {
       setModalOpen(true);
@@ -179,8 +189,21 @@ export const CourseCard = memo(function CourseCard({
     );
   }
 
-  // Locked card — not a Link, uses onClick
+  // Locked card — render varies by configured behavior
   if (locked) {
+    // "link" → render as Link, navigate to /cursos/:id (CourseDetailPage shows lock screen)
+    if (lockedBehavior === "link") {
+      return (
+        <Link
+          to={to}
+          className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group active:scale-[0.98] transition-transform"
+        >
+          {cardContent}
+        </Link>
+      );
+    }
+
+    // "modal" or "redirect" → button with onClick
     return (
       <>
         <button
