@@ -107,6 +107,7 @@ create table if not exists public.course_sessions (
   description text,
   is_active   boolean not null default true,
   "order"     integer not null default 0,
+  visibility_mode text NOT NULL DEFAULT 'all' CHECK (visibility_mode IN ('all', 'enrolled_courses')),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
