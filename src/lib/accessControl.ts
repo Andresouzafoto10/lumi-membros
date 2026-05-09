@@ -3,6 +3,7 @@ import type {
   Class,
   ContentScheduleRule,
 } from "@/types/student";
+import type { CourseSession } from "@/types/course";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -533,4 +534,24 @@ export function blockReasonMessage(status: LessonAccessStatus): string {
     default:
       return "Conteúdo indisponível.";
   }
+}
+
+/**
+ * Returns true if the given session is visible to the student.
+ * - admin → always visible
+ * - mode 'all' → always visible
+ * - mode 'enrolled_courses' → visible iff student is enrolled in at least one of the session's courses
+ */
+export function isSessionVisibleToStudent(
+  session: Pick<CourseSession, "visibilityMode" | "courses">,
+  studentId: string,
+  enrollments: Enrollment[],
+  classes: Class[],
+  isAdmin: boolean
+): boolean {
+  if (isAdmin) return true;
+  if (session.visibilityMode === "all") return true;
+  return session.courses.some((c) =>
+    isStudentEnrolled(studentId, c.id, enrollments, classes)
+  );
 }

@@ -136,12 +136,15 @@ export interface LessonComment {
   replies?: LessonComment[];
 }
 
+export type SessionVisibilityMode = "all" | "enrolled_courses";
+
 export type CourseSession = {
   id: string;
   title: string;
   description?: string;
   isActive: boolean;
   order: number;
+  visibilityMode: SessionVisibilityMode;
   courses: Course[];
 };
 
