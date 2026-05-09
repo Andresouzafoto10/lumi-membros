@@ -23,7 +23,7 @@ import { useLessonProgress } from "@/hooks/useLessonProgress";
 import { useEnrolledCourses } from "@/hooks/useEnrolledCourses";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useAuth } from "@/contexts/AuthContext";
-import { isStudentEnrolled } from "@/lib/accessControl";
+import { isStudentEnrolled, isSessionVisibleToStudent } from "@/lib/accessControl";
 import { UpcomingLiveBanner } from "@/components/courses/UpcomingLiveBanner";
 
 export default function CoursesPage() {
@@ -72,7 +72,10 @@ export default function CoursesPage() {
 
   const activeSessions = useMemo(() => {
     let filtered = sessions.filter(
-      (s) => s.isActive && s.courses.some((c) => c.isActive)
+      (s) =>
+        s.isActive &&
+        s.courses.some((c) => c.isActive) &&
+        isSessionVisibleToStudent(s, currentUserId, enrollments, classes, isAdmin)
     );
 
     if (selectedSessionId !== "all") {
@@ -86,10 +89,8 @@ export default function CoursesPage() {
           ...session,
           courses: session.courses.filter((c) => {
             if (!c.isActive) return false;
-            // Search course title and description
             if (c.title.toLowerCase().includes(query)) return true;
             if (c.description.toLowerCase().includes(query)) return true;
-            // Deep search: lesson titles and descriptions
             return c.modules.some((m) =>
               m.lessons.some(
                 (l) =>
@@ -103,7 +104,15 @@ export default function CoursesPage() {
     }
 
     return filtered;
-  }, [sessions, selectedSessionId, searchQuery]);
+  }, [
+    sessions,
+    selectedSessionId,
+    searchQuery,
+    currentUserId,
+    enrollments,
+    classes,
+    isAdmin,
+  ]);
 
   const isFiltering = searchQuery.trim() !== "" || selectedSessionId !== "all";
 
@@ -140,7 +149,17 @@ export default function CoursesPage() {
           <SelectContent>
             <SelectItem value="all">Todas as sessoes</SelectItem>
             {sessions
-              .filter((s) => s.isActive)
+              .filter(
+                (s) =>
+                  s.isActive &&
+                  isSessionVisibleToStudent(
+                    s,
+                    currentUserId,
+                    enrollments,
+                    classes,
+                    isAdmin
+                  )
+              )
               .map((session) => (
                 <SelectItem key={session.id} value={session.id}>
                   {session.title}
