@@ -9,6 +9,7 @@ import { Eye, EyeOff, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,9 @@ export default function NewPasswordPage() {
   const { updatePassword } = useAuth();
   const { settings } = usePlatformSettings();
   const platformName = settings?.name ?? "Lumi Membros";
+  const logoSrc = getProxiedImageUrl(
+    settings?.logoUploadUrl || settings?.logoUrl || null
+  );
 
   const [state, setState] = useState<PageState>("verificando");
   const [password, setPassword] = useState("");
@@ -137,8 +141,8 @@ export default function NewPasswordPage() {
 
         <div className="relative w-full max-w-md">
           <div className="mb-8 text-center">
-            {settings?.logoUrl ? (
-              <img src={settings.logoUrl} alt={platformName} className="mx-auto mb-4 h-12 object-contain" />
+            {logoSrc ? (
+              <img src={logoSrc} alt={platformName} className="mx-auto mb-4 h-12 object-contain" />
             ) : (
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20 mb-4">
                 <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="currentColor">

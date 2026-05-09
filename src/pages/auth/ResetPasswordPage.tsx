@@ -8,9 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { isPasswordStrong } from "@/lib/password";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const { settings } = usePlatformSettings();
+  const platformName = settings?.name ?? "Master Membros";
+  const logoSrc = getProxiedImageUrl(
+    settings?.logoUploadUrl || settings?.logoUrl || null
+  );
   const [ready, setReady] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -91,11 +98,15 @@ export default function ResetPasswordPage() {
 
         <div className="relative w-full max-w-md">
           <div className="mb-8 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20 mb-4">
-              <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="currentColor">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-            </div>
+            {logoSrc ? (
+              <img src={logoSrc} alt={platformName} className="mx-auto mb-4 h-12 object-contain" />
+            ) : (
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20 mb-4">
+                <svg viewBox="0 0 24 24" className="h-7 w-7 text-primary" fill="currentColor">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+              </div>
+            )}
             <h1 className="text-2xl font-bold text-foreground">Nova senha</h1>
             <p className="mt-1 text-sm text-muted-foreground">Escolha uma senha segura para sua conta</p>
           </div>
