@@ -74,8 +74,10 @@ export type CourseModule = {
   lessons: CourseLesson[];
 };
 
+export type NoAccessAction = "default" | "nothing" | "redirect";
+
 export type CourseAccessBase = {
-  no_access_action?: "nothing" | "redirect";
+  no_access_action?: NoAccessAction;
   no_access_redirect_url?: string;
   no_access_support_url?: string;
 };
