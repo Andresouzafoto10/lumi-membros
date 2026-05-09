@@ -573,7 +573,7 @@ export default function AdminCourseEditPage() {
                     aspect={16 / 9}
                     shape="rect"
                     title="Recortar banner do curso"
-                    cropObjectFit="horizontal-cover"
+                    cropObjectFit="contain"
                   />
                 </Suspense>
 
