@@ -14,7 +14,6 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
 
 import { useLessonComments } from "@/hooks/useLessonComments";
 import { useGamification } from "@/hooks/useGamification";
@@ -23,8 +22,14 @@ import type { LessonComment } from "@/types/course";
 import type { StudentRole } from "@/types/student";
 
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor, RichTextRenderer } from "@/components/ui/RichTextEditor";
 import { cn } from "@/lib/utils";
+
+function isEmptyHtml(html: string): boolean {
+  if (!html) return true;
+  const stripped = html.replace(/<p>(\s|&nbsp;|<br\s*\/?>)*<\/p>/g, "").trim();
+  return stripped === "";
+}
 
 // ---------------------------------------------------------------------------
 // Single comment item
@@ -135,8 +140,12 @@ function CommentItem({
               })}
             </span>
           </div>
-          <div className="text-sm mt-0.5 prose prose-sm max-w-none dark:prose-invert prose-p:my-0.5 prose-p:leading-relaxed">
-            <ReactMarkdown>{comment.body}</ReactMarkdown>
+          <div className="text-sm mt-0.5">
+            {comment.body.includes("<") ? (
+              <RichTextRenderer html={comment.body} />
+            ) : (
+              <p className="whitespace-pre-wrap leading-relaxed">{comment.body}</p>
+            )}
           </div>
         </div>
 
@@ -256,7 +265,7 @@ export function LessonComments({
   });
 
   async function handleSubmitComment() {
-    if (!newComment.trim() || submitting) return;
+    if (isEmptyHtml(newComment) || submitting) return;
     setSubmitting(true);
     try {
       await addComment(newComment, undefined, courseId);
@@ -269,7 +278,7 @@ export function LessonComments({
   }
 
   async function handleSubmitReply(parentId: string) {
-    if (!replyText.trim() || submitting) return;
+    if (isEmptyHtml(replyText) || submitting) return;
     setSubmitting(true);
     try {
       await addComment(replyText, parentId, courseId);
@@ -307,28 +316,24 @@ export function LessonComments({
       </h3>
 
       {/* New comment input */}
-      <div className="flex gap-2.5">
-        <Textarea
-          placeholder="Escreva um comentario..."
+      <div className="space-y-2">
+        <RichTextEditor
           value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmitComment();
-            }
-          }}
-          rows={1}
-          className="text-sm min-h-[38px] resize-none border-border/60 transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
+          onChange={setNewComment}
+          placeholder="Escreva um comentario..."
+          minHeight="min-h-[80px]"
         />
-        <Button
-          size="sm"
-          className="h-[38px] px-3 active:scale-95 transition-all shrink-0"
-          disabled={!newComment.trim() || submitting}
-          onClick={handleSubmitComment}
-        >
-          <Send className="h-3.5 w-3.5" />
-        </Button>
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            className="active:scale-95 transition-all"
+            disabled={isEmptyHtml(newComment) || submitting}
+            onClick={handleSubmitComment}
+          >
+            <Send className="h-3.5 w-3.5 mr-1.5" />
+            Comentar
+          </Button>
+        </div>
       </div>
 
       {/* Comments list */}
@@ -395,29 +400,33 @@ export function LessonComments({
 
                 {/* Reply input */}
                 {replyTo === comment.id && (
-                  <div className="flex gap-2 ml-10">
-                    <Textarea
-                      placeholder="Sua resposta..."
+                  <div className="ml-10 space-y-2">
+                    <RichTextEditor
                       value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSubmitReply(comment.id);
-                        }
-                      }}
-                      autoFocus
-                      rows={1}
-                      className="text-sm min-h-[34px] resize-none"
+                      onChange={setReplyText}
+                      placeholder="Sua resposta..."
+                      minHeight="min-h-[60px]"
                     />
-                    <Button
-                      size="sm"
-                      className="h-[34px] px-2.5 shrink-0"
-                      disabled={!replyText.trim() || submitting}
-                      onClick={() => handleSubmitReply(comment.id)}
-                    >
-                      <Send className="h-3 w-3" />
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setReplyTo(null);
+                          setReplyText("");
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={isEmptyHtml(replyText) || submitting}
+                        onClick={() => handleSubmitReply(comment.id)}
+                      >
+                        <Send className="h-3 w-3 mr-1.5" />
+                        Responder
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

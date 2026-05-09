@@ -48,6 +48,7 @@ import { useMyLessonNotes } from "@/hooks/useMyLessonNotes";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import { useR2Upload } from "@/hooks/useR2Upload";
 import { CertificateCard } from "@/components/certificates/CertificateCard";
+import { RichTextRenderer } from "@/components/ui/RichTextEditor";
 import { GamificationRanking } from "@/components/community/GamificationRanking";
 import { LevelBadge } from "@/components/gamification/LevelBadge";
 import { GamificationGuide } from "@/components/gamification/GamificationGuide";
@@ -1117,9 +1118,13 @@ export default function MyProfilePage() {
                         <p className="text-sm font-semibold truncate">
                           {note.lessonTitle}
                         </p>
-                        <p className="mt-1 text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">
-                          {note.content}
-                        </p>
+                        <div className="mt-1 text-xs text-muted-foreground line-clamp-2 [&_*]:!my-0 [&_*]:!text-xs">
+                          {note.content.includes("<") ? (
+                            <RichTextRenderer html={note.content} />
+                          ) : (
+                            <p className="whitespace-pre-wrap">{note.content}</p>
+                          )}
+                        </div>
                         <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground/70">
                           <CalendarDays className="h-3 w-3" />
                           <span>
