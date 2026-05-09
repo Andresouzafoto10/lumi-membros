@@ -8,6 +8,7 @@ export const mockSessions: CourseSession[] = [
     description: "Os cursos mais populares da plataforma",
     isActive: true,
     order: 1,
+    visibilityMode: "all",
     courses: [mockCourses[0], mockCourses[1]],
   },
   {
@@ -16,6 +17,7 @@ export const mockSessions: CourseSession[] = [
     description: "Ideal para quem está começando na fotografia",
     isActive: true,
     order: 2,
+    visibilityMode: "all",
     courses: [mockCourses[0], mockCourses[2]],
   },
 ];
