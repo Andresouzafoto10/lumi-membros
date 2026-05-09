@@ -107,6 +107,7 @@ async function fetchCourseTree(): Promise<CourseSession[]> {
     description: s.description ?? undefined,
     isActive: s.is_active,
     order: s.order,
+    visibilityMode: (s.visibility_mode ?? "all") as CourseSession["visibilityMode"],
     courses: courses
       .filter((c) => {
         return (coursesRes.data ?? []).find(
@@ -223,12 +224,18 @@ export function useCourses() {
   // ---- Session mutations ----
 
   const createSession = useCallback(
-    async (data: { title: string; description?: string; isActive: boolean }) => {
+    async (data: {
+      title: string;
+      description?: string;
+      isActive: boolean;
+      visibilityMode?: CourseSession["visibilityMode"];
+    }) => {
       const maxOrder = sessions.reduce((m, s) => Math.max(m, s.order), 0);
       const { error } = await supabase.from("course_sessions").insert({
         title: data.title,
         description: data.description ?? null,
         is_active: data.isActive,
+        visibility_mode: data.visibilityMode ?? "all",
         order: maxOrder + 1,
       });
       if (error) throw error;
@@ -240,7 +247,9 @@ export function useCourses() {
   const updateSession = useCallback(
     async (
       sessionId: string,
-      patch: Partial<Pick<CourseSession, "title" | "description" | "isActive">>
+      patch: Partial<
+        Pick<CourseSession, "title" | "description" | "isActive" | "visibilityMode">
+      >
     ) => {
       const { error } = await supabase
         .from("course_sessions")
@@ -248,6 +257,9 @@ export function useCourses() {
           ...(patch.title !== undefined && { title: patch.title }),
           ...(patch.description !== undefined && { description: patch.description }),
           ...(patch.isActive !== undefined && { is_active: patch.isActive }),
+          ...(patch.visibilityMode !== undefined && {
+            visibility_mode: patch.visibilityMode,
+          }),
         })
         .eq("id", sessionId);
       if (error) throw error;
