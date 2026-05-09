@@ -27,6 +27,8 @@ import {
   GraduationCap,
   CalendarClock,
   Link2,
+  Copy,
+  LogIn,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -335,6 +337,9 @@ export default function AdminStudentProfilePage() {
   // Loading states
   const [resetPwLoading, setResetPwLoading] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
+  const [copyLinkLoading, setCopyLinkLoading] = useState(false);
+  const [impersonateLoading, setImpersonateLoading] = useState(false);
+  const [impersonateConfirm, setImpersonateConfirm] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -390,6 +395,66 @@ export default function AdminStudentProfilePage() {
       toast.error("Erro ao enviar email de redefinicao.");
     }
     setResetPwLoading(false);
+  }
+
+  // Generate admin auth link via edge function (recovery / magiclink)
+  async function callAdminGenerateLink(
+    type: "recovery" | "magiclink"
+  ): Promise<string | null> {
+    if (!student) return null;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) {
+      toast.error("Sessao expirada. Faca login novamente.");
+      return null;
+    }
+    const { data, error } = await supabase.functions.invoke<{
+      actionLink?: string;
+      error?: string;
+    }>("admin-generate-link", {
+      body: { userId: student.id, type },
+    });
+    if (error || !data?.actionLink) {
+      const msg = data?.error || error?.message || "Falha ao gerar link.";
+      toast.error(msg);
+      return null;
+    }
+    return data.actionLink;
+  }
+
+  // Copy password-reset link to clipboard
+  async function handleCopyResetLink() {
+    if (!student) return;
+    setCopyLinkLoading(true);
+    try {
+      const link = await callAdminGenerateLink("recovery");
+      if (!link) return;
+      await navigator.clipboard.writeText(link);
+      toast.success("Link de redefinicao copiado.");
+    } catch {
+      toast.error("Erro ao copiar link.");
+    } finally {
+      setCopyLinkLoading(false);
+    }
+  }
+
+  // Impersonate: open student magic link in a new tab
+  async function handleImpersonateConfirmed() {
+    if (!student) return;
+    setImpersonateConfirm(false);
+    setImpersonateLoading(true);
+    try {
+      const link = await callAdminGenerateLink("magiclink");
+      if (!link) return;
+      window.open(link, "_blank", "noopener,noreferrer");
+      toast.success(
+        "Acesso aberto em nova aba. Sua sessao admin pode ser substituida — refaca login se necessario."
+      );
+    } catch {
+      toast.error("Erro ao gerar acesso.");
+    } finally {
+      setImpersonateLoading(false);
+    }
   }
 
   // SUPERPOWER 3: Add class enrollment
@@ -617,6 +682,24 @@ export default function AdminStudentProfilePage() {
           >
             <KeyRound className="mr-1.5 h-4 w-4" />
             {resetPwLoading ? "Enviando..." : "Redefinir senha"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopyResetLink}
+            disabled={copyLinkLoading}
+          >
+            <Copy className="mr-1.5 h-4 w-4" />
+            {copyLinkLoading ? "Gerando..." : "Copiar link"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImpersonateConfirm(true)}
+            disabled={impersonateLoading}
+          >
+            <LogIn className="mr-1.5 h-4 w-4" />
+            {impersonateLoading ? "Abrindo..." : "Acessar como aluno"}
           </Button>
           <Button
             variant={student.status === "active" ? "outline" : "default"}
@@ -1431,6 +1514,34 @@ export default function AdminStudentProfilePage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleResetProgress}>Resetar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Impersonate (Acessar como aluno) dialog */}
+      <AlertDialog
+        open={impersonateConfirm}
+        onOpenChange={setImpersonateConfirm}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Acessar como aluno?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sera aberto um link de acesso magico do aluno em uma nova aba.
+              <br /><br />
+              <strong>Atencao:</strong> ao clicar no link, sua sessao admin neste navegador
+              pode ser substituida pela sessao do aluno. Para preservar seu admin, abra a
+              nova aba em janela anonima ou outro navegador.
+              <br /><br />
+              Recomendado tambem: copiar o link em vez de abrir, e colar em outro perfil
+              do navegador.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleImpersonateConfirmed}>
+              Abrir em nova aba
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
