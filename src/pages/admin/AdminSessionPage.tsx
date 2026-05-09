@@ -167,8 +167,8 @@ export default function AdminSessionPage() {
     }
     const access: CourseAccess =
       courseForm.accessMode === "plans"
-        ? { mode: "plans", plans: courseForm.accessPlans }
-        : { mode: courseForm.accessMode };
+        ? { mode: "plans", plans: courseForm.accessPlans, no_access_action: "default" }
+        : { mode: courseForm.accessMode, no_access_action: "default" };
 
     createCourse(sessionId!, {
       title: courseForm.title.trim(),
