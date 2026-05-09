@@ -15,6 +15,7 @@ import {
   Lock,
   ExternalLink,
   MessageCircle,
+  Inbox,
   Info,
   Upload,
   ImageIcon,
@@ -27,7 +28,7 @@ import { useCourses } from "@/hooks/useCourses";
 import { useCertificates } from "@/hooks/useCertificates";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useR2Upload } from "@/hooks/useR2Upload";
-import type { CourseAccess } from "@/types/course";
+import type { CourseAccess, NoAccessAction } from "@/types/course";
 import { deleteFromR2, isR2Url } from "@/lib/r2Upload";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
@@ -123,8 +124,8 @@ export default function AdminCourseEditPage() {
   const [saving, setSaving] = useState(false);
 
   // No-access behavior
-  const [noAccessAction, setNoAccessAction] = useState<"nothing" | "redirect">(
-    course?.access.no_access_action ?? "nothing"
+  const [noAccessAction, setNoAccessAction] = useState<NoAccessAction>(
+    course?.access.no_access_action ?? "default"
   );
   const [noAccessRedirectUrl, setNoAccessRedirectUrl] = useState(
     course?.access.no_access_redirect_url ?? ""
@@ -678,9 +679,21 @@ export default function AdminCourseEditPage() {
               <CardContent>
                 <RadioGroup
                   value={noAccessAction}
-                  onValueChange={(v) => setNoAccessAction(v as "nothing" | "redirect")}
+                  onValueChange={(v) => setNoAccessAction(v as NoAccessAction)}
                   className="space-y-3"
                 >
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5">
+                    <RadioGroupItem value="default" id="noacc-default" className="mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Inbox className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-sm font-medium">Sem redirecionamento</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Mostra a pagina padrao de acesso restrito (com botao "Voltar para cursos")
+                      </p>
+                    </div>
+                  </label>
                   <label className="flex items-start gap-3 p-3 rounded-lg border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5">
                     <RadioGroupItem value="nothing" id="noacc-nothing" className="mt-0.5" />
                     <div className="flex-1">
