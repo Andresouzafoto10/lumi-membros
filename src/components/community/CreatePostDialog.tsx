@@ -922,12 +922,12 @@ export function CreatePostDialog({
           // Slightly lighter surface (bg-card) than the page background so the
           // modal stands out clearly from the dimmed backdrop.
           "bg-card",
-          // Mobile: take almost the full viewport so the bottom toolbar
-          // (with Publicar) is never clipped.
-          "max-w-[95vw] w-full max-h-[88vh] h-[88vh]",
+          // Mobile: leave generous breathing room around the modal so it
+          // doesn't blanket the whole viewport.
+          "max-w-[92vw] w-full max-h-[78vh] h-[78vh]",
           expanded
             ? "sm:max-w-3xl sm:h-[85vh]"
-            : "sm:max-w-lg sm:h-auto sm:max-h-[85vh]"
+            : "sm:max-w-lg sm:h-auto sm:max-h-[80vh]"
         )}
         hideCloseButton
       >
@@ -1142,10 +1142,18 @@ export function CreatePostDialog({
             )}
 
             {/* Toolbar */}
-            <div className="border-t border-border/30 px-3 py-2.5 sm:px-4 sm:py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-1">
+            <div
+              className={cn(
+                "border-t border-border/30 px-3 py-2.5 sm:px-4 sm:py-3 flex flex-col gap-2",
+                // Only the expanded variant (>=lg) has enough room for the
+                // toolbar and the community/publish controls on the same row.
+                // Small modal + mobile keep the two rows stacked.
+                expanded && "lg:flex-row lg:items-center lg:gap-1",
+              )}
+            >
               {/* Block-format buttons + media — visible so the user knows
                   what's available without typing "/" first */}
-              <div className="flex items-center gap-0.5 flex-wrap">
+              <div className="flex items-center gap-0.5 flex-wrap sm:flex-nowrap">
                 <Button
                   size="icon" variant="ghost"
                   className="h-8 w-8 text-muted-foreground hover:text-foreground"
@@ -1224,9 +1232,16 @@ export function CreatePostDialog({
               </div>
 
               {/* Community select + publish button — own row on mobile */}
-              <div className="flex items-center gap-2 sm:ml-auto">
+              <div
+                className={cn(
+                  "flex items-center gap-2",
+                  // Push to the right only when paired with the toolbar on the
+                  // same row (expanded modal).
+                  expanded && "lg:ml-auto",
+                )}
+              >
                 <Select value={communityId} onValueChange={setCommunityId} disabled={isEdit}>
-                  <SelectTrigger className={cn("h-8 flex-1 sm:flex-none sm:w-[180px] text-xs border-border/40", isEdit && "opacity-60")}>
+                  <SelectTrigger className={cn("h-8 flex-1 lg:flex-none lg:w-[180px] text-xs border-border/40", isEdit && "opacity-60")}>
                     <SelectValue placeholder="Comunidade" />
                   </SelectTrigger>
                   <SelectContent>
