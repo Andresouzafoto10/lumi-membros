@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useCourses } from "@/hooks/useCourses";
-import { useStudents } from "@/hooks/useStudents";
+import { useCurrentUserEnrollments } from "@/hooks/useCurrentUserEnrollments";
 import { useClasses } from "@/hooks/useClasses";
 import { useLessonProgress } from "@/hooks/useLessonProgress";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -18,7 +18,7 @@ export interface EnrolledCourse extends Course {
  */
 export function useEnrolledCourses(): EnrolledCourse[] {
   const { sessions } = useCourses();
-  const { enrollments } = useStudents();
+  const { enrollments } = useCurrentUserEnrollments();
   const { classes } = useClasses();
   const { getCourseProgress } = useLessonProgress();
   const { currentUserId } = useCurrentUser();

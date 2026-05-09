@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { useLiveLessons, getComputedStatus } from "@/hooks/useLiveLessons";
 import type { LiveLesson, LiveLessonStatus } from "@/hooks/useLiveLessons";
-import { useStudents } from "@/hooks/useStudents";
+import { useCurrentUserEnrollments } from "@/hooks/useCurrentUserEnrollments";
 import { useClasses } from "@/hooks/useClasses";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/contexts/AuthContext";
@@ -159,7 +159,7 @@ function LessonCard({
 export default function LiveLessonsPage() {
   const { lessons, loading, joinLesson } = useLiveLessons();
   const { currentUserId } = useCurrentUser();
-  const { enrollments } = useStudents();
+  const { enrollments } = useCurrentUserEnrollments();
   const { classes } = useClasses();
   const { isAdmin } = useAuth();
 

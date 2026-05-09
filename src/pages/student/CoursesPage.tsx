@@ -17,7 +17,7 @@ import { useCourses } from "@/hooks/useCourses";
 import { useLastWatched } from "@/hooks/useLastWatched";
 import { useSearchContext } from "@/hooks/useSearchContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useStudents } from "@/hooks/useStudents";
+import { useCurrentUserEnrollments } from "@/hooks/useCurrentUserEnrollments";
 import { useClasses } from "@/hooks/useClasses";
 import { useLessonProgress } from "@/hooks/useLessonProgress";
 import { useEnrolledCourses } from "@/hooks/useEnrolledCourses";
@@ -31,7 +31,7 @@ export default function CoursesPage() {
   const { lastWatched } = useLastWatched();
   const { searchQuery, setSearchQuery } = useSearchContext();
   const { currentUserId } = useCurrentUser();
-  const { enrollments } = useStudents();
+  const { enrollments } = useCurrentUserEnrollments();
   const { classes } = useClasses();
   const { getCourseProgress } = useLessonProgress();
   const { isAdmin } = useAuth();

@@ -32,7 +32,7 @@ import { useCourses } from "@/hooks/useCourses";
 import { useLastWatched } from "@/hooks/useLastWatched";
 import { useLessonNotes } from "@/hooks/useLessonNotes";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useStudents } from "@/hooks/useStudents";
+import { useCurrentUserEnrollments } from "@/hooks/useCurrentUserEnrollments";
 import { useClasses } from "@/hooks/useClasses";
 import { useCertificates } from "@/hooks/useCertificates";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
@@ -56,7 +56,7 @@ export default function CourseDetailPage() {
   const [searchParams] = useSearchParams();
   const { findCourse } = useCourses();
   const { currentUserId } = useCurrentUser();
-  const { enrollments } = useStudents();
+  const { enrollments } = useCurrentUserEnrollments();
   const { classes } = useClasses();
 
   const { setLastWatched } = useLastWatched();

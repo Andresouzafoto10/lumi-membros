@@ -158,52 +158,67 @@ async function fetchMissions(): Promise<MissionRow[]> {
 }
 
 async function fetchRanking(): Promise<RankingUser[]> {
-  const { data: gamData, error: gErr } = await supabase
-    .from("gamification")
-    .select("student_id, points, badges, current_level")
-    .order("points", { ascending: false })
-    .limit(50);
-  if (gErr) throw gErr;
+  // Fetch profiles, gamification rows, and levels in parallel.
+  // Profiles are the source of truth (some students may not have a
+  // gamification row yet — they appear with 0 points).
+  const [profilesRes, gamRes, levelsRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, name, display_name, avatar_url, created_at, role, status")
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("gamification")
+      .select("student_id, points, badges, current_level"),
+    supabase
+      .from("levels")
+      .select("*")
+      .order("points_required"),
+  ]);
 
-  const { data: levelsData } = await supabase
-    .from("levels")
-    .select("*")
-    .order("points_required");
-  const levels = (levelsData ?? []) as Record<string, unknown>[];
+  if (profilesRes.error) throw profilesRes.error;
 
-  const studentIds = (gamData ?? []).map((g) => g.student_id as string);
-  const { data: profilesData } = await supabase
-    .from("profiles")
-    .select("id, name, display_name, avatar_url")
-    .in("id", studentIds.length > 0 ? studentIds : ["__none__"]);
-
-  const profileMap = new Map(
-    (profilesData ?? []).map((p) => [p.id as string, p])
+  const profiles = (profilesRes.data ?? []) as Record<string, unknown>[];
+  const gamMap = new Map(
+    (gamRes.data ?? []).map((g) => [g.student_id as string, g])
   );
+  const levels = (levelsRes.data ?? []) as Record<string, unknown>[];
 
-  return (gamData ?? [])
-    .filter((g) => (g.points as number) > 0)
-    .map((g, idx) => {
-      const profile = profileMap.get(g.student_id as string);
+  const rows = profiles
+    .filter((p) => (p.status as string) !== "inactive")
+    .map((p) => {
+      const g = gamMap.get(p.id as string);
+      const points = (g?.points as number) ?? 0;
+      const currentLevel = (g?.current_level as number) ?? 1;
       const lvl = levels.find(
-        (l) => (l.level_number as number) === (g.current_level as number)
+        (l) => (l.level_number as number) === currentLevel
       );
       return {
-        rank: idx + 1,
-        studentId: g.student_id as string,
+        studentId: p.id as string,
         name:
-          (profile?.display_name as string) ||
-          (profile?.name as string) ||
+          (p.display_name as string) ||
+          (p.name as string) ||
           "Aluno",
-        avatarUrl: (profile?.avatar_url as string) ?? "",
-        totalPoints: g.points as number,
-        currentLevel: g.current_level as number,
+        avatarUrl: (p.avatar_url as string) ?? "",
+        totalPoints: points,
+        currentLevel,
         levelName: (lvl?.name as string) ?? "Iniciante",
         levelIconName: (lvl?.icon_name as string) ?? "🌱",
         levelIconColor: (lvl?.icon_color as string) ?? "#94a3b8",
-        badges: (g.badges as string[]) ?? [],
+        badges: (g?.badges as string[]) ?? [],
+        createdAt: (p.created_at as string) ?? "",
       };
     });
+
+  // Sort by points desc; tiebreak by oldest registration (created_at asc)
+  rows.sort((a, b) => {
+    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+    return a.createdAt.localeCompare(b.createdAt);
+  });
+
+  return rows.slice(0, 100).map(({ createdAt: _drop, ...r }, idx) => ({
+    rank: idx + 1,
+    ...r,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -228,36 +243,65 @@ async function fetchMonthlyRanking(): Promise<RankingUser[]> {
     totals.set(sid, (totals.get(sid) ?? 0) + (row.points as number));
   }
 
-  // Sort and take top 50
-  const sorted = [...totals.entries()]
-    .filter(([, pts]) => pts > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 50);
+  const studentIds = [...totals.keys()];
+  if (studentIds.length === 0) return [];
 
-  if (sorted.length === 0) return [];
-
-  // Fetch profiles + levels
-  const studentIds = sorted.map(([id]) => id);
+  // Fetch profiles (need created_at for tiebreaker) + levels
   const [{ data: profilesData }, { data: levelsData }, { data: gamData }] = await Promise.all([
-    supabase.from("profiles").select("id, name, display_name, avatar_url").in("id", studentIds),
+    supabase
+      .from("profiles")
+      .select("id, name, display_name, avatar_url, created_at, status")
+      .in("id", studentIds),
     supabase.from("levels").select("*").order("points_required"),
-    supabase.from("gamification").select("student_id, current_level").in("student_id", studentIds),
+    supabase
+      .from("gamification")
+      .select("student_id, current_level")
+      .in("student_id", studentIds),
   ]);
 
-  const profileMap = new Map((profilesData ?? []).map((p) => [p.id as string, p]));
-  const levelMap = new Map((gamData ?? []).map((g) => [g.student_id as string, g.current_level as number]));
+  const profileMap = new Map(
+    (profilesData ?? []).map((p) => [p.id as string, p])
+  );
+  const levelMap = new Map(
+    (gamData ?? []).map((g) => [g.student_id as string, g.current_level as number])
+  );
   const levels = (levelsData ?? []) as Record<string, unknown>[];
 
-  return sorted.map(([studentId, pts], idx) => {
-    const profile = profileMap.get(studentId);
-    const currentLevel = levelMap.get(studentId) ?? 1;
+  // Build entries; drop inactive profiles
+  const entries = [...totals.entries()]
+    .filter(([sid, pts]) => {
+      if (pts <= 0) return false;
+      const profile = profileMap.get(sid);
+      return profile && (profile.status as string) !== "inactive";
+    })
+    .map(([studentId, pts]) => {
+      const profile = profileMap.get(studentId);
+      return {
+        studentId,
+        pts,
+        createdAt: (profile?.created_at as string) ?? "",
+        profile,
+      };
+    });
+
+  // Sort: points desc, tiebreak by created_at asc (oldest first)
+  entries.sort((a, b) => {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    return a.createdAt.localeCompare(b.createdAt);
+  });
+
+  return entries.slice(0, 100).map((e, idx) => {
+    const currentLevel = levelMap.get(e.studentId) ?? 1;
     const lvl = levels.find((l) => (l.level_number as number) === currentLevel);
     return {
       rank: idx + 1,
-      studentId,
-      name: (profile?.display_name as string) || (profile?.name as string) || "Aluno",
-      avatarUrl: (profile?.avatar_url as string) ?? "",
-      totalPoints: pts,
+      studentId: e.studentId,
+      name:
+        (e.profile?.display_name as string) ||
+        (e.profile?.name as string) ||
+        "Aluno",
+      avatarUrl: (e.profile?.avatar_url as string) ?? "",
+      totalPoints: e.pts,
       currentLevel,
       levelName: (lvl?.name as string) ?? "Iniciante",
       levelIconName: (lvl?.icon_name as string) ?? "🌱",
