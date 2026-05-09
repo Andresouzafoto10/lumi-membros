@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
-import type { CourseAccess } from "@/types/course";
+import type { CourseAccess, SessionVisibilityMode } from "@/types/course";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -106,6 +106,9 @@ export default function AdminSessionPage() {
   const [title, setTitle] = useState(session?.title ?? "");
   const [description, setDescription] = useState(session?.description ?? "");
   const [isActive, setIsActive] = useState(session?.isActive ?? true);
+  const [visibilityMode, setVisibilityMode] = useState<SessionVisibilityMode>(
+    session?.visibilityMode ?? "all"
+  );
   const [saving, setSaving] = useState(false);
 
   // Course create dialog
@@ -150,6 +153,7 @@ export default function AdminSessionPage() {
       title: title.trim(),
       description: description.trim() || undefined,
       isActive,
+      visibilityMode,
     });
     toast.success("Sessao salva.");
     setTimeout(() => setSaving(false), 400);
@@ -273,6 +277,41 @@ export default function AdminSessionPage() {
             />
             <Label htmlFor="sess-active">Ativa</Label>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ====== Visibility ====== */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Visibilidade da sessao</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <RadioGroup
+            value={visibilityMode}
+            onValueChange={(v) => setVisibilityMode(v as SessionVisibilityMode)}
+            className="space-y-3"
+          >
+            <div className="flex items-start gap-3">
+              <RadioGroupItem id="vis-all" value="all" className="mt-0.5" />
+              <Label htmlFor="vis-all" className="font-normal cursor-pointer">
+                <span className="block font-medium">Todos os alunos logados</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  A sessao aparece para qualquer aluno autenticado.
+                </span>
+              </Label>
+            </div>
+            <div className="flex items-start gap-3">
+              <RadioGroupItem id="vis-enrolled" value="enrolled_courses" className="mt-0.5" />
+              <Label htmlFor="vis-enrolled" className="font-normal cursor-pointer">
+                <span className="block font-medium">
+                  Apenas alunos matriculados em cursos da sessao
+                </span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  A sessao aparece somente para alunos com matricula ativa em pelo menos um curso desta sessao.
+                </span>
+              </Label>
+            </div>
+          </RadioGroup>
         </CardContent>
       </Card>
 
