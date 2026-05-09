@@ -916,9 +916,15 @@ export function CreatePostDialog({
       <DialogContent
         className={cn(
           "flex flex-col gap-0 p-0 overflow-hidden border-border/50",
+          // Lifted from default vertical-center to a fixed top offset, so the
+          // small and expanded variants share the same top edge.
+          "top-[6vh] translate-y-0 sm:top-[8vh]",
+          // Slightly lighter surface (bg-card) than the page background so the
+          // modal stands out clearly from the dimmed backdrop.
+          "bg-card",
           // Mobile: take almost the full viewport so the bottom toolbar
           // (with Publicar) is never clipped.
-          "max-w-[95vw] w-full max-h-[90vh] h-[90vh]",
+          "max-w-[95vw] w-full max-h-[88vh] h-[88vh]",
           expanded
             ? "sm:max-w-3xl sm:h-[85vh]"
             : "sm:max-w-lg sm:h-auto sm:max-h-[85vh]"
