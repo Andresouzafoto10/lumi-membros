@@ -111,6 +111,7 @@ export interface Database {
           description: string | null;
           is_active: boolean;
           order: number;
+          visibility_mode: "all" | "enrolled_courses";
           created_at: string;
           updated_at: string;
         };
@@ -120,6 +121,7 @@ export interface Database {
           description?: string | null;
           is_active?: boolean;
           order?: number;
+          visibility_mode?: "all" | "enrolled_courses";
           created_at?: string;
           updated_at?: string;
         };
@@ -129,6 +131,7 @@ export interface Database {
           description?: string | null;
           is_active?: boolean;
           order?: number;
+          visibility_mode?: "all" | "enrolled_courses";
           updated_at?: string;
         };
       };
