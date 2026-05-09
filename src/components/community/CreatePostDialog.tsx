@@ -347,6 +347,43 @@ export function CreatePostDialog({
     [body]
   );
 
+  /**
+   * Insert markdown at the start of the current line (or open a fresh line
+   * if the line already has content). Used by toolbar buttons for block
+   * formats — H1, H2, lists, quote — so the user does not have to type "/"
+   * to discover them.
+   */
+  const insertBlockAtLineStart = useCallback(
+    (prefix: string) => {
+      setPreviewMode(false);
+      setEmojiOpen(false);
+      setSlashOpen(false);
+      const ta = bodyRef.current;
+      const cursorPos = ta?.selectionStart ?? cursorPosRef.current;
+      const before = body.slice(0, cursorPos);
+      const lastNewline = before.lastIndexOf("\n");
+      const lineStart = lastNewline + 1;
+      const currentLine = body.slice(lineStart, cursorPos);
+      // If the cursor is mid-text, push the prefix onto a new line so we
+      // don't break what the user already typed on this line.
+      const needsNewline = currentLine.length > 0;
+      const insert = needsNewline ? `\n${prefix}` : prefix;
+      const insertPos = needsNewline ? cursorPos : lineStart;
+      const newBody = body.slice(0, insertPos) + insert + body.slice(insertPos);
+      setBody(newBody);
+      const newPos = insertPos + insert.length;
+      cursorPosRef.current = newPos;
+      requestAnimationFrame(() => {
+        if (bodyRef.current) {
+          bodyRef.current.selectionStart = newPos;
+          bodyRef.current.selectionEnd = newPos;
+          bodyRef.current.focus();
+        }
+      });
+    },
+    [body]
+  );
+
   // ---------------------------------------------------------------------------
   // Slash command handling
   // ---------------------------------------------------------------------------
@@ -879,7 +916,12 @@ export function CreatePostDialog({
       <DialogContent
         className={cn(
           "flex flex-col gap-0 p-0 overflow-hidden border-border/50",
-          expanded ? "sm:max-w-3xl h-[85vh]" : "sm:max-w-lg max-h-[80vh]"
+          // Mobile: take almost the full viewport so the bottom toolbar
+          // (with Publicar) is never clipped.
+          "max-w-[95vw] w-full max-h-[90vh] h-[90vh]",
+          expanded
+            ? "sm:max-w-3xl sm:h-[85vh]"
+            : "sm:max-w-lg sm:h-auto sm:max-h-[85vh]"
         )}
         hideCloseButton
       >
@@ -1094,14 +1136,64 @@ export function CreatePostDialog({
             )}
 
             {/* Toolbar */}
-            <div className="border-t border-border/30 px-4 py-3 flex items-center gap-1">
-              <div className="flex items-center gap-0.5">
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            <div className="border-t border-border/30 px-3 py-2.5 sm:px-4 sm:py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-1">
+              {/* Block-format buttons + media — visible so the user knows
+                  what's available without typing "/" first */}
+              <div className="flex items-center gap-0.5 flex-wrap">
+                <Button
+                  size="icon" variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
                   onClick={() => { setEmojiOpen(false); slashFromToolbar.current = true; setSlashOpen(true); setSlashIdx(0); setPreviewMode(false); bodyRef.current?.focus(); }}
-                  title="Adicionar bloco"
+                  title="Mais blocos (atalho: /)"
                 ><Plus className="h-4 w-4" /></Button>
 
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                <Button
+                  size="icon" variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => insertBlockAtLineStart("# ")}
+                  title="Titulo grande"
+                ><Heading1 className="h-4 w-4" /></Button>
+
+                <Button
+                  size="icon" variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => insertBlockAtLineStart("## ")}
+                  title="Titulo medio"
+                ><Heading2 className="h-4 w-4" /></Button>
+
+                <Button
+                  size="icon" variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => insertBlockAtLineStart("- ")}
+                  title="Lista com marcadores"
+                ><List className="h-4 w-4" /></Button>
+
+                <Button
+                  size="icon" variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => insertBlockAtLineStart("1. ")}
+                  title="Lista numerada"
+                ><ListOrdered className="h-4 w-4" /></Button>
+
+                <Button
+                  size="icon" variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => insertBlockAtLineStart("> ")}
+                  title="Citacao"
+                ><Quote className="h-4 w-4" /></Button>
+
+                <Button
+                  size="icon" variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => { setPreviewMode(false); insertAtCursor("\n---\n"); }}
+                  title="Separador"
+                ><Minus className="h-4 w-4" /></Button>
+
+                <div className="h-5 w-px bg-border/40 mx-1" />
+
+                <Button
+                  size="icon" variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
                   onClick={() => { setPreviewMode(false); requestAnimationFrame(() => { insertAtCursor("#"); bodyRef.current?.focus(); }); }}
                   title="Hashtag"
                 ><Hash className="h-4 w-4" /></Button>
@@ -1118,38 +1210,25 @@ export function CreatePostDialog({
                   ><ImagePlus className="h-4 w-4" /></Button>
                 )}
 
-                {/* Emoji toggle */}
-                <Button
-                  size="icon" variant="ghost"
-                  className={cn("h-8 w-8 text-muted-foreground hover:text-foreground", emojiOpen && "text-foreground bg-accent")}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    if (!emojiOpen && bodyRef.current) {
-                      cursorPosRef.current = bodyRef.current.selectionStart;
-                    }
-                    setEmojiOpen(!emojiOpen);
-                  }}
-                  title="Emoji"
-                ><Smile className="h-4 w-4" /></Button>
-
                 <Button size="icon" variant="ghost"
-                  className={cn("h-8 w-8 text-muted-foreground hover:text-foreground", poll && "text-primary bg-primary/10")}
+                  className={cn("h-8 w-8 text-muted-foreground hover:text-foreground", poll && "text-primary")}
                   onClick={() => { if (poll) setPoll(null); else setPoll({ question: "", options: ["", ""], duration: "7d" }); }}
                   title="Enquete"
                 ><BarChart3 className="h-4 w-4" /></Button>
               </div>
 
-              <div className="h-5 w-px bg-border/40 mx-1.5" />
-
-              <div className="flex items-center gap-2 ml-auto">
+              {/* Community select + publish button — own row on mobile */}
+              <div className="flex items-center gap-2 sm:ml-auto">
                 <Select value={communityId} onValueChange={setCommunityId} disabled={isEdit}>
-                  <SelectTrigger className={cn("h-8 w-[180px] text-xs border-border/40", isEdit && "opacity-60")}><SelectValue placeholder="Escolha uma comunidade" /></SelectTrigger>
+                  <SelectTrigger className={cn("h-8 flex-1 sm:flex-none sm:w-[180px] text-xs border-border/40", isEdit && "opacity-60")}>
+                    <SelectValue placeholder="Comunidade" />
+                  </SelectTrigger>
                   <SelectContent>
                     {postable.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
                 <Button size="sm" onClick={handleSubmit} disabled={!body.trim() || !communityId || submitting}
-                  className="rounded-full px-5 shadow-sm shadow-primary/15 hover:shadow-md hover:shadow-primary/20 active:scale-[0.97] transition-all"
+                  className="rounded-full px-5 shadow-sm shadow-primary/15 hover:shadow-md hover:shadow-primary/20 active:scale-[0.97] transition-all shrink-0"
                 >
                   {submitting
                     ? (isEdit ? "Salvando..." : "Publicando...")
