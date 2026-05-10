@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import {
   MessageSquare,
@@ -14,6 +14,10 @@ import {
   EyeOff,
   ExternalLink,
   GripVertical,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Loader2,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,6 +26,9 @@ import { useClasses } from "@/hooks/useClasses";
 import { usePosts } from "@/hooks/usePosts";
 import { useSidebarConfig } from "@/hooks/useSidebarConfig";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useR2Upload } from "@/hooks/useR2Upload";
+import { isR2Url, deleteFromR2 } from "@/lib/r2Upload";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { isCommunityPublic } from "@/types/student";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -30,8 +37,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { FileUpload } from "@/components/ui/FileUpload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const ImageCropDialog = lazy(() =>
+  import("@/components/ui/ImageCropDialog").then((m) => ({ default: m.ImageCropDialog }))
+);
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -482,6 +492,19 @@ function SidebarOrganizerTab() {
 // ---------------------------------------------------------------------------
 function FeedSettingsTab() {
   const { settings, updateSettings, loading } = usePlatformSettings();
+  const { uploadFile } = useR2Upload();
+
+  const coverUrl = settings.feedCoverUrl;
+  const coverPreviewSrc = getProxiedImageUrl(coverUrl);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState("");
+  const [cropOpen, setCropOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showUrl, setShowUrl] = useState(false);
+  const [urlDraft, setUrlDraft] = useState("");
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   async function handleToggle(next: boolean) {
     try {
@@ -493,13 +516,96 @@ function FeedSettingsTab() {
     }
   }
 
-  async function handleCoverChange(url: string) {
+  const persistCoverUrl = useCallback(
+    async (url: string) => {
+      try {
+        await updateSettings({ feedCoverUrl: url });
+      } catch (err) {
+        toast.error("Falha ao salvar capa.");
+        console.error(err);
+        throw err;
+      }
+    },
+    [updateSettings]
+  );
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Maximo: 5MB");
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setCropSrc(objectUrl);
+    setCropOpen(true);
+  }, []);
+
+  const handleCropConfirm = useCallback(
+    async (croppedFile: File) => {
+      setCropOpen(false);
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+      setCropSrc("");
+      setUploading(true);
+      try {
+        const url = await uploadFile({
+          file: croppedFile,
+          folder: "communities/covers",
+          previousUrl: coverUrl,
+          preset: "cover",
+          errorMessage: "Erro no upload. Tente novamente.",
+        });
+        await persistCoverUrl(url);
+        toast.success("Capa atualizada.");
+      } catch (err) {
+        console.error("[FeedCoverUpload]", err);
+      } finally {
+        setUploading(false);
+      }
+    },
+    [cropSrc, coverUrl, uploadFile, persistCoverUrl]
+  );
+
+  const handleCropCancel = useCallback(() => {
+    setCropOpen(false);
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc("");
+  }, [cropSrc]);
+
+  async function handleRemove() {
+    setConfirmRemove(false);
+    if (coverUrl && isR2Url(coverUrl)) {
+      setDeleting(true);
+      try {
+        await deleteFromR2(coverUrl);
+      } catch {
+        // silent — file may already be gone
+      } finally {
+        setDeleting(false);
+      }
+    }
     try {
-      await updateSettings({ feedCoverUrl: url });
-      toast.success(url ? "Capa atualizada." : "Capa removida.");
-    } catch (err) {
-      toast.error("Falha ao atualizar capa.");
-      console.error(err);
+      await persistCoverUrl("");
+      toast.success("Capa removida.");
+    } catch {
+      // toast already shown
+    }
+  }
+
+  async function handleUrlConfirm() {
+    const trimmed = urlDraft.trim();
+    if (!trimmed) return;
+    if (coverUrl && isR2Url(coverUrl)) {
+      deleteFromR2(coverUrl).catch(() => {});
+    }
+    try {
+      await persistCoverUrl(trimmed);
+      toast.success("Capa atualizada.");
+      setUrlDraft("");
+      setShowUrl(false);
+    } catch {
+      // toast already shown
     }
   }
 
@@ -535,21 +641,160 @@ function FeedSettingsTab() {
           <CardTitle className="text-base">Capa do feed</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label className="text-sm">Imagem de capa (opcional)</Label>
             <p className="text-xs text-muted-foreground">
-              Aparece no topo de /comunidade/feed. Recomendado 1920×720.
+              Aparece no topo de /comunidade/feed. Padrão 1920×720 (8:3) — você pode ajustar zoom e posição no recorte.
             </p>
           </div>
-          <FileUpload
-            value={settings.feedCoverUrl}
-            onChange={handleCoverChange}
-            folder="communities/covers"
-            imagePreset="cover"
+
+          <input
+            ref={fileInputRef}
+            type="file"
             accept="image/*"
-            allowUrl
-            maxSizeMB={5}
+            className="hidden"
+            onChange={handleFileSelect}
           />
+
+          {coverUrl ? (
+            <div className="relative group">
+              <div className="aspect-[8/3] rounded-xl overflow-hidden border border-border/50 bg-muted">
+                <img
+                  src={coverPreviewSrc}
+                  alt="Pré-visualização da capa do feed"
+                  className="h-full w-full object-cover"
+                  crossOrigin="anonymous"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              </div>
+              <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/40 transition-colors">
+                <div className="absolute top-2.5 right-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="secondary"
+                    className="h-8 w-8 rounded-full shadow-md"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || deleting}
+                  >
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="h-8 w-8 rounded-full shadow-md"
+                    onClick={() => setConfirmRemove(true)}
+                    disabled={uploading || deleting}
+                  >
+                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="w-full aspect-[8/3] rounded-xl border-2 border-dashed border-border/60 bg-muted/30 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-muted/50 transition-colors"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                  <span className="text-xs text-muted-foreground">Enviando...</span>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Clique para enviar</span>
+                  <span className="text-xs text-muted-foreground/60">Recomendado 1920×720 · Max 5MB</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {!uploading && (
+            <>
+              {showUrl ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={urlDraft}
+                    onChange={(e) => setUrlDraft(e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleUrlConfirm();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleUrlConfirm}
+                    disabled={!urlDraft.trim()}
+                  >
+                    OK
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setShowUrl(false); setUrlDraft(""); }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowUrl(true)}
+                >
+                  <LinkIcon className="h-3 w-3" />
+                  Usar URL externa
+                </button>
+              )}
+            </>
+          )}
+
+          <Suspense fallback={null}>
+            <ImageCropDialog
+              open={cropOpen}
+              onClose={handleCropCancel}
+              onConfirm={handleCropConfirm}
+              imageSrc={cropSrc}
+              aspect={8 / 3}
+              shape="rect"
+              title="Recortar capa do feed"
+              cropObjectFit="horizontal-cover"
+            />
+          </Suspense>
+
+          <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remover capa</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {coverUrl && isR2Url(coverUrl)
+                    ? "A imagem sera excluida permanentemente do servidor. Deseja continuar?"
+                    : "A referencia da imagem sera removida. Deseja continuar?"}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleRemove}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Remover
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>
