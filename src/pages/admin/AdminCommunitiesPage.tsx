@@ -21,6 +21,7 @@ import { useCommunities } from "@/hooks/useCommunities";
 import { useClasses } from "@/hooks/useClasses";
 import { usePosts } from "@/hooks/usePosts";
 import { useSidebarConfig } from "@/hooks/useSidebarConfig";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { isCommunityPublic } from "@/types/student";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -28,6 +29,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { FileUpload } from "@/components/ui/FileUpload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -475,6 +478,85 @@ function SidebarOrganizerTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Feed settings tab (new)
+// ---------------------------------------------------------------------------
+function FeedSettingsTab() {
+  const { settings, updateSettings, loading } = usePlatformSettings();
+
+  async function handleToggle(next: boolean) {
+    try {
+      await updateSettings({ feedEnabled: next });
+      toast.success(next ? "Feed ativado." : "Feed desativado.");
+    } catch (err) {
+      toast.error("Falha ao atualizar visibilidade do feed.");
+      console.error(err);
+    }
+  }
+
+  async function handleCoverChange(url: string) {
+    try {
+      await updateSettings({ feedCoverUrl: url });
+      toast.success(url ? "Capa atualizada." : "Capa removida.");
+    } catch (err) {
+      toast.error("Falha ao atualizar capa.");
+      console.error(err);
+    }
+  }
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      {/* Visibilidade */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Visibilidade do feed</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">
+                {settings.feedEnabled ? "Ativo" : "Desativado"}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Quando desativado, alunos não veem o feed na sidebar nem podem acessar a página. Administradores continuam vendo.
+              </p>
+            </div>
+            <Switch
+              checked={settings.feedEnabled}
+              onCheckedChange={handleToggle}
+              disabled={loading}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Capa */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Capa do feed</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label className="text-sm">Imagem de capa (opcional)</Label>
+            <p className="text-xs text-muted-foreground">
+              Aparece no topo de /comunidade/feed. Recomendado 1920×720.
+            </p>
+          </div>
+          <FileUpload
+            value={settings.feedCoverUrl}
+            onChange={handleCoverChange}
+            folder="communities/covers"
+            imagePreset="cover"
+            accept="image/*"
+            allowUrl
+            maxSizeMB={5}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminCommunitiesPage() {
@@ -495,6 +577,7 @@ export default function AdminCommunitiesPage() {
         <TabsList>
           <TabsTrigger value="communities">Comunidades</TabsTrigger>
           <TabsTrigger value="sidebar">Organizar Sidebar</TabsTrigger>
+          <TabsTrigger value="feed">Feed</TabsTrigger>
         </TabsList>
 
         <TabsContent value="communities" className="mt-4">
@@ -503,6 +586,10 @@ export default function AdminCommunitiesPage() {
 
         <TabsContent value="sidebar" className="mt-4">
           <SidebarOrganizerTab />
+        </TabsContent>
+
+        <TabsContent value="feed" className="mt-4">
+          <FeedSettingsTab />
         </TabsContent>
       </Tabs>
     </div>
