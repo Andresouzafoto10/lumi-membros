@@ -811,6 +811,8 @@ create table if not exists public.platform_settings (
   certificate_background_url  text not null default '',
   certificate_default_text    text not null default '',
   theme                       jsonb not null default '{}'::jsonb,
+  feed_cover_url              text,
+  feed_enabled                boolean not null default true,
   updated_at                  timestamptz not null default now()
 );
 
