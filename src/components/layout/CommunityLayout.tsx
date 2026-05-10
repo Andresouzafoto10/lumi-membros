@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Flame,
   Lock,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,6 +19,8 @@ import { usePosts } from "@/hooks/usePosts";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useSidebarConfig } from "@/hooks/useSidebarConfig";
 import { useCommunityLastSeen } from "@/hooks/useCommunityLastSeen";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { isCommunityPublic } from "@/types/student";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
 
@@ -34,6 +37,9 @@ export function CommunityLayout() {
   const { findProfile } = useProfiles();
   const { items: sidebarItems } = useSidebarConfig();
   const { getLastSeen, markSeen } = useCommunityLastSeen();
+  const { settings } = usePlatformSettings();
+  const { isAdmin } = useAuth();
+  const showFeedNav = settings.feedEnabled || isAdmin;
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -148,21 +154,26 @@ export function CommunityLayout() {
   const leftSidebar = (
     <div className="flex flex-col h-full">
       {/* Feed nav */}
-      <div className="p-3 pb-0">
-        <Link
-          to="/comunidade/feed"
-          onClick={() => setMobileOpen(false)}
-          className={cn(
-            "relative flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium transition-all duration-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-transparent before:transition-colors",
-            isFeed
-              ? "border-border/60 bg-muted/70 text-foreground shadow-sm before:bg-primary"
-              : "text-muted-foreground hover:border-border/40 hover:bg-muted/55 hover:text-foreground hover:before:bg-primary/35"
-          )}
-        >
-          <LayoutGrid className="h-4 w-4" />
-          Feed
-        </Link>
-      </div>
+      {showFeedNav && (
+        <div className="p-3 pb-0">
+          <Link
+            to="/comunidade/feed"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "relative flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium transition-all duration-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-transparent before:transition-colors",
+              isFeed
+                ? "border-border/60 bg-muted/70 text-foreground shadow-sm before:bg-primary"
+                : "text-muted-foreground hover:border-border/40 hover:bg-muted/55 hover:text-foreground hover:before:bg-primary/35"
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Feed
+            {!settings.feedEnabled && isAdmin && (
+              <EyeOff className="h-3.5 w-3.5 ml-auto text-amber-500/80" />
+            )}
+          </Link>
+        </div>
+      )}
 
       {/* Communities */}
       {fullSidebarList.length > 0 && (
