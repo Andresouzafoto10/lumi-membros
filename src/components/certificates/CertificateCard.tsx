@@ -81,37 +81,37 @@ export const CertificateCard = memo(function CertificateCard({ certificate }: Pr
           <CertificateRenderer template={certData.template} data={certData} />
         </div>
 
-        <CardContent className="p-4 space-y-3">
-          <p className="font-semibold text-sm">{course.title}</p>
+        <CardContent className="p-2.5 sm:p-4 space-y-2 sm:space-y-3">
+          <p className="font-semibold text-xs sm:text-sm line-clamp-2">{course.title}</p>
 
-          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Calendar className="h-3 w-3" />
-              Concluído em{" "}
-              {format(new Date(certificate.earnedAt), "dd 'de' MMMM 'de' yyyy", {
-                locale: ptBR,
-              })}
+          <div className="flex flex-col gap-1 text-[10px] sm:text-xs text-muted-foreground">
+            <span className="flex items-center gap-1 sm:gap-1.5">
+              <Calendar className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                {format(new Date(certificate.earnedAt), "dd/MM/yyyy", { locale: ptBR })}
+              </span>
             </span>
             {(course.certificateConfig?.hoursLoad ?? 0) > 0 && (
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-3 w-3" />
-                Carga: {course.certificateConfig?.hoursLoad} horas
+              <span className="flex items-center gap-1 sm:gap-1.5">
+                <Clock className="h-3 w-3 shrink-0" />
+                <span className="truncate">{course.certificateConfig?.hoursLoad}h</span>
               </span>
             )}
           </div>
 
           <Button
             size="sm"
-            className="w-full gap-1.5"
+            className="w-full gap-1.5 text-xs sm:text-sm h-8 sm:h-9 px-2"
             onClick={handleDownload}
             disabled={downloading}
           >
             {downloading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
             ) : (
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-3.5 w-3.5 shrink-0" />
             )}
-            Baixar Certificado PNG
+            <span className="sm:hidden">Baixar PNG</span>
+            <span className="hidden sm:inline">Baixar Certificado PNG</span>
           </Button>
         </CardContent>
       </Card>

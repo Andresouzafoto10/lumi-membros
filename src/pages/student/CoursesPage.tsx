@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
-import { BookOpen, SearchX } from "lucide-react";
+import { BookOpen, SearchX, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -131,8 +131,8 @@ export default function CoursesPage() {
       <UpcomingLiveBanner />
 
       {/* Continue watching + session filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div className="min-w-0">
+      <div className="flex flex-row items-stretch gap-2 sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0 flex-1">
           {lastWatched && (
             <ContinueWatching
               courseId={lastWatched.courseId}
@@ -143,7 +143,11 @@ export default function CoursesPage() {
           )}
         </div>
         <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
-          <SelectTrigger className="w-full shrink-0 sm:w-[200px]">
+          <SelectTrigger
+            aria-label="Filtrar sessao"
+            className="w-10 h-10 shrink-0 px-0 justify-center sm:w-[200px] sm:px-3 sm:justify-between [&>span]:hidden sm:[&>span]:line-clamp-1 [&>svg.lucide-chevron-down]:hidden sm:[&>svg.lucide-chevron-down]:block"
+          >
+            <Filter className="h-4 w-4 sm:hidden" />
             <SelectValue placeholder="Todas as sessoes" />
           </SelectTrigger>
           <SelectContent>
@@ -189,7 +193,7 @@ export default function CoursesPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
             {enrolledCourses.map((course, idx) => (
               <div
                 key={course.id}
@@ -273,7 +277,7 @@ export default function CoursesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
               {activeCourses.map((course, idx) => {
                 const hasAccess = isAdmin || enrolledCourseIds.has(course.id);
 

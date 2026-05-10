@@ -71,7 +71,7 @@ export default function MyCertificatesPage() {
           description="Complete os cursos para ganhar seus certificados. Cada curso pode ter um percentual mínimo de conclusão necessário."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
           {earnedCerts.map((cert) => (
             <CertificateCard key={cert.id} certificate={cert} />
           ))}

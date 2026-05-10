@@ -145,9 +145,9 @@ export const CourseCard = memo(function CourseCard({
         )}
       </div>
 
-      <CardContent className="p-5">
-        <h3 className="text-base font-semibold leading-snug line-clamp-2">{title}</h3>
-        <p className="mt-1.5 text-sm text-muted-foreground line-clamp-2">
+      <CardContent className="p-3 sm:p-5">
+        <h3 className="text-sm sm:text-base font-semibold leading-snug line-clamp-2">{title}</h3>
+        <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-muted-foreground line-clamp-2">
           {description}
         </p>
 
@@ -155,7 +155,7 @@ export const CourseCard = memo(function CourseCard({
           <Button
             size="sm"
             variant={interested ? "default" : "outline"}
-            className="mt-3 w-full gap-2"
+            className="mt-2 sm:mt-3 w-full gap-2"
             onClick={handleNotifyClick}
           >
             {interested ? <BellRing className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
@@ -164,16 +164,16 @@ export const CourseCard = memo(function CourseCard({
         )}
 
         {progressPercent != null && !locked && !isUpcoming && (
-          <div className="mt-3 space-y-1.5">
+          <div className="mt-2 sm:mt-3 space-y-1 sm:space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">
                 Progresso
               </span>
-              <span className="text-xs font-semibold text-primary">
+              <span className="text-[10px] sm:text-xs font-semibold text-primary">
                 {Math.round(progressPercent)}%
               </span>
             </div>
-            <Progress value={progressPercent} className="h-1.5" />
+            <Progress value={progressPercent} className="h-1 sm:h-1.5" />
           </div>
         )}
       </CardContent>
