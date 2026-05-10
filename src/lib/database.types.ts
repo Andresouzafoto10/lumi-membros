@@ -731,6 +731,8 @@ export interface Database {
           pwa_icon_url: string | null;
           pwa_theme_color: string | null;
           pwa_background_color: string | null;
+          feed_cover_url: string | null;
+          feed_enabled: boolean;
         };
         Insert: {
           id?: string;
@@ -750,6 +752,8 @@ export interface Database {
           pwa_icon_url?: string | null;
           pwa_theme_color?: string | null;
           pwa_background_color?: string | null;
+          feed_cover_url?: string | null;
+          feed_enabled?: boolean;
         };
         Update: {
           id?: string;
@@ -769,6 +773,8 @@ export interface Database {
           pwa_icon_url?: string | null;
           pwa_theme_color?: string | null;
           pwa_background_color?: string | null;
+          feed_cover_url?: string | null;
+          feed_enabled?: boolean;
         };
       };
 
