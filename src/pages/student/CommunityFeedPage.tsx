@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { Plus, PenSquare } from "lucide-react";
+import { Plus, PenSquare, Lock } from "lucide-react";
 
+import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCommunities } from "@/hooks/useCommunities";
 import { usePosts } from "@/hooks/usePosts";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useRestrictions } from "@/hooks/useRestrictions";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +28,8 @@ export default function CommunityFeedPage() {
   const { getFeedPosts, getPostsByHashtag } = usePosts();
   const { findProfile } = useProfiles();
   const { isRestricted } = useRestrictions();
+  const { settings } = usePlatformSettings();
+  const { isAdmin } = useAuth();
 
   const [searchParams] = useSearchParams();
   const tagFilter = searchParams.get("tag");
@@ -84,8 +88,30 @@ export default function CommunityFeedPage() {
     };
   }, [location.hash, feedPosts.length]);
 
+  if (!settings.feedEnabled && !isAdmin) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        <EmptyState
+          icon={Lock}
+          title="Feed indisponível"
+          description="O feed da comunidade está temporariamente desativado."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      {settings.feedCoverUrl && (
+        <div className="-mx-4 sm:mx-0">
+          <img
+            src={getProxiedImageUrl(settings.feedCoverUrl)}
+            alt=""
+            className="w-full h-[120px] sm:h-[200px] object-cover sm:rounded-xl"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -95,6 +121,11 @@ export default function CommunityFeedPage() {
           {tagFilter && (
             <Badge variant="secondary" className="text-xs">
               {feedPosts.length} post{feedPosts.length !== 1 ? "s" : ""}
+            </Badge>
+          )}
+          {!settings.feedEnabled && isAdmin && !tagFilter && (
+            <Badge variant="outline" className="border-amber-500/30 text-amber-600 text-[10px]">
+              Desativado para alunos
             </Badge>
           )}
         </div>
