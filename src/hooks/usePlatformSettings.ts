@@ -13,6 +13,8 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   certificateBackgroundUrl: "",
   certificateDefaultText:
     "Certificamos que {{nome}} concluiu com êxito o curso {{curso}}, com carga horária de {{horas}} horas.",
+  feedCoverUrl: "",
+  feedEnabled: true,
   theme: {
     dark: {
       primary: "#ff7b00",
@@ -104,6 +106,8 @@ async function fetchSettings(): Promise<PlatformSettings> {
     pwaThemeColor: (data.pwa_theme_color as string) ?? null,
     pwaBackgroundColor: (data.pwa_background_color as string) ?? null,
     loginCoverUrl: (data.login_cover_url as string) ?? null,
+    feedCoverUrl: (data.feed_cover_url as string | null) ?? "",
+    feedEnabled: (data.feed_enabled as boolean | null) ?? true,
     showMyCourses: (data.show_my_courses as boolean | null) ?? true,
   };
 }
@@ -146,6 +150,8 @@ export function usePlatformSettings() {
       if (patch.pwaThemeColor !== undefined) dbPatch.pwa_theme_color = patch.pwaThemeColor;
       if (patch.pwaBackgroundColor !== undefined) dbPatch.pwa_background_color = patch.pwaBackgroundColor;
       if (patch.loginCoverUrl !== undefined) dbPatch.login_cover_url = patch.loginCoverUrl;
+      if (patch.feedCoverUrl !== undefined) dbPatch.feed_cover_url = patch.feedCoverUrl;
+      if (patch.feedEnabled !== undefined) dbPatch.feed_enabled = patch.feedEnabled;
       if (patch.showMyCourses !== undefined) dbPatch.show_my_courses = patch.showMyCourses;
       const { error } = await supabase
         .from("platform_settings")
