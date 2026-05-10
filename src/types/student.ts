@@ -103,6 +103,8 @@ export type PlatformSettings = {
   pwaThemeColor?: string | null;
   pwaBackgroundColor?: string | null;
   loginCoverUrl?: string | null;
+  feedCoverUrl: string;
+  feedEnabled: boolean;
   showMyCourses?: boolean;
 };
 
