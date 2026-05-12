@@ -18,7 +18,7 @@
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `supabase/migrations/20260512000001_banner_media_type.sql` | Create | Add `media_type` column with check constraint |
+| `supabase/migrations/20260512000006_banner_media_type.sql` | Create | Add `media_type` column with check constraint |
 | `supabase/migrations/001_initial_schema.sql` | Modify (lines 256–270) | Mirror new column in initial schema |
 | `src/types/course.ts` | Modify (lines 153–168) | Add `CourseBannerMediaType` + extend `CourseBanner` |
 | `src/lib/database.types.ts` | Modify | Add `media_type` to `course_banners` Row/Insert/Update types |
@@ -33,12 +33,12 @@
 ## Task 1: Database migration
 
 **Files:**
-- Create: `supabase/migrations/20260512000001_banner_media_type.sql`
+- Create: `supabase/migrations/20260512000006_banner_media_type.sql`
 - Modify: `supabase/migrations/001_initial_schema.sql:256-270`
 
 - [ ] **Step 1: Write the migration file**
 
-Create `supabase/migrations/20260512000001_banner_media_type.sql`:
+Create `supabase/migrations/20260512000006_banner_media_type.sql`:
 
 ```sql
 -- Add media_type column to course_banners for video / canva embed support.
@@ -93,7 +93,7 @@ In `supabase/migrations/001_initial_schema.sql`, find the `course_banners` defin
 - [ ] **Step 6: Commit**
 
 ```bash
-git add supabase/migrations/20260512000001_banner_media_type.sql supabase/migrations/001_initial_schema.sql
+git add supabase/migrations/20260512000006_banner_media_type.sql supabase/migrations/001_initial_schema.sql
 git commit -m "feat(db): add media_type to course_banners for video/embed support"
 ```
 
