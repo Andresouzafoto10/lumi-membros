@@ -382,6 +382,9 @@ All tables have RLS enabled. Key patterns:
 - **`notify-digest`** — Weekly email digest for students with `email_notifications` enabled. Summarizes recent posts, badges earned, mentions. Uses shared HTML template. Logs to `email_notification_log`.
 - **`email-scheduler`** — Scheduled email dispatcher for delayed automations. Handles: `access_reminder_7d` (students inactive 7+ days, max 1x per student) and `community_inactive_30d` (students who haven't posted in 30 days, max 1x per month). Checks automation active status and deduplicates via `email_notification_log`. Also runs `cleanup_old_notifications()` to auto-remove read notifications older than 30 days.
 - **`resend-access-email`** — Admin-only function to resend platform access via magic link. Validates JWT + admin role, generates magic link via `supabase.auth.admin.generateLink()`, sends via Resend with branded template. Logs to `email_notification_log`.
+- **`webhook-intake`** — Generic webhook receiver for sales platforms (Ticto, Hotmart, Eduzz, Monetizze, Cakto). Validates HMAC signature against `webhook_platforms.secret_key` (Cakto fallback: secret carried in JSON body). Normalizes events to lifecycle states (approved / subscription_active / refunded / chargeback / canceled / pending), extracts student data, idempotency via `transaction_id`, looks up `webhook_mappings` to find target classes, creates profile + enrollments (or revokes), sends welcome + access email for brand-new users. Logs to `webhook_logs` and notifies admins on unmapped products.
+- **`cakto-api`** — Admin-only proxy to Cakto REST API. Caches OAuth2 access token in `cakto_oauth_tokens` (10h TTL). Supported actions: `list_products`, `list_webhooks`, `get_webhook`, `create_webhook`, `delete_webhook`, `test_webhook`, `get_orders`. Used by the integrations admin page to register webhooks programmatically and populate product dropdowns. Requires `CAKTO_CLIENT_ID` and `CAKTO_CLIENT_SECRET` secrets.
+- **`cakto-reconcile`** — Reconciliation worker for Cakto orders. Polls `/public_api/orders/` for the last N hours (default 24, max 168), matches each approved order against `webhook_mappings`, and creates missing enrollments. Idempotent against `webhook_logs.transaction_id`. Triggered manually from the integrations admin page or on a cron schedule via `x-cron-secret` header (env `CAKTO_RECONCILE_CRON_SECRET`).
 
 ## Environment Variables (.env.example)
 
@@ -413,13 +416,20 @@ R2 credentials are **server-only**. Never add `VITE_` to `R2_ACCESS_KEY`, `R2_SE
 | `RESEND_API_KEY` | Resend email service API key |
 | `JWT_SECRET` | Secret for JWT validation in Edge Functions |
 | `TICTO_WEBHOOK_SECRET` | Ticto payment webhook secret |
+| `CAKTO_CLIENT_ID` | Cakto API OAuth2 client_id (used by `cakto-api` and `cakto-reconcile`) |
+| `CAKTO_CLIENT_SECRET` | Cakto API OAuth2 client_secret |
+| `CAKTO_RECONCILE_CRON_SECRET` | Optional shared secret to invoke `cakto-reconcile` from a cron job without an admin JWT (set as `x-cron-secret` header) |
 
 Legacy aliases `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` are still accepted by the current `r2-presigned` implementation for compatibility, but new setups should use `R2_ACCESS_KEY` and `R2_SECRET_KEY`.
 
 ## Planned Integrations (Not Yet Implemented)
 
-- **Ticto webhooks** — Payment integration for automatic enrollment
 - **Stripe** — Payment processing (publishable key configured but no checkout flow)
+
+## Active Integrations
+
+- **Sales webhooks (Ticto, Hotmart, Eduzz, Monetizze, Cakto)** — Unified pipeline via `webhook-intake`. Admin manages everything from `/admin/configuracoes/integracoes`. Tables: `webhook_platforms`, `webhook_mappings`, `webhook_logs`.
+- **Cakto REST API** — Admin-only access via `cakto-api` (list/create/test/delete webhooks, list products/orders) and `cakto-reconcile` (catch-up enrollment for dropped webhooks).
 
 ## Agent Ecosystem — LUMI-CEO ATIVO
 

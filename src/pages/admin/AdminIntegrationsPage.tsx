@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Plug2, Copy, Check, Plus, Trash2, Pencil, ExternalLink, Eye, EyeOff } from "lucide-react";
+import { Plug2, Copy, Check, Plus, Trash2, Pencil, ExternalLink, Eye, EyeOff, RefreshCw, Zap, PackageSearch, ChevronDown, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { useWebhookIntegrations, PLATFORM_SLUGS } from "@/hooks/useWebhookIntegrations";
 import type { WebhookPlatform, PlatformSlug } from "@/hooks/useWebhookIntegrations";
 import { useClasses } from "@/hooks/useClasses";
+import { useCaktoProducts, useCaktoOffers, useCaktoActions } from "@/hooks/useCaktoApi";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -54,6 +61,7 @@ const PLATFORM_LOGOS: Record<string, string> = {
   hotmart: "🔥",
   eduzz: "🟣",
   monetizze: "🟡",
+  cakto: "🟠",
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -61,6 +69,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   hotmart: "Hotmart",
   eduzz: "Eduzz",
   monetizze: "Monetizze",
+  cakto: "Cakto",
 };
 
 const STATUS_BADGE: Record<string, { label: string; variant: "default" | "destructive" | "secondary" | "outline" }> = {
@@ -111,6 +120,7 @@ export default function AdminIntegrationsPage() {
   // Mapping dialog (add or edit)
   const [mappingDialog, setMappingDialog] = useState<{ platformId: string; editingId?: string } | null>(null);
   const [mappingProductId, setMappingProductId] = useState("");
+  const [mappingOfferId, setMappingOfferId] = useState<string>("");
   const [mappingClassIds, setMappingClassIds] = useState<string[]>([]);
 
   // Delete mapping confirm
@@ -178,21 +188,29 @@ export default function AdminIntegrationsPage() {
   const handleSaveMapping = async () => {
     if (!mappingDialog || !mappingProductId.trim() || mappingClassIds.length === 0) return;
     try {
+      const offerIdTrimmed = mappingOfferId.trim() || null;
       if (mappingDialog.editingId) {
         await updateMapping(mappingDialog.editingId, {
           external_product_id: mappingProductId.trim(),
+          external_offer_id: offerIdTrimmed,
           class_ids: mappingClassIds,
         });
         toast.success("Mapeamento atualizado");
       } else {
-        await addMapping(mappingDialog.platformId, mappingProductId.trim(), mappingClassIds);
+        await addMapping(
+          mappingDialog.platformId,
+          mappingProductId.trim(),
+          mappingClassIds,
+          offerIdTrimmed
+        );
         toast.success("Mapeamento criado");
       }
       setMappingDialog(null);
       setMappingProductId("");
+      setMappingOfferId("");
       setMappingClassIds([]);
-    } catch {
-      toast.error("Erro ao salvar mapeamento");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar mapeamento");
     }
   };
 
@@ -350,6 +368,15 @@ export default function AdminIntegrationsPage() {
                   </div>
                 </div>
               </CardContent>
+              {p.slug === "cakto" && p.active && (
+                <CaktoActionsRow
+                  platform={p}
+                  webhookUrl={webhookUrlFor(p)}
+                  onSecretReceived={(secret) =>
+                    updatePlatform(p.id, { secret_key: secret })
+                  }
+                />
+              )}
             </Card>
           ))}
         </TabsContent>
@@ -378,7 +405,7 @@ export default function AdminIntegrationsPage() {
                       {p.label ?? p.name}
                       <Badge variant="outline" className="text-[10px]">{pMappings.length} mapeamento(s)</Badge>
                     </CardTitle>
-                    <Button size="sm" onClick={() => { setMappingDialog({ platformId: p.id }); setMappingProductId(""); setMappingClassIds([]); }}>
+                    <Button size="sm" onClick={() => { setMappingDialog({ platformId: p.id }); setMappingProductId(""); setMappingOfferId(""); setMappingClassIds([]); }}>
                       <Plus className="mr-1 h-4 w-4" />
                       Adicionar
                     </Button>
@@ -398,6 +425,11 @@ export default function AdminIntegrationsPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start gap-2 flex-wrap">
                                 <span className="font-mono text-xs bg-background px-1.5 py-0.5 rounded border shrink-0">{m.externalProductId}</span>
+                                {m.externalOfferId && (
+                                  <Badge variant="outline" className="text-[10px] font-mono">
+                                    oferta: {m.externalOfferId}
+                                  </Badge>
+                                )}
                                 <span className="text-muted-foreground shrink-0">→</span>
                                 <div className="flex flex-wrap gap-1">
                                   {classNames.length === 0 ? (
@@ -419,6 +451,7 @@ export default function AdminIntegrationsPage() {
                               onClick={() => {
                                 setMappingDialog({ platformId: p.id, editingId: m.id });
                                 setMappingProductId(m.externalProductId);
+                                setMappingOfferId(m.externalOfferId ?? "");
                                 setMappingClassIds(m.classIds);
                               }}
                             >
@@ -619,7 +652,30 @@ export default function AdminIntegrationsPage() {
               <p className="text-xs text-muted-foreground">
                 Identificador do produto/oferta que vem no payload do webhook.
               </p>
+              {mappingDialog &&
+                platforms.find((pp) => pp.id === mappingDialog.platformId)?.slug === "cakto" && (
+                  <CaktoProductPicker onSelect={(id) => setMappingProductId(String(id))} />
+                )}
             </div>
+
+            {mappingDialog &&
+              platforms.find((pp) => pp.id === mappingDialog.platformId)?.slug === "cakto" && (
+                <div className="space-y-1.5">
+                  <Label>Oferta Cakto (opcional)</Label>
+                  <Input
+                    value={mappingOfferId}
+                    onChange={(e) => setMappingOfferId(e.target.value)}
+                    placeholder="Ex: a8BcHrY — deixe vazio para qualquer oferta"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use ofertas para liberar turmas diferentes conforme a oferta paga (ex: oferta A → 1 ano de acesso, oferta B → vitalício). Vazio = matches qualquer oferta do produto.
+                  </p>
+                  <CaktoOfferPicker
+                    productId={mappingProductId}
+                    onSelect={(id) => setMappingOfferId(String(id))}
+                  />
+                </div>
+              )}
             <div className="space-y-1.5">
               <Label>Turmas liberadas na compra</Label>
               <div className="max-h-64 overflow-y-auto rounded-md border bg-muted/30 p-2 space-y-1">
@@ -699,6 +755,600 @@ export default function AdminIntegrationsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Cakto-specific actions row (rendered below the Cakto platform card)
+// ---------------------------------------------------------------------------
+
+const CAKTO_DEFAULT_EVENTS = [
+  "purchase_approved",
+  "refund",
+  "chargeback",
+  "subscription_created",
+  "subscription_canceled",
+  "subscription_renewed",
+  "subscription_renewal_refused",
+];
+
+// PT-BR labels for every event Cakto supports (per OpenAPI EventType schema).
+const CAKTO_EVENT_LABELS: Record<string, string> = {
+  purchase_approved: "Compra aprovada",
+  purchase_refused: "Compra recusada",
+  refund: "Reembolso",
+  chargeback: "Chargeback",
+  subscription_created: "Assinatura criada",
+  subscription_renewed: "Assinatura renovada",
+  subscription_canceled: "Assinatura cancelada",
+  subscription_renewal_refused: "Renovação de assinatura recusada",
+  pix_gerado: "PIX gerado",
+  boleto_gerado: "Boleto gerado",
+  picpay_gerado: "PicPay gerado",
+  openfinance_nubank_gerado: "Open Finance Nubank gerado",
+  initiate_checkout: "Início de checkout",
+  checkout_abandonment: "Abandono de carrinho",
+};
+
+// Grouped events for clearer UX in the auto-create dialog.
+const CAKTO_EVENT_GROUPS: Array<{ title: string; description: string; events: string[] }> = [
+  {
+    title: "Acesso ao curso (recomendado)",
+    description: "Liberam ou revogam matrículas automaticamente.",
+    events: [
+      "purchase_approved",
+      "refund",
+      "chargeback",
+      "subscription_created",
+      "subscription_renewed",
+      "subscription_canceled",
+      "subscription_renewal_refused",
+    ],
+  },
+  {
+    title: "Pagamentos pendentes",
+    description: "Notifica boleto/PIX/PicPay/Nubank gerado mas ainda não pago.",
+    events: ["pix_gerado", "boleto_gerado", "picpay_gerado", "openfinance_nubank_gerado"],
+  },
+  {
+    title: "Funil de checkout",
+    description: "Eventos de marketing/funil (não afetam matrícula).",
+    events: ["initiate_checkout", "checkout_abandonment", "purchase_refused"],
+  },
+];
+
+function CaktoActionsRow({
+  platform,
+  webhookUrl,
+  onSecretReceived,
+}: {
+  platform: WebhookPlatform;
+  webhookUrl: string;
+  onSecretReceived: (secret: string) => void | Promise<void>;
+}) {
+  const { busy, createWebhook, reconcile } = useCaktoActions();
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [reconcileSummary, setReconcileSummary] = useState<{
+    processed: number;
+    created: number;
+    skipped: number;
+    errors: number;
+  } | null>(null);
+
+  // Auto-create webhook dialog state
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [selectedEvents, setSelectedEvents] = useState<string[]>(CAKTO_DEFAULT_EVENTS);
+  const { data: caktoProducts, isLoading: loadingProducts, error: productsError } =
+    useCaktoProducts(createOpen);
+
+  const handleSync = async () => {
+    try {
+      const res = await reconcile({ hours: 24 });
+      setReconcileSummary({
+        processed: res.processed,
+        created: res.created,
+        skipped: res.skipped,
+        errors: res.errors,
+      });
+      setReconcileOpen(true);
+      toast.success(
+        `Sincronização concluída: ${res.created} matrículas criadas, ${res.skipped} ignoradas`
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+    }
+  };
+
+  const handleCreateConfirm = async () => {
+    if (selectedProductIds.length === 0) {
+      toast.error("Selecione pelo menos 1 produto.");
+      return;
+    }
+    if (selectedEvents.length === 0) {
+      toast.error("Selecione pelo menos 1 evento.");
+      return;
+    }
+    try {
+      const w = (await createWebhook({
+        name: `Master Membros - ${platform.label ?? platform.name}`,
+        url: webhookUrl,
+        products: selectedProductIds,
+        events: selectedEvents,
+      })) as { fields?: { secret?: string } } | undefined;
+      const secret = w?.fields?.secret;
+      if (secret) {
+        await onSecretReceived(secret);
+        toast.success("Webhook criado na Cakto e secret salvo automaticamente.");
+      } else {
+        toast.success("Webhook criado na Cakto. Verifique o secret em Configurar.");
+      }
+      setCreateOpen(false);
+      setSelectedProductIds([]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao criar webhook na Cakto");
+    }
+  };
+
+  return (
+    <>
+      <div className="border-t bg-muted/30 px-4 py-2.5 flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="text-[10px] font-mono">
+          OAuth via secrets
+        </Badge>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleSync}
+          disabled={busy === "reconcile"}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${busy === "reconcile" ? "animate-spin" : ""}`} />
+          Sincronizar pedidos 24h
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setCreateOpen(true)}
+          disabled={busy === "create_webhook"}
+        >
+          <Zap className="h-3.5 w-3.5 mr-1.5" />
+          Auto-criar webhook na Cakto
+        </Button>
+        <span className="text-[11px] text-muted-foreground ml-auto">
+          Reconciliação: pedidos aprovados que perderam o webhook viram matrículas.
+        </span>
+      </div>
+
+      {/* Auto-create webhook dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Auto-criar webhook na Cakto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 overflow-y-auto flex-1 -mx-1 px-1">
+            <div className="space-y-1.5">
+              <Label>URL de destino</Label>
+              <code className="block text-[11px] text-muted-foreground bg-muted px-2 py-1.5 rounded break-all">
+                {webhookUrl}
+              </code>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Produtos Cakto (obrigatório) — selecione 1 ou mais</Label>
+              <CaktoProductDropdown
+                products={caktoProducts ?? []}
+                loading={loadingProducts}
+                error={productsError instanceof Error ? productsError.message : null}
+                selectedIds={selectedProductIds}
+                onChange={setSelectedProductIds}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Eventos da Cakto</Label>
+              <div className="rounded-md border bg-muted/30 p-2 space-y-3">
+                {CAKTO_EVENT_GROUPS.map((group) => (
+                  <div key={group.title}>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {group.title}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allOn = group.events.every((e) => selectedEvents.includes(e));
+                          setSelectedEvents((prev) => {
+                            if (allOn) {
+                              return prev.filter((e) => !group.events.includes(e));
+                            }
+                            const set = new Set(prev);
+                            for (const e of group.events) set.add(e);
+                            return Array.from(set);
+                          });
+                        }}
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        {group.events.every((e) => selectedEvents.includes(e))
+                          ? "Desmarcar grupo"
+                          : "Marcar grupo"}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mb-1.5">
+                      {group.description}
+                    </p>
+                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                      {group.events.map((ev) => {
+                        const checked = selectedEvents.includes(ev);
+                        return (
+                          <label
+                            key={ev}
+                            className="flex items-start gap-2 px-1.5 py-1 rounded-md hover:bg-muted cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => {
+                                setSelectedEvents((prev) =>
+                                  v === true ? [...prev, ev] : prev.filter((x) => x !== ev)
+                                );
+                              }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs">{CAKTO_EVENT_LABELS[ev] ?? ev}</p>
+                              <code className="text-[10px] text-muted-foreground">{ev}</code>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Padrão: pré-selecionados apenas os eventos que afetam acesso ao curso.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleCreateConfirm}
+              disabled={busy === "create_webhook" || selectedProductIds.length === 0 || selectedEvents.length === 0}
+            >
+              {busy === "create_webhook" ? "Criando..." : "Criar webhook"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reconcileOpen} onOpenChange={setReconcileOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sincronização Cakto (24h)</DialogTitle>
+          </DialogHeader>
+          {reconcileSummary && (
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <Stat label="Processados" value={reconcileSummary.processed} />
+              <Stat label="Matrículas criadas" value={reconcileSummary.created} tone="success" />
+              <Stat label="Ignorados" value={reconcileSummary.skipped} />
+              <Stat label="Erros" value={reconcileSummary.errors} tone={reconcileSummary.errors > 0 ? "error" : undefined} />
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setReconcileOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+const CAKTO_ALL_EVENTS = [
+  "purchase_approved",
+  "purchase_refused",
+  "refund",
+  "chargeback",
+  "subscription_created",
+  "subscription_renewed",
+  "subscription_canceled",
+  "subscription_renewal_refused",
+  "initiate_checkout",
+  "checkout_abandonment",
+  "pix_gerado",
+  "boleto_gerado",
+  "picpay_gerado",
+  "openfinance_nubank_gerado",
+];
+
+type CaktoProductMin = { id: string | number; name: string; custom_id?: string };
+
+function CaktoProductDropdown({
+  products,
+  loading,
+  error,
+  selectedIds,
+  onChange,
+}: {
+  products: CaktoProductMin[];
+  loading: boolean;
+  error: string | null;
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [search, setSearch] = useState("");
+
+  const productById = useMemo(() => {
+    const m: Record<string, CaktoProductMin> = {};
+    for (const p of products) {
+      const id = String(p.custom_id ?? p.id);
+      m[id] = p;
+    }
+    return m;
+  }, [products]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => {
+      const id = String(p.custom_id ?? p.id);
+      return p.name.toLowerCase().includes(q) || id.toLowerCase().includes(q);
+    });
+  }, [products, search]);
+
+  const toggle = (id: string) => {
+    onChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id]
+    );
+  };
+
+  const triggerLabel = loading
+    ? "Carregando produtos..."
+    : error
+    ? "Erro ao buscar produtos"
+    : products.length === 0
+    ? "Nenhum produto na Cakto"
+    : selectedIds.length === 0
+    ? "Clique para selecionar produtos"
+    : `${selectedIds.length} produto${selectedIds.length === 1 ? "" : "s"} selecionado${selectedIds.length === 1 ? "" : "s"}`;
+
+  return (
+    <div className="space-y-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={loading || !!error || products.length === 0}
+            className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className={selectedIds.length === 0 ? "text-muted-foreground" : ""}>
+              {triggerLabel}
+            </span>
+            <ChevronDown className="h-4 w-4 opacity-60" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="w-[--radix-dropdown-menu-trigger-width] p-0"
+          align="start"
+        >
+          <div className="border-b p-2">
+            <Input
+              autoFocus
+              placeholder="Buscar produto..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+                Nenhum produto encontrado.
+              </p>
+            ) : (
+              filtered.map((p) => {
+                const id = String(p.custom_id ?? p.id);
+                const checked = selectedIds.includes(id);
+                return (
+                  <DropdownMenuItem
+                    key={id}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      toggle(id);
+                    }}
+                    className="flex cursor-pointer items-center gap-2"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggle(id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <code className="shrink-0 rounded bg-muted px-1 text-[10px]">
+                      {id.slice(0, 8)}
+                    </code>
+                    <span className="truncate text-sm">{p.name}</span>
+                  </DropdownMenuItem>
+                );
+              })
+            )}
+          </div>
+          {selectedIds.length > 0 && (
+            <div className="flex items-center justify-between border-t px-2 py-1.5 text-[11px] text-muted-foreground">
+              <span>{selectedIds.length} selecionado(s)</span>
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="text-destructive hover:underline"
+              >
+                Limpar
+              </button>
+            </div>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {error && (
+        <p className="text-xs text-destructive">{error}</p>
+      )}
+
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedIds.map((id) => {
+            const p = productById[id];
+            const label = p ? p.name : id;
+            return (
+              <Badge
+                key={id}
+                variant="secondary"
+                className="gap-1 pr-1 pl-2 py-0.5 text-[11px]"
+              >
+                <span className="truncate max-w-[180px]">{label}</span>
+                <button
+                  type="button"
+                  onClick={() => toggle(id)}
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                  aria-label={`Remover ${label}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "success" | "error";
+}) {
+  const color =
+    tone === "success"
+      ? "text-green-500"
+      : tone === "error"
+      ? "text-destructive"
+      : "text-foreground";
+  return (
+    <div className="rounded-md border bg-background p-3">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className={`text-xl font-semibold ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+function CaktoOfferPicker({
+  productId,
+  onSelect,
+}: {
+  productId: string;
+  onSelect: (id: string | number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { data: offers, isLoading, error } = useCaktoOffers(open, productId || undefined);
+
+  return (
+    <div className="rounded-md border bg-background/50 p-2 space-y-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+      >
+        <PackageSearch className="h-3.5 w-3.5" />
+        {open ? "Esconder ofertas Cakto" : "Buscar ofertas Cakto"}
+        {productId && (
+          <span className="text-[10px] text-muted-foreground">
+            (filtrado por produto {productId.slice(0, 8)})
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="max-h-40 overflow-y-auto rounded border bg-muted/30 p-1.5 space-y-1">
+          {isLoading && <p className="text-[11px] text-muted-foreground px-1.5 py-1">Carregando...</p>}
+          {error && (
+            <p className="text-[11px] text-destructive px-1.5 py-1">
+              {error instanceof Error ? error.message : "Erro ao buscar ofertas"}
+            </p>
+          )}
+          {!isLoading && !error && (!offers || offers.length === 0) && (
+            <p className="text-[11px] text-muted-foreground px-1.5 py-1">
+              {productId
+                ? "Nenhuma oferta encontrada para este produto."
+                : "Nenhuma oferta encontrada na conta Cakto."}
+            </p>
+          )}
+          {offers?.map((o) => (
+            <button
+              key={String(o.id)}
+              type="button"
+              onClick={() => onSelect(o.short_id ?? o.id)}
+              className="w-full text-left flex items-center gap-2 px-2 py-1 rounded hover:bg-muted text-xs"
+            >
+              <code className="text-[10px] bg-background px-1 rounded shrink-0">
+                {String(o.short_id ?? o.id)}
+              </code>
+              <span className="truncate flex-1">{o.name}</span>
+              {typeof o.price === "number" && (
+                <span className="text-[10px] text-muted-foreground shrink-0">
+                  R$ {o.price.toFixed(2)}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CaktoProductPicker({ onSelect }: { onSelect: (id: string | number) => void }) {
+  const [open, setOpen] = useState(false);
+  const { data: products, isLoading, error } = useCaktoProducts(open);
+
+  return (
+    <div className="rounded-md border bg-background/50 p-2 space-y-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+      >
+        <PackageSearch className="h-3.5 w-3.5" />
+        {open ? "Esconder lista de produtos Cakto" : "Buscar produtos Cakto"}
+      </button>
+      {open && (
+        <div className="max-h-40 overflow-y-auto rounded border bg-muted/30 p-1.5 space-y-1">
+          {isLoading && <p className="text-[11px] text-muted-foreground px-1.5 py-1">Carregando...</p>}
+          {error && (
+            <p className="text-[11px] text-destructive px-1.5 py-1">
+              {error instanceof Error ? error.message : "Erro ao buscar produtos"}
+            </p>
+          )}
+          {!isLoading && !error && (!products || products.length === 0) && (
+            <p className="text-[11px] text-muted-foreground px-1.5 py-1">
+              Nenhum produto encontrado.
+            </p>
+          )}
+          {products?.map((p) => (
+            <button
+              key={String(p.id)}
+              type="button"
+              onClick={() => onSelect(p.custom_id ?? p.id)}
+              className="w-full text-left flex items-center gap-2 px-2 py-1 rounded hover:bg-muted text-xs"
+            >
+              <code className="text-[10px] bg-background px-1 rounded">{String(p.custom_id ?? p.id)}</code>
+              <span className="truncate">{p.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

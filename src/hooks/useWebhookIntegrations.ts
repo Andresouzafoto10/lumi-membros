@@ -22,13 +22,15 @@ export type WebhookPlatform = {
   createdAt: string;
 };
 
-export const PLATFORM_SLUGS = ["ticto", "hotmart", "eduzz", "monetizze"] as const;
+export const PLATFORM_SLUGS = ["ticto", "hotmart", "eduzz", "monetizze", "cakto"] as const;
 export type PlatformSlug = typeof PLATFORM_SLUGS[number];
 
 export type WebhookMapping = {
   id: string;
   platformId: string;
   externalProductId: string;
+  /** Optional offer identifier (Cakto). NULL = catches any offer of the product. */
+  externalOfferId: string | null;
   /** Legacy single-class column (kept for backward compat, may be null). */
   classId: string | null;
   /** Preferred: list of classes to enroll into on purchase. */
@@ -84,6 +86,7 @@ function mapMapping(r: Record<string, unknown>): WebhookMapping {
     id: r.id as string,
     platformId: r.platform_id as string,
     externalProductId: r.external_product_id as string,
+    externalOfferId: (r.external_offer_id as string | null) ?? null,
     classId: legacyClassId,
     classIds: effective,
     createdAt: r.created_at as string,
@@ -213,10 +216,16 @@ export function useWebhookIntegrations() {
   );
 
   const addMapping = useCallback(
-    async (platformId: string, externalProductId: string, classIds: string[]) => {
+    async (
+      platformId: string,
+      externalProductId: string,
+      classIds: string[],
+      externalOfferId?: string | null
+    ) => {
       const { error } = await supabase.from("webhook_mappings").insert({
         platform_id: platformId,
         external_product_id: externalProductId,
+        external_offer_id: externalOfferId ?? null,
         class_ids: classIds,
         // keep legacy column populated with first class for backward compat
         class_id: classIds[0] ?? null,
@@ -230,10 +239,15 @@ export function useWebhookIntegrations() {
   const updateMapping = useCallback(
     async (
       id: string,
-      data: { external_product_id?: string; class_ids?: string[] }
+      data: {
+        external_product_id?: string;
+        external_offer_id?: string | null;
+        class_ids?: string[];
+      }
     ) => {
       const patch: Record<string, unknown> = {};
       if (data.external_product_id !== undefined) patch.external_product_id = data.external_product_id;
+      if (data.external_offer_id !== undefined) patch.external_offer_id = data.external_offer_id;
       if (data.class_ids !== undefined) {
         patch.class_ids = data.class_ids;
         patch.class_id = data.class_ids[0] ?? null;

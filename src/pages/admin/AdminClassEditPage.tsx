@@ -321,6 +321,11 @@ export default function AdminClassEditPage() {
   const [accessDays, setAccessDays] = useState<string>(
     existingClass?.accessDurationDays?.toString() ?? ""
   );
+  const [graceDays, setGraceDays] = useState<string>(
+    existingClass?.accessGraceDays != null && existingClass.accessGraceDays > 0
+      ? existingClass.accessGraceDays.toString()
+      : ""
+  );
   const [scheduleRules, setScheduleRules] = useState<ContentScheduleRule[]>(
     existingClass?.contentSchedule ?? []
   );
@@ -332,6 +337,11 @@ export default function AdminClassEditPage() {
       setCourseIds(existingClass.courseIds);
       setEnrollmentType(existingClass.enrollmentType);
       setAccessDays(existingClass.accessDurationDays?.toString() ?? "");
+      setGraceDays(
+        existingClass.accessGraceDays > 0
+          ? existingClass.accessGraceDays.toString()
+          : ""
+      );
       setScheduleRules(existingClass.contentSchedule);
     }
   }, [existingClass?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -439,6 +449,7 @@ export default function AdminClassEditPage() {
     if (courseIds.length === 0) { toast.error("Selecione pelo menos um curso."); return; }
 
     const days = accessDays ? Number(accessDays) : null;
+    const grace = graceDays ? Math.max(0, Number(graceDays) || 0) : 0;
 
     if (isNew) {
       const newId = await createClass({
@@ -446,6 +457,7 @@ export default function AdminClassEditPage() {
         courseIds,
         enrollmentType,
         accessDurationDays: enrollmentType === "unlimited" ? null : days,
+        accessGraceDays: enrollmentType === "unlimited" ? 0 : grace,
       });
       for (const rule of scheduleRules) {
         updateScheduleRule(newId, rule);
@@ -458,6 +470,7 @@ export default function AdminClassEditPage() {
         courseIds,
         enrollmentType,
         accessDurationDays: enrollmentType === "unlimited" ? null : days,
+        accessGraceDays: enrollmentType === "unlimited" ? 0 : grace,
         contentSchedule: scheduleRules,
       });
       toast.success("Turma atualizada com sucesso.");
@@ -575,6 +588,26 @@ export default function AdminClassEditPage() {
               </div>
             )}
           </div>
+
+          {enrollmentType === "subscription" && (
+            <div className="mt-4 space-y-1.5 max-w-xs">
+              <Label htmlFor="grace-days">
+                Margem de renovação{" "}
+                <span className="text-muted-foreground font-normal">(dias extras)</span>
+              </Label>
+              <Input
+                id="grace-days"
+                type="number"
+                min={0}
+                placeholder="ex: 3"
+                value={graceDays}
+                onChange={(e) => setGraceDays(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Tempo extra somado ao prazo a cada cobrança/renovação. Absorve atrasos de retry de cartão da Cakto (recomendado: 2 a 3 dias).
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

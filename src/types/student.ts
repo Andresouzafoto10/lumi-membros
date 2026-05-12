@@ -46,6 +46,8 @@ export type Class = {
   courseIds: string[];
   enrollmentType: EnrollmentType;
   accessDurationDays: number | null;
+  /** Extra days added on top of accessDurationDays on every webhook activation/renewal. Default 0. */
+  accessGraceDays: number;
   status: "active" | "inactive";
   contentSchedule: ContentScheduleRule[];
 };

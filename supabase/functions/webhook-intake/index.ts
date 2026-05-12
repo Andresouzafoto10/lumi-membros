@@ -23,6 +23,7 @@ type StudentData = {
   email: string;
   name: string;
   productId: string;
+  offerId: string | null;
   eventType: NormalizedEvent;
   transactionId: string | null;
 };
@@ -97,6 +98,27 @@ function normalizeMonetizzeEvent(raw: string): NormalizedEvent {
   return "unknown";
 }
 
+function normalizeCaktoEvent(raw: string): NormalizedEvent {
+  const e = raw.toLowerCase();
+  if (e === "purchase_approved" || e === "subscription_created") return "approved";
+  if (e === "subscription_renewed") return "subscription_active";
+  if (e === "refund") return "refunded";
+  if (e === "chargeback") return "chargeback";
+  if (e === "subscription_canceled" || e === "subscription_renewal_refused") return "canceled";
+  if (
+    e === "purchase_refused" ||
+    e === "initiate_checkout" ||
+    e === "checkout_abandonment" ||
+    e === "pix_gerado" ||
+    e === "boleto_gerado" ||
+    e === "picpay_gerado" ||
+    e === "openfinance_nubank_gerado"
+  ) {
+    return "pending";
+  }
+  return "unknown";
+}
+
 // ---------------------------------------------------------------------------
 // Extractors per platform
 // ---------------------------------------------------------------------------
@@ -111,6 +133,7 @@ function extractFromTicto(body: Record<string, unknown>): StudentData | null {
     email: (customer.email as string).toLowerCase().trim(),
     name: (customer.name as string) ?? (customer.email as string).split("@")[0],
     productId: String(product?.id ?? body.product_id ?? ""),
+    offerId: null,
     eventType: normalizeTictoEvent(rawEvent),
     transactionId: (transaction?.id as string) ?? (body.transaction_id as string) ?? null,
   };
@@ -127,6 +150,7 @@ function extractFromHotmart(body: Record<string, unknown>): StudentData | null {
     email: (buyer.email as string).toLowerCase().trim(),
     name: (buyer.name as string) ?? (buyer.email as string).split("@")[0],
     productId: String(product?.id ?? data.product_id ?? ""),
+    offerId: null,
     eventType: normalizeHotmartEvent(rawEvent),
     transactionId: (purchase?.transaction as string) ?? (purchase?.order_ref as string) ?? null,
   };
@@ -140,6 +164,7 @@ function extractFromEduzz(body: Record<string, unknown>): StudentData | null {
     email: (customer.email as string).toLowerCase().trim(),
     name: (customer.name as string) ?? (customer.email as string).split("@")[0],
     productId: String(body.product_id ?? body.content_id ?? ""),
+    offerId: null,
     eventType: normalizeEduzzEvent(rawEvent),
     transactionId: (body.trans_cod as string) ?? (body.transaction_id as string) ?? null,
   };
@@ -155,8 +180,49 @@ function extractFromMonetizze(body: Record<string, unknown>): StudentData | null
     email: (comprador.email as string).toLowerCase().trim(),
     name: (comprador.nome as string) ?? (comprador.email as string).split("@")[0],
     productId: String(produto?.codigo ?? body.produto_id ?? ""),
+    offerId: null,
     eventType: normalizeMonetizzeEvent(rawEvent),
     transactionId: (venda?.codigo as string) ?? (body.codigo as string) ?? null,
+  };
+}
+
+function extractFromCakto(body: Record<string, unknown>): StudentData | null {
+  // Real Cakto payload (per docs): { event: "...", secret: "...", data: { customer, product, offer, refId, ... } }
+  // Also accept legacy/flat shapes for resilience.
+  const data = ((body.data ?? body) as Record<string, unknown>) || {};
+  const customer = (data.customer ?? data.buyer ?? data.client) as Record<string, unknown> | undefined;
+  const product = data.product as Record<string, unknown> | undefined;
+  const offer = data.offer as Record<string, unknown> | undefined;
+  if (!customer?.email) return null;
+
+  const rawEvent =
+    (body.event as string) ??
+    (body.event_name as string) ??
+    (body.type as string) ??
+    (data.event as string) ??
+    (data.status as string) ??
+    "";
+
+  // Prefer short_id when available (matches what admins see in the Cakto UI),
+  // fall back to full UUID. Either form is accepted by the mapping table.
+  const productId = String(
+    product?.short_id ?? product?.id ?? body.product_id ?? ""
+  );
+  const offerId = offer?.id ? String(offer.id) : null;
+  const transactionId =
+    (data.refId as string) ??
+    (data.id as string) ??
+    (body.refId as string) ??
+    (body.order_id as string) ??
+    null;
+
+  return {
+    email: (customer.email as string).toLowerCase().trim(),
+    name: (customer.name as string) ?? (customer.email as string).split("@")[0],
+    productId,
+    offerId,
+    eventType: normalizeCaktoEvent(rawEvent),
+    transactionId,
   };
 }
 
@@ -165,6 +231,7 @@ const extractors: Record<string, (body: Record<string, unknown>) => StudentData 
   hotmart: extractFromHotmart,
   eduzz: extractFromEduzz,
   monetizze: extractFromMonetizze,
+  cakto: extractFromCakto,
 };
 
 // ---------------------------------------------------------------------------
@@ -181,9 +248,52 @@ function getSignature(headers: Headers, platform: string): string {
       return headers.get("x-eduzz-signature") ?? "";
     case "monetizze":
       return headers.get("x-monetizze-signature") ?? "";
+    case "cakto":
+      // Cakto public docs do not specify the signing header.
+      // Try the conventional headers; fallback to body-secret check below.
+      return (
+        headers.get("x-cakto-signature") ??
+        headers.get("cakto-signature") ??
+        headers.get("x-webhook-signature") ??
+        headers.get("x-signature") ??
+        ""
+      );
     default:
       return headers.get("x-signature") ?? "";
   }
+}
+
+// Cakto-specific: when no HMAC header is present, the platform may send the
+// configured secret inside the JSON body. Compare it constant-time to the
+// stored secret_key.
+function caktoBodySecretMatches(body: Record<string, unknown>, secret: string): boolean {
+  const candidates = [
+    body.secret,
+    body.webhook_secret,
+    (body.webhook as Record<string, unknown> | undefined)?.secret,
+    (body.meta as Record<string, unknown> | undefined)?.secret,
+  ].filter((v): v is string => typeof v === "string" && v.length > 0);
+  if (candidates.length === 0) return false;
+  for (const c of candidates) {
+    if (constantTimeEqual(c, secret)) return true;
+  }
+  return false;
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// Default password assigned to every student created via webhook.
+// The student is instructed in the welcome email to change it in their profile
+// or via "Forgot my password" on the login screen.
+const DEFAULT_STUDENT_PASSWORD = "123456";
+
+function generateTempPassword(): string {
+  return DEFAULT_STUDENT_PASSWORD;
 }
 
 // ---------------------------------------------------------------------------
@@ -264,15 +374,26 @@ serve(async (req) => {
     }
 
     const signature = getSignature(req.headers, platform);
-    if (!signature) {
+    let signatureValid = false;
+    if (signature) {
+      signatureValid = await verifyHmac(platformRow.secret_key, rawBody, signature);
+    }
+
+    // Cakto fallback: docs do not specify the signing header. Accept the
+    // request if the configured secret_key matches a secret field inside the
+    // JSON body (constant-time comparison).
+    if (!signatureValid && platform === "cakto") {
+      signatureValid = caktoBodySecretMatches(body, platformRow.secret_key);
+    }
+
+    if (!signature && !signatureValid) {
       await logEvent(supabase, platformRow.id, body, null, null, null, "error", "Assinatura HMAC ausente", null, null);
       return new Response(
         JSON.stringify({ error: "Assinatura ausente" }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-    const valid = await verifyHmac(platformRow.secret_key, rawBody, signature);
-    if (!valid) {
+    if (!signatureValid) {
       await logEvent(supabase, platformRow.id, body, null, null, null, "error", "Assinatura HMAC inválida", null, null);
       return new Response(
         JSON.stringify({ error: "Assinatura inválida" }),
@@ -336,29 +457,51 @@ serve(async (req) => {
     }
 
     // 6. Find mapping → class_ids
-    type MappingRow = { class_ids: string[] | null; class_id: string | null };
-    const { data: mapping } = await supabase
-      .from("webhook_mappings")
-      .select("class_ids, class_id")
-      .eq("platform_id", platformRow.id)
-      .eq("external_product_id", studentData.productId)
-      .maybeSingle();
+    // Priority: exact (product+offer) match → product-only fallback (offer NULL).
+    type MappingRow = {
+      class_ids: string[] | null;
+      class_id: string | null;
+      external_offer_id: string | null;
+    };
 
-    if (!mapping) {
-      await logEvent(supabase, platformRow.id, body, studentData.email, studentData.name, null, "error", `Sem mapeamento para produto '${studentData.productId}'`, studentData.eventType, studentData.transactionId);
+    let mappingRow: MappingRow | null = null;
+    if (studentData.offerId) {
+      const { data: exact } = await supabase
+        .from("webhook_mappings")
+        .select("class_ids, class_id, external_offer_id")
+        .eq("platform_id", platformRow.id)
+        .eq("external_product_id", studentData.productId)
+        .eq("external_offer_id", studentData.offerId)
+        .maybeSingle();
+      mappingRow = (exact as MappingRow | null) ?? null;
+    }
+    if (!mappingRow) {
+      const { data: fallback } = await supabase
+        .from("webhook_mappings")
+        .select("class_ids, class_id, external_offer_id")
+        .eq("platform_id", platformRow.id)
+        .eq("external_product_id", studentData.productId)
+        .is("external_offer_id", null)
+        .maybeSingle();
+      mappingRow = (fallback as MappingRow | null) ?? null;
+    }
+
+    if (!mappingRow) {
+      const unmappedLabel = studentData.offerId
+        ? `${studentData.productId} / oferta ${studentData.offerId}`
+        : studentData.productId;
+      await logEvent(supabase, platformRow.id, body, studentData.email, studentData.name, null, "error", `Sem mapeamento para produto '${unmappedLabel}'`, studentData.eventType, studentData.transactionId);
       await notifyAdminsUnmappedProduct(
         supabase,
         platformRow.slug,
         platformRow.label ?? platformRow.name,
-        studentData.productId
+        unmappedLabel
       );
       return new Response(
-        JSON.stringify({ error: `Sem mapeamento para produto '${studentData.productId}'` }),
+        JSON.stringify({ error: `Sem mapeamento para produto '${unmappedLabel}'` }),
         { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
-    const mappingRow = mapping as MappingRow;
     const classIds = (mappingRow.class_ids && mappingRow.class_ids.length > 0)
       ? mappingRow.class_ids
       : (mappingRow.class_id ? [mappingRow.class_id] : []);
@@ -443,9 +586,12 @@ serve(async (req) => {
       .maybeSingle();
 
     let isNewUser = false;
+    let tempPassword: string | null = null;
     if (!profile) {
+      tempPassword = generateTempPassword();
       const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
         email: studentData.email,
+        password: tempPassword,
         email_confirm: true,
         user_metadata: { name: studentData.name },
       });
@@ -495,15 +641,47 @@ serve(async (req) => {
       );
     }
 
-    // 9. Upsert enrollment for each class in classIds
-    const enrollmentRows = classIds.map((cid) => ({
-      student_id: profile.id,
-      class_id: cid,
-      type: "individual",
-      status: "active",
-      enrolled_at: new Date().toISOString(),
-      expires_at: null,
-    }));
+    // 9. Upsert enrollment for each class — respect class.access_duration_days.
+    // - access_duration_days = NULL  → expires_at = NULL (vitalícia)
+    // - access_duration_days = N     → expires_at = now() + N days
+    //
+    // For subscription_active (renewal), reset expires_at to now() + duration
+    // so the access period rolls forward with each renewal.
+    const { data: classesInfo } = await supabase
+      .from("classes")
+      .select("id, name, access_duration_days, access_grace_days, enrollment_type")
+      .in("id", classIds);
+    type ClassInfo = {
+      id: string;
+      name: string;
+      access_duration_days: number | null;
+      access_grace_days: number | null;
+      enrollment_type: string | null;
+    };
+    const classMap: Record<string, ClassInfo> = {};
+    for (const c of (classesInfo ?? []) as ClassInfo[]) classMap[c.id] = c;
+
+    const nowIso = new Date().toISOString();
+    const enrollmentRows = classIds.map((cid) => {
+      const cls = classMap[cid];
+      const durationDays = cls?.access_duration_days ?? null;
+      const graceDays = cls?.access_grace_days ?? 0;
+      const enrollType = cls?.enrollment_type ?? "individual";
+      let expiresAt: string | null = null;
+      if (durationDays && durationDays > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + durationDays + Math.max(0, graceDays));
+        expiresAt = d.toISOString();
+      }
+      return {
+        student_id: profile.id,
+        class_id: cid,
+        type: enrollType,
+        status: "active",
+        enrolled_at: nowIso,
+        expires_at: expiresAt,
+      };
+    });
 
     const { error: enrollErr } = await supabase
       .from("enrollments")
@@ -517,9 +695,19 @@ serve(async (req) => {
       );
     }
 
-    // 10. Welcome email ONLY for brand-new users (fire-and-forget).
-    if (isNewUser) {
-      try {
+    // 10. Send the right email to the student based on whether they are new.
+    // Always fire (re-purchases get a "course unlocked" notice too).
+    try {
+      const classNames = classIds
+        .map((cid) => classMap[cid]?.name)
+        .filter(Boolean)
+        .join(", ");
+
+      if (isNewUser && tempPassword) {
+        // New user → email with the temporary password and login CTA. User can
+        // change later in Profile or via "Esqueci minha senha".
+        const appUrl =
+          Deno.env.get("PLATFORM_URL") ?? "https://app.membrosmaster.com.br";
         await fetch(`${SUPABASE_URL}/functions/v1/notify-email`, {
           method: "POST",
           headers: {
@@ -527,25 +715,40 @@ serve(async (req) => {
             Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
           },
           body: JSON.stringify({
-            type: "welcome",
+            type: "welcome_with_setup",
             recipient_id: profile.id,
             recipient_email: studentData.email,
             recipient_name: studentData.name,
+            context: {
+              classes_list: classNames,
+              temp_password: tempPassword,
+              action_url: `${appUrl}/login`,
+            },
           }),
         });
-
-        // Also trigger access email (magic link) via resend-access-email.
-        await fetch(`${SUPABASE_URL}/functions/v1/resend-access-email`, {
+      } else {
+        // Existing user → "Novo acesso liberado" with direct login CTA.
+        await fetch(`${SUPABASE_URL}/functions/v1/notify-email`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
           },
-          body: JSON.stringify({ userId: profile.id }),
+          body: JSON.stringify({
+            type: "course_unlocked",
+            recipient_id: profile.id,
+            recipient_email: studentData.email,
+            recipient_name: studentData.name,
+            context: {
+              classes_list: classNames,
+              action_url: `${Deno.env.get("PLATFORM_URL") ?? "https://app.membrosmaster.com.br"}/cursos`,
+            },
+          }),
         });
-      } catch {
-        // Non-blocking: emails are best-effort.
       }
+    } catch (err) {
+      console.error("webhook-intake email error:", err);
+      // Non-blocking: emails are best-effort.
     }
 
     // 11. Log success (one row per enrolled class) + update last_event_at

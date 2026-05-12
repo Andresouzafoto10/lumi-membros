@@ -17,6 +17,7 @@ async function fetchClasses(): Promise<Class[]> {
     courseIds: c.course_ids ?? [],
     enrollmentType: c.enrollment_type as EnrollmentType,
     accessDurationDays: c.access_duration_days,
+    accessGraceDays: c.access_grace_days ?? 0,
     status: c.status as "active" | "inactive",
     contentSchedule: (c.content_schedule as ContentScheduleRule[]) ?? [],
   }));
@@ -56,6 +57,7 @@ export function useClasses() {
       courseIds: string[];
       enrollmentType: EnrollmentType;
       accessDurationDays: number | null;
+      accessGraceDays?: number;
     }) => {
       const { data: row, error } = await supabase
         .from("classes")
@@ -64,6 +66,7 @@ export function useClasses() {
           course_ids: data.courseIds,
           enrollment_type: data.enrollmentType,
           access_duration_days: data.accessDurationDays,
+          access_grace_days: data.accessGraceDays ?? 0,
           status: "active",
           content_schedule: [],
         })
@@ -86,6 +89,7 @@ export function useClasses() {
           | "courseIds"
           | "enrollmentType"
           | "accessDurationDays"
+          | "accessGraceDays"
           | "status"
           | "contentSchedule"
         >
@@ -101,6 +105,9 @@ export function useClasses() {
           }),
           ...(patch.accessDurationDays !== undefined && {
             access_duration_days: patch.accessDurationDays,
+          }),
+          ...(patch.accessGraceDays !== undefined && {
+            access_grace_days: patch.accessGraceDays,
           }),
           ...(patch.status !== undefined && { status: patch.status }),
           ...(patch.contentSchedule !== undefined && {
