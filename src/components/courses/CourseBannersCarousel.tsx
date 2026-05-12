@@ -130,7 +130,11 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
             {(banner.mediaType ?? "image") === "video" ? (
               <video
                 src={banner.imageUrl}
-                autoPlay={idx === currentIndex}
+                autoPlay={
+                  idx === currentIndex ||
+                  (idx === 0 && currentIndex === totalSlides - 1) ||
+                  (idx === totalSlides - 1 && currentIndex === 0)
+                }
                 muted
                 loop
                 playsInline
