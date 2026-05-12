@@ -186,7 +186,9 @@ function HistoryTab() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os tipos</SelectItem>
-            <SelectItem value="welcome">Boas-vindas</SelectItem>
+            <SelectItem value="welcome">Boas-vindas (legado)</SelectItem>
+            <SelectItem value="welcome_with_setup">Boas-vindas + senha (compra)</SelectItem>
+            <SelectItem value="course_unlocked">Curso liberado (compra)</SelectItem>
             <SelectItem value="comment">Comentario</SelectItem>
             <SelectItem value="like">Curtida</SelectItem>
             <SelectItem value="follow">Seguiu</SelectItem>

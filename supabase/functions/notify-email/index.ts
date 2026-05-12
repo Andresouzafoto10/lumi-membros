@@ -19,6 +19,8 @@ type EmailType =
   | "new_post"
   | "badge_earned"
   | "welcome"
+  | "welcome_with_setup"
+  | "course_unlocked"
   | "access_reminder_7d"
   | "community_post"
   | "community_inactive_30d"
@@ -59,6 +61,10 @@ function buildSubject(type: EmailType, payload: NotifyEmailPayload): string {
       return `Voce conquistou o badge "${ctx.badge_name}"!`;
     case "welcome":
       return `Bem-vindo(a) a ${PLATFORM_NAME}! 🎉`;
+    case "welcome_with_setup":
+      return `Bem-vindo(a) a ${PLATFORM_NAME}! Crie sua senha 🔐`;
+    case "course_unlocked":
+      return `Novo acesso liberado: ${ctx.classes_list ?? "novas turmas"} 🎉`;
     case "access_reminder_7d":
       return `Sentimos sua falta, ${payload.recipient_name ?? ""}! 👋`;
     case "community_post":
@@ -99,6 +105,58 @@ function buildBody(type: EmailType, payload: NotifyEmailPayload): { heading: str
         ctaUrl: `${baseUrl}/cursos`,
         previewText: "Sua jornada comeca agora",
       };
+
+    case "welcome_with_setup": {
+      const classesList = (ctx.classes_list as string) ?? "";
+      const tempPassword = (ctx.temp_password as string) ?? "";
+      const loginUrl = (ctx.action_url as string) ?? `${baseUrl}/login`;
+      const userEmail = payload.recipient_email ?? "";
+      // Outside text colors: light tones (#fafafa / #d4d4d8) to read on the
+      // dark body bg (#18181b) of the base template. Inside the credentials
+      // card the bg is light so we use dark text there.
+      const classesBlock = classesList
+        ? `<div style="margin:0 0 20px 0;padding:14px 16px;background:#27272a;border:1px solid #3f3f46;border-radius:10px;">
+            <p style="margin:0 0 6px 0;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:#ff7b00;font-weight:700;">Acessos liberados</p>
+            <p style="margin:0;color:#fafafa;font-weight:500;">${classesList}</p>
+          </div>`
+        : "";
+      const credBlock = `<div style="margin:0 0 20px 0;padding:18px 20px;background:#fafafa;border:1px solid #e5e7eb;border-radius:10px;">
+          <p style="margin:0 0 12px 0;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:#374151;font-weight:700;">Seus dados de acesso</p>
+          <p style="margin:0 0 4px 0;color:#4b5563;font-size:13px;">Email</p>
+          <p style="margin:0 0 14px 0;font-family:'SFMono-Regular',Menlo,monospace;font-size:15px;color:#111827;">${userEmail}</p>
+          <p style="margin:0 0 4px 0;color:#4b5563;font-size:13px;">Senha</p>
+          <p style="margin:0;font-family:'SFMono-Regular',Menlo,monospace;font-size:22px;color:#111827;letter-spacing:2px;font-weight:800;">${tempPassword}</p>
+        </div>`;
+      return {
+        heading: `Bem-vindo(a), ${name}!`,
+        bodyHtml: `<p style="margin:0 0 16px 0;color:#fafafa;">Sua compra na <strong style="color:#ff7b00;">${PLATFORM_NAME}</strong> foi confirmada. 🎉</p>
+          ${classesBlock}
+          <p style="margin:0 0 12px 0;color:#fafafa;">Use os dados abaixo para entrar na plataforma:</p>
+          ${credBlock}
+          <p style="margin:0;font-size:14px;line-height:22px;color:#e4e4e7;"><strong style="color:#ff7b00;">Dica de seguranca:</strong> altere sua senha quando quiser em <strong style="color:#fafafa;">Perfil &rarr; Alterar senha</strong>, ou use a opcao <strong style="color:#fafafa;">"Esqueci minha senha"</strong> na tela de login.</p>`,
+        ctaText: "Acessar plataforma",
+        ctaUrl: loginUrl,
+        previewText: "Sua senha de acesso esta neste email",
+      };
+    }
+
+
+    case "course_unlocked": {
+      const classesList = (ctx.classes_list as string) ?? "novas turmas";
+      const classesBlock = `<div style="margin:0 0 20px 0;padding:14px 16px;background:#27272a;border:1px solid #3f3f46;border-radius:10px;">
+          <p style="margin:0 0 6px 0;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:#ff7b00;font-weight:700;">Acessos liberados</p>
+          <p style="margin:0;color:#fafafa;font-weight:500;">${classesList}</p>
+        </div>`;
+      return {
+        heading: `Ola, ${name}!`,
+        bodyHtml: `<p style="margin:0 0 16px 0;color:#fafafa;">Sua compra foi confirmada e voce ja tem novos acessos liberados na <strong style="color:#ff7b00;">${PLATFORM_NAME}</strong>! 🎉</p>
+          ${classesBlock}
+          <p style="margin:0;color:#fafafa;">Clique abaixo para entrar na plataforma e comecar a estudar agora mesmo.</p>`,
+        ctaText: "Acessar plataforma",
+        ctaUrl: (ctx.action_url as string) ?? `${baseUrl}/cursos`,
+        previewText: `Voce desbloqueou ${classesList}`,
+      };
+    }
 
     case "access_reminder_7d":
       return {
@@ -273,7 +331,8 @@ serve(async (req) => {
 
     const allowedTypes: ReadonlySet<string> = new Set([
       "comment", "like", "follow", "mention", "new_post", "badge_earned",
-      "welcome", "access_reminder_7d", "community_post", "community_inactive_30d",
+      "welcome", "welcome_with_setup", "course_unlocked",
+      "access_reminder_7d", "community_post", "community_inactive_30d",
       "new_course", "new_lesson", "certificate_earned", "mention_community",
       "follower_milestone_10", "post_reply", "mission_complete", "comment_milestone",
     ]);
