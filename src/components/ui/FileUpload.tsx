@@ -26,6 +26,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useR2Upload } from "@/hooks/useR2Upload";
+import {
+  detectMediaTypeFromFile,
+  detectMediaTypeFromUrl,
+  normalizeCanvaEmbedUrl,
+  isCanvaDesignUrl,
+} from "@/lib/canvaEmbed";
+import type { CourseBannerMediaType } from "@/types/course";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,8 +41,10 @@ import { useR2Upload } from "@/hooks/useR2Upload";
 export interface FileUploadProps {
   /** Current URL (preview) */
   value?: string;
-  /** Called with the new public URL after upload, or "" on remove */
-  onChange: (url: string) => void;
+  /** Called with the new public URL + detected media type, or "" / "image" on remove */
+  onChange: (url: string, mediaType?: CourseBannerMediaType) => void;
+  /** Current media type for preview rendering (default: detected from URL) */
+  mediaType?: CourseBannerMediaType;
   /** R2 folder path (e.g. "banners", "avatars", "courses/banners") */
   folder: string;
   /** File accept string (default: "image/*") */
@@ -64,7 +73,7 @@ export function FileUpload({
   value,
   onChange,
   folder,
-  accept = "image/*",
+  accept = "image/*,video/mp4,video/webm",
   maxSizeMB = 10,
   aspectRatio,
   previewMaxHeight,
@@ -72,6 +81,7 @@ export function FileUpload({
   allowUrl = true,
   imagePreset = "banner",
   className,
+  mediaType,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [deleting, setDeleting] = useState(false);
@@ -81,6 +91,8 @@ export function FileUpload({
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const { uploadFile, uploading, progress } = useR2Upload();
   const previewSrc = getProxiedImageUrl(value);
+  const effectiveMediaType: CourseBannerMediaType =
+    mediaType ?? (value ? detectMediaTypeFromUrl(value) : "image");
 
   // -----------------------------------------------------------------------
   // Upload handler
@@ -114,15 +126,16 @@ export function FileUpload({
         }
       }
 
+      const detectedType = detectMediaTypeFromFile(file);
       try {
         const url = await uploadFile({
           file,
           folder,
           previousUrl: value,
-          preset: imagePreset,
+          preset: detectedType === "video" ? undefined : imagePreset,
           errorMessage: "Erro no upload. Tente novamente.",
         });
-        onChange(url);
+        onChange(url, detectedType);
         toast.success("Upload concluido!");
       } catch {
         // useR2Upload already reports the error to the user
@@ -166,21 +179,23 @@ export function FileUpload({
         setDeleting(false);
       }
     }
-    onChange("");
+    onChange("", "image");
     setConfirmRemoveOpen(false);
   }, [value, onChange]);
 
   const handleUrlConfirm = useCallback(() => {
     const trimmed = urlDraft.trim();
-    if (trimmed) {
-      // Se tinha arquivo R2 antes e esta trocando por URL externa, deletar o antigo
-      if (value && isR2Url(value)) {
-        deleteFromR2(value).catch(() => {});
-      }
-      onChange(trimmed);
-      setUrlDraft("");
-      setShowUrlInput(false);
+    if (!trimmed) return;
+    const finalUrl = isCanvaDesignUrl(trimmed)
+      ? normalizeCanvaEmbedUrl(trimmed)
+      : trimmed;
+    const detectedType = detectMediaTypeFromUrl(finalUrl);
+    if (value && isR2Url(value)) {
+      deleteFromR2(value).catch(() => {});
     }
+    onChange(finalUrl, detectedType);
+    setUrlDraft("");
+    setShowUrlInput(false);
   }, [urlDraft, value, onChange]);
 
   // -----------------------------------------------------------------------
@@ -213,7 +228,24 @@ export function FileUpload({
           className="relative rounded-lg overflow-hidden border border-border/50 bg-muted"
           style={previewStyle}
         >
-          {isImage ? (
+          {effectiveMediaType === "video" ? (
+            <video
+              src={value}
+              controls
+              muted
+              playsInline
+              className="w-full h-full object-cover bg-black"
+            />
+          ) : effectiveMediaType === "embed" ? (
+            <iframe
+              src={value}
+              className="w-full h-full pointer-events-none"
+              allow="autoplay; fullscreen"
+              sandbox="allow-scripts allow-same-origin allow-presentation"
+              loading="lazy"
+              title="Preview"
+            />
+          ) : isImage ? (
             <img
               src={previewSrc}
               alt="Preview"
