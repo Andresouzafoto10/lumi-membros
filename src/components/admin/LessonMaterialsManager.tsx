@@ -33,6 +33,86 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+function DrmWatermarkPreview() {
+  // A4 portrait + landscape mockups showing where the user data
+  // (name / CPF / email) gets stamped on every page when DRM is on.
+  const text = "Nome do aluno  |  CPF: 000.000.000-00  |  email@aluno.com";
+  return (
+    <div className="rounded-md border border-border/50 bg-muted/20 p-3 space-y-2">
+      <p className="text-[11px] text-muted-foreground leading-snug">
+        <Shield className="h-3 w-3 inline mr-1 text-primary" />
+        Preview do watermark — aplicado em <strong>cada pagina</strong> do PDF
+        quando o aluno baixar. Dados disponiveis do perfil (nome, CPF, email)
+        ficam levemente transparentes no topo, base e laterais.
+      </p>
+      <div className="flex flex-wrap items-end gap-3">
+        <PageMockup orientation="portrait" text={text} />
+        <PageMockup orientation="landscape" text={text} />
+      </div>
+    </div>
+  );
+}
+
+function PageMockup({
+  orientation,
+  text,
+}: {
+  orientation: "portrait" | "landscape";
+  text: string;
+}) {
+  const isPortrait = orientation === "portrait";
+  const w = isPortrait ? 130 : 184;
+  const h = isPortrait ? 184 : 130;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div
+        className="relative rounded-sm border border-border/70 bg-background shadow-sm overflow-hidden"
+        style={{ width: w, height: h }}
+      >
+        {/* Top center */}
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-1 text-[6px] text-foreground/40 whitespace-nowrap"
+          aria-hidden
+        >
+          {text}
+        </div>
+        {/* Bottom center */}
+        <div
+          className="absolute left-1/2 -translate-x-1/2 bottom-1 text-[6px] text-foreground/40 whitespace-nowrap"
+          aria-hidden
+        >
+          {text}
+        </div>
+        {/* Middle-left, rotated */}
+        <div
+          className="absolute left-1 top-1/2 origin-left text-[6px] text-foreground/30 whitespace-nowrap"
+          style={{ transform: "translateY(-50%) rotate(90deg)" }}
+          aria-hidden
+        >
+          {text}
+        </div>
+        {/* Middle-right, rotated */}
+        <div
+          className="absolute right-1 top-1/2 origin-right text-[6px] text-foreground/30 whitespace-nowrap"
+          style={{ transform: "translateY(-50%) rotate(90deg)" }}
+          aria-hidden
+        >
+          {text}
+        </div>
+        {/* Fake content lines */}
+        <div className="absolute inset-x-4 top-6 space-y-1.5">
+          <div className="h-1 rounded-full bg-foreground/10" />
+          <div className="h-1 w-5/6 rounded-full bg-foreground/10" />
+          <div className="h-1 w-4/6 rounded-full bg-foreground/10" />
+        </div>
+      </div>
+      <span className="text-[10px] text-muted-foreground">
+        A4 {isPortrait ? "retrato" : "paisagem"}
+      </span>
+    </div>
+  );
+}
+
 function fileTypeIcon(type: LessonMaterial["file_type"]) {
   switch (type) {
     case "pdf":
@@ -206,16 +286,19 @@ export function LessonMaterialsManager({ lessonId }: { lessonId: string }) {
           </div>
 
           {isPdf && (
-            <div className="flex items-center gap-2">
-              <Switch
-                id={`drm-${lessonId}`}
-                checked={drmEnabled}
-                onCheckedChange={setDrmEnabled}
-              />
-              <Label htmlFor={`drm-${lessonId}`} className="text-xs cursor-pointer flex items-center gap-1">
-                <Shield className="h-3 w-3" />
-                Proteção DRM (nome + email + CPF no PDF)
-              </Label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id={`drm-${lessonId}`}
+                  checked={drmEnabled}
+                  onCheckedChange={setDrmEnabled}
+                />
+                <Label htmlFor={`drm-${lessonId}`} className="text-xs cursor-pointer flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
+                  Proteção DRM (nome + email + CPF no PDF)
+                </Label>
+              </div>
+              {drmEnabled && <DrmWatermarkPreview />}
             </div>
           )}
 

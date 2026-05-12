@@ -15,7 +15,6 @@ import { useLessonMaterials } from "@/hooks/useLessonMaterials";
 import { downloadMaterial } from "@/lib/downloadMaterial";
 import type { LessonMaterial } from "@/types/course";
 
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 function fileTypeIcon(type: LessonMaterial["file_type"]) {
@@ -81,42 +80,43 @@ export function LessonMaterials({ lessonId }: { lessonId: string }) {
         <Download className="h-4 w-4" /> Materiais
       </h3>
       <div className="flex flex-col gap-1.5">
-        {materials.map((m) => (
-          <div
-            key={m.id}
-            className="flex items-center gap-2 rounded-lg border border-border/40 px-3 py-2 hover:border-border hover:bg-muted/30 transition-all"
-          >
-            {fileTypeIcon(m.file_type)}
-            <span className="text-sm flex-1 truncate">{m.title}</span>
-            {m.file_size_bytes && (
-              <span className="text-xs text-muted-foreground shrink-0">
-                {formatSize(m.file_size_bytes)}
-              </span>
-            )}
-            {m.drm_enabled && m.file_type === "pdf" && (
-              <Badge
-                variant="outline"
-                className="text-[10px] h-5 px-1.5 border-primary/30 text-primary shrink-0"
-              >
-                <Shield className="h-2.5 w-2.5 mr-0.5" />
-                Protegido
-              </Badge>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2 text-xs shrink-0"
-              disabled={downloadingId === m.id}
+        {materials.map((m) => {
+          const downloading = downloadingId === m.id;
+          return (
+            <button
+              type="button"
+              key={m.id}
               onClick={() => handleDownload(m)}
+              disabled={downloading}
+              aria-label={`Baixar ${m.title}`}
+              className="flex w-full items-center gap-2 rounded-lg border border-border/40 px-3 py-2 hover:border-border hover:bg-muted/30 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {downloadingId === m.id ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Download className="h-3.5 w-3.5" />
+              {fileTypeIcon(m.file_type)}
+              <span className="text-sm flex-1 truncate">{m.title}</span>
+              {m.file_size_bytes && (
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {formatSize(m.file_size_bytes)}
+                </span>
               )}
-            </Button>
-          </div>
-        ))}
+              {m.drm_enabled && m.file_type === "pdf" && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] h-5 px-1.5 border-primary/30 text-primary shrink-0"
+                >
+                  <Shield className="h-2.5 w-2.5 mr-0.5" />
+                  Protegido
+                </Badge>
+              )}
+              <span className="h-7 w-7 flex items-center justify-center shrink-0 text-muted-foreground">
+                {downloading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
