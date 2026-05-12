@@ -12,6 +12,7 @@ export const mockBanners: CourseBanner[] = [
     targetUrl: null,
     imageUrl:
       "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=1200&q=80",
+    mediaType: "image",
     isActive: true,
     displayOrder: 1,
     createdAt: "2024-01-01T00:00:00Z",
@@ -28,6 +29,7 @@ export const mockBanners: CourseBanner[] = [
     targetUrl: null,
     imageUrl:
       "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=1200&q=80",
+    mediaType: "image",
     isActive: true,
     displayOrder: 2,
     createdAt: "2024-01-02T00:00:00Z",

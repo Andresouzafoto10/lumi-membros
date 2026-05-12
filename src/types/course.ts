@@ -151,6 +151,7 @@ export type CourseSession = {
 };
 
 export type CourseBannerTargetType = "none" | "course" | "url";
+export type CourseBannerMediaType = "image" | "video" | "embed";
 
 export type CourseBanner = {
   id: string;
@@ -161,6 +162,7 @@ export type CourseBanner = {
   targetCourseId: string | null;
   targetUrl: string | null;
   imageUrl: string;
+  mediaType: CourseBannerMediaType;
   isActive: boolean;
   displayOrder: number;
   createdAt: string;

@@ -284,6 +284,7 @@ export interface Database {
           target_course_id: string | null;
           target_url: string | null;
           image_url: string;
+          media_type: string; // 'image' | 'video' | 'embed'
           is_active: boolean;
           display_order: number;
           created_at: string;
@@ -298,6 +299,7 @@ export interface Database {
           target_course_id?: string | null;
           target_url?: string | null;
           image_url: string;
+          media_type?: string;
           is_active?: boolean;
           display_order?: number;
           created_at?: string;
@@ -312,6 +314,7 @@ export interface Database {
           target_course_id?: string | null;
           target_url?: string | null;
           image_url?: string;
+          media_type?: string;
           is_active?: boolean;
           display_order?: number;
           updated_at?: string;
