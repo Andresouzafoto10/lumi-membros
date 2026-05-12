@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import type { CourseBanner } from "@/types/course";
 
 interface CourseBannersCarouselProps {
@@ -129,7 +130,7 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
           >
             {(banner.mediaType ?? "image") === "video" ? (
               <video
-                src={banner.imageUrl}
+                src={getProxiedImageUrl(banner.imageUrl)}
                 autoPlay={
                   idx === currentIndex ||
                   (idx === 0 && currentIndex === totalSlides - 1) ||
@@ -152,7 +153,7 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
               />
             ) : (
               <img
-                src={banner.imageUrl}
+                src={getProxiedImageUrl(banner.imageUrl)}
                 alt={banner.title ?? ""}
                 className="h-full w-full object-cover select-none pointer-events-none"
                 draggable={false}

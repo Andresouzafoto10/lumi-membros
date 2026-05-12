@@ -230,7 +230,7 @@ export function FileUpload({
         >
           {effectiveMediaType === "video" ? (
             <video
-              src={value}
+              src={previewSrc}
               controls
               muted
               playsInline

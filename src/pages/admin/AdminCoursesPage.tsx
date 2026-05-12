@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 import type { CourseBanner, CourseBannerMediaType, CourseBannerTargetType } from "@/types/course";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -321,13 +322,32 @@ export default function AdminCoursesPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {banners.map((banner) => (
             <Card key={banner.id} className="overflow-hidden">
-              {/* Image */}
+              {/* Media preview */}
               {banner.imageUrl ? (
-                <img
-                  src={banner.imageUrl}
-                  alt={banner.title ?? "Banner"}
-                  className="h-[180px] w-full object-cover"
-                />
+                banner.mediaType === "video" ? (
+                  <video
+                    src={getProxiedImageUrl(banner.imageUrl)}
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    className="h-[180px] w-full object-cover bg-black"
+                  />
+                ) : banner.mediaType === "embed" ? (
+                  <iframe
+                    src={banner.imageUrl}
+                    title={banner.title ?? "Banner"}
+                    className="h-[180px] w-full pointer-events-none"
+                    sandbox="allow-scripts allow-same-origin"
+                    loading="lazy"
+                  />
+                ) : (
+                  <img
+                    src={getProxiedImageUrl(banner.imageUrl)}
+                    alt={banner.title ?? "Banner"}
+                    className="h-[180px] w-full object-cover"
+                  />
+                )
               ) : (
                 <div className="flex h-[180px] items-center justify-center bg-muted">
                   <ImageIcon className="h-10 w-10 text-muted-foreground" />
