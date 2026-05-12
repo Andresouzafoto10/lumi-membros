@@ -1,71 +1,89 @@
 import { ThumbsUp, ThumbsDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useLessonRatings } from "@/hooks/useLessonRatings";
+import {
+  useLessonRatings,
+  useLessonLikeCount,
+  useAdminLessonRatings,
+} from "@/hooks/useLessonRatings";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LessonRatingProps {
   lessonId: string;
   ratingsEnabled?: boolean;
+  /** @deprecated kept for callers; YouTube-style pill no longer renders a label */
   hideLabel?: boolean;
 }
 
-export function LessonRating({ lessonId, ratingsEnabled = true, hideLabel = false }: LessonRatingProps) {
+function formatCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) {
+    const v = n / 1000;
+    return v >= 100
+      ? `${Math.round(v)} mil`
+      : `${v.toFixed(1).replace(".", ",")} mil`;
+  }
+  const v = n / 1_000_000;
+  return v >= 100
+    ? `${Math.round(v)} mi`
+    : `${v.toFixed(1).replace(".", ",")} mi`;
+}
+
+export function LessonRating({ lessonId, ratingsEnabled = true }: LessonRatingProps) {
   const { settings } = usePlatformSettings();
   const { getRating, setRating } = useLessonRatings();
+  const { isAdmin } = useAuth();
+  const publicLikeCount = useLessonLikeCount(isAdmin ? null : lessonId);
+  const { getCounts } = useAdminLessonRatings();
 
   if (!settings.ratingsEnabled || !ratingsEnabled) {
     return null;
   }
+
   const current = getRating(lessonId);
+  const adminCounts = isAdmin ? getCounts(lessonId) : null;
+  const likes = adminCounts ? adminCounts.likes : publicLikeCount;
+  const dislikes = adminCounts
+    ? adminCounts.dislikes
+    : current === "dislike"
+      ? 1
+      : 0;
 
   return (
-    <div className="flex items-center gap-1">
-      {!hideLabel && (
-        <span className="text-xs text-muted-foreground mr-1.5">Avaliar:</span>
-      )}
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "h-8 w-8 rounded-full transition-all active:scale-90",
-          hideLabel && "border border-border",
-          current === "like"
-            ? "bg-primary/15 text-primary hover:bg-primary/20 shadow-sm shadow-primary/10"
-            : "hover:text-primary"
-        )}
+    <div className="inline-flex items-center h-9 rounded-full border border-border bg-transparent overflow-hidden">
+      <button
         onClick={() => setRating(lessonId, current === "like" ? null : "like")}
+        className={cn(
+          "flex items-center gap-1.5 h-full px-3 text-sm transition-colors active:scale-[0.96]",
+          current === "like"
+            ? "text-primary"
+            : "text-foreground hover:text-primary"
+        )}
         title="Curti"
       >
         <ThumbsUp
-          className={cn(
-            "h-4 w-4 transition-transform",
-            current === "like" ? "fill-primary scale-110" : ""
-          )}
+          className={cn("h-4 w-4", current === "like" && "fill-current")}
         />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "h-8 w-8 rounded-full transition-all active:scale-90",
-          hideLabel && "border border-border",
-          current === "dislike"
-            ? "bg-destructive/15 text-destructive hover:bg-destructive/20 shadow-sm shadow-destructive/10"
-            : "hover:text-destructive"
-        )}
+        {likes > 0 && <span>{formatCount(likes)}</span>}
+      </button>
+      <div className="h-5 w-px bg-border" />
+      <button
         onClick={() =>
           setRating(lessonId, current === "dislike" ? null : "dislike")
         }
-        title="Descurti"
+        className={cn(
+          "flex items-center gap-1.5 h-full px-3 text-sm transition-colors active:scale-[0.96]",
+          current === "dislike"
+            ? "text-destructive"
+            : "text-foreground hover:text-destructive"
+        )}
+        title="Não curti"
       >
         <ThumbsDown
-          className={cn(
-            "h-4 w-4 transition-transform",
-            current === "dislike" ? "fill-destructive scale-110" : ""
-          )}
+          className={cn("h-4 w-4", current === "dislike" && "fill-current")}
         />
-      </Button>
+        {dislikes > 0 && <span>{formatCount(dislikes)}</span>}
+      </button>
     </div>
   );
 }

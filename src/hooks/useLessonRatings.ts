@@ -51,6 +51,8 @@ export function useLessonRatings() {
         if (error) console.error("[lesson_ratings] upsert:", error.message);
       }
       queryClient.invalidateQueries({ queryKey: QK });
+      queryClient.invalidateQueries({ queryKey: ["lesson-like-count", lessonId] });
+      queryClient.invalidateQueries({ queryKey: QK_ADMIN });
       // Award points when rating (like only, not removing or disliking)
       if (rating === "like") {
         onLessonRated(user.id, lessonId).catch(() => {});
@@ -108,4 +110,31 @@ export function useAdminLessonRatings() {
   );
 
   return { ratingCounts, getCounts };
+}
+
+// ---------------------------------------------------------------------------
+// Public like count for a single lesson (visible to students).
+// Backed by `get_lesson_like_count` RPC (SECURITY DEFINER) so the RLS that
+// restricts per-row reads to the owner does not block the aggregate.
+// ---------------------------------------------------------------------------
+
+export function useLessonLikeCount(lessonId: string | null | undefined) {
+  const { data: likeCount = 0 } = useQuery({
+    queryKey: ["lesson-like-count", lessonId],
+    queryFn: async () => {
+      if (!lessonId) return 0;
+      const { data, error } = await supabase.rpc("get_lesson_like_count", {
+        p_lesson_id: lessonId,
+      });
+      if (error) {
+        console.error("[get_lesson_like_count]", error.message);
+        return 0;
+      }
+      return (data as number | null) ?? 0;
+    },
+    enabled: !!lessonId,
+    staleTime: 1000 * 30,
+  });
+
+  return likeCount;
 }

@@ -919,6 +919,22 @@ create policy "lesson_ratings: admin lê todas"
     where p.id = auth.uid() and p.role in ('owner','admin','support')
   ));
 
+-- Public count of likes per lesson (SECURITY DEFINER so authenticated students
+-- can read the total without exposing per-user rows).
+create or replace function public.get_lesson_like_count(p_lesson_id uuid)
+returns integer
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select count(*)::integer
+  from public.lesson_ratings
+  where lesson_id = p_lesson_id and rating = 'like';
+$$;
+
+grant execute on function public.get_lesson_like_count(uuid) to authenticated, anon;
+
 -- =============================================================================
 -- 19. LESSON_NOTES
 -- =============================================================================
