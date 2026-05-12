@@ -263,6 +263,8 @@ create table if not exists public.course_banners (
   target_course_id  uuid references public.courses(id) on delete set null,
   target_url        text,
   image_url         text not null,
+  media_type        text not null default 'image'
+                      check (media_type in ('image','video','embed')),
   is_active         boolean not null default true,
   display_order     integer not null default 0,
   created_at        timestamptz not null default now(),
