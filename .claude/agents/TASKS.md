@@ -46,6 +46,7 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| UI-002 | Fix layout botão "Concluir aula" mobile: `justify-between` distribui 👍👎 à esquerda e botão de conclusão à direita. Estilo condicional invertido — não-concluído: `bg-transparent text-foreground border border-border` (neutro, sem laranja); concluído: `bg-primary text-white border-primary` (pill laranja). Altura h-9 igual aos botões Voltar/Próxima. | DEV | 2026-05-12 |
 | UI-001 | Reorganização mobile (< md) abaixo do player na CourseDetailPage: "Conteúdo do curso" movido para logo abaixo do vídeo, botões Voltar/Próxima aula compactos (h-9, text-sm, mx-4), linha única `[👍][👎][Aula concluída]` (px-4, gap-2, pill h-8), título da seção de comentários trocado para "Deixe seu comentário sobre a aula". LessonRating ganhou prop `hideLabel`. Right column escondido em < md (`hidden md:block`). Desktop inalterado. Build OK. | DEV | 2026-05-12 |
 | FIX-016 | "Database error saving new user" no cadastro — raiz: `username text unique default ''` causava violação UNIQUE a partir do 2º usuário. Fix: `ALTER TABLE profiles ALTER COLUMN username SET DEFAULT NULL` + `UPDATE profiles SET username = NULL WHERE username = ''`. Bônus: AuthContext.signUp agora passa `cpf` nos metadata do Supabase. | DEV | 2026-04-20 |
 | FIX-015 | Stale chunk 404 após deploy Vercel — lazyWithRetry wrapper para todos os lazy imports (App.tsx), ErrorBoundary detecta ChunkLoadError e faz reload automático 1x via sessionStorage flag, vercel.json com /assets/* imutável + HTML no-cache | DEV | 2026-04-20 |
@@ -106,10 +107,10 @@
 
 | Métrica | Valor |
 |---------|-------|
-| Tasks criadas | 40 |
+| Tasks criadas | 41 |
 | Tasks em andamento | 0 |
 | Tasks aguardando aprovação | 0 |
-| Tasks concluídas | 27 |
+| Tasks concluídas | 28 |
 | Bugs críticos abertos | 0 |
 | Skills criadas | 0 |
 | Decisões registradas | 1 |
