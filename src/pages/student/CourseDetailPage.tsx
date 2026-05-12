@@ -559,7 +559,7 @@ export default function CourseDetailPage() {
                         )}
                       </div>
                     )}
-                    <div className="flex items-center justify-between px-8 py-1">
+                    <div className="flex items-center justify-between mx-4 py-1">
                       <div className="flex items-center gap-2">
                         <LessonRating
                           lessonId={activeLesson.id}
