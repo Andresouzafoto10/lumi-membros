@@ -133,6 +133,7 @@ async function fetchBanners(): Promise<CourseBanner[]> {
     targetCourseId: b.target_course_id,
     targetUrl: b.target_url,
     imageUrl: b.image_url,
+    mediaType: (b.media_type ?? "image") as CourseBanner["mediaType"],
     isActive: b.is_active,
     displayOrder: b.display_order,
     createdAt: b.created_at,
@@ -701,6 +702,7 @@ export function useCourses() {
         target_course_id: data.targetCourseId,
         target_url: data.targetUrl,
         image_url: data.imageUrl,
+        media_type: data.mediaType,
         is_active: data.isActive,
         display_order: maxOrder + 1,
       });
@@ -727,6 +729,7 @@ export function useCourses() {
           }),
           ...(patch.targetUrl !== undefined && { target_url: patch.targetUrl }),
           ...(patch.imageUrl !== undefined && { image_url: patch.imageUrl }),
+          ...(patch.mediaType !== undefined && { media_type: patch.mediaType }),
           ...(patch.isActive !== undefined && { is_active: patch.isActive }),
           ...(patch.displayOrder !== undefined && {
             display_order: patch.displayOrder,
