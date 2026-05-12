@@ -559,8 +559,8 @@ export default function CourseDetailPage() {
                         )}
                       </div>
                     )}
-                    <div className="flex items-center justify-between mx-4 py-1">
-                      <div className="flex items-center gap-2 ml-16">
+                    <div className="grid grid-cols-2 items-center mx-4 py-1">
+                      <div className="flex justify-center">
                         <LessonRating
                           lessonId={activeLesson.id}
                           ratingsEnabled={activeLesson.ratingsEnabled}
@@ -576,21 +576,23 @@ export default function CourseDetailPage() {
                           quizRequired && !hasPassedQuiz(currentUserId, activeLesson.id);
                         const isCompleted = !!completedLessons[activeLesson.id];
                         return (
-                          <Button
-                            variant="ghost"
-                            onClick={handleToggleCompleteLesson}
-                            disabled={quizBlocked}
-                            title={quizBlocked ? "Aprove no quiz para concluir" : undefined}
-                            className={cn(
-                              "h-9 px-4 mr-16 text-sm rounded-full gap-1.5 transition-all active:scale-[0.97]",
-                              isCompleted
-                                ? "bg-primary text-white border border-primary hover:bg-primary/90 hover:text-white"
-                                : "bg-transparent text-foreground border border-border hover:bg-muted/50"
-                            )}
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            {isCompleted ? "Aula concluída" : "Concluir aula"}
-                          </Button>
+                          <div className="flex justify-center">
+                            <Button
+                              variant="ghost"
+                              onClick={handleToggleCompleteLesson}
+                              disabled={quizBlocked}
+                              title={quizBlocked ? "Aprove no quiz para concluir" : undefined}
+                              className={cn(
+                                "h-9 px-4 text-sm rounded-full gap-1.5 transition-all active:scale-[0.97]",
+                                isCompleted
+                                  ? "bg-primary text-white border border-primary hover:bg-primary/90 hover:text-white"
+                                  : "bg-transparent text-foreground border border-border hover:bg-muted/50"
+                              )}
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              {isCompleted ? "Aula concluída" : "Concluir aula"}
+                            </Button>
+                          </div>
                         );
                       })()}
                     </div>
