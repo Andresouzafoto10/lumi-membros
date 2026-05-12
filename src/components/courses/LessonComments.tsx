@@ -307,9 +307,10 @@ export function LessonComments({
       {/* Header */}
       <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
         <MessageSquare className="h-4 w-4" />
-        Comentarios
+        <span className="md:hidden">Deixe seu comentário sobre a aula</span>
+        <span className="hidden md:inline">Comentarios</span>
         {commentCount > 0 && (
-          <span className="text-muted-foreground font-normal">
+          <span className="text-muted-foreground font-normal hidden md:inline">
             ({commentCount})
           </span>
         )}

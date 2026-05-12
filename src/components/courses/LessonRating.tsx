@@ -7,9 +7,10 @@ import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 interface LessonRatingProps {
   lessonId: string;
   ratingsEnabled?: boolean;
+  hideLabel?: boolean;
 }
 
-export function LessonRating({ lessonId, ratingsEnabled = true }: LessonRatingProps) {
+export function LessonRating({ lessonId, ratingsEnabled = true, hideLabel = false }: LessonRatingProps) {
   const { settings } = usePlatformSettings();
   const { getRating, setRating } = useLessonRatings();
 
@@ -20,12 +21,15 @@ export function LessonRating({ lessonId, ratingsEnabled = true }: LessonRatingPr
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-xs text-muted-foreground mr-1.5">Avaliar:</span>
+      {!hideLabel && (
+        <span className="text-xs text-muted-foreground mr-1.5">Avaliar:</span>
+      )}
       <Button
         variant="ghost"
         size="icon"
         className={cn(
           "h-8 w-8 rounded-full transition-all active:scale-90",
+          hideLabel && "border border-border",
           current === "like"
             ? "bg-primary/15 text-primary hover:bg-primary/20 shadow-sm shadow-primary/10"
             : "hover:text-primary"
@@ -45,6 +49,7 @@ export function LessonRating({ lessonId, ratingsEnabled = true }: LessonRatingPr
         size="icon"
         className={cn(
           "h-8 w-8 rounded-full transition-all active:scale-90",
+          hideLabel && "border border-border",
           current === "dislike"
             ? "bg-destructive/15 text-destructive hover:bg-destructive/20 shadow-sm shadow-destructive/10"
             : "hover:text-destructive"

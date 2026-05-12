@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-04-20 | **Versão do Tracker:** 2.4.2
+**Última atualização:** 2026-05-12 | **Versão do Tracker:** 2.4.3
 
 ---
 
@@ -46,6 +46,7 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| UI-001 | Reorganização mobile (< md) abaixo do player na CourseDetailPage: "Conteúdo do curso" movido para logo abaixo do vídeo, botões Voltar/Próxima aula compactos (h-9, text-sm, mx-4), linha única `[👍][👎][Aula concluída]` (px-4, gap-2, pill h-8), título da seção de comentários trocado para "Deixe seu comentário sobre a aula". LessonRating ganhou prop `hideLabel`. Right column escondido em < md (`hidden md:block`). Desktop inalterado. Build OK. | DEV | 2026-05-12 |
 | FIX-016 | "Database error saving new user" no cadastro — raiz: `username text unique default ''` causava violação UNIQUE a partir do 2º usuário. Fix: `ALTER TABLE profiles ALTER COLUMN username SET DEFAULT NULL` + `UPDATE profiles SET username = NULL WHERE username = ''`. Bônus: AuthContext.signUp agora passa `cpf` nos metadata do Supabase. | DEV | 2026-04-20 |
 | FIX-015 | Stale chunk 404 após deploy Vercel — lazyWithRetry wrapper para todos os lazy imports (App.tsx), ErrorBoundary detecta ChunkLoadError e faz reload automático 1x via sessionStorage flag, vercel.json com /assets/* imutável + HTML no-cache | DEV | 2026-04-20 |
 | FIX-014 | RLS platform_settings: nova policy `platform_settings_public_read` (anon SELECT USING true) — login page carrega logo/cover/tema sem sessão ativa. Causa: policy antiga exigia auth.uid() IS NOT NULL, bloqueando usuários não autenticados | DEV | 2026-04-20 |
@@ -105,10 +106,10 @@
 
 | Métrica | Valor |
 |---------|-------|
-| Tasks criadas | 39 |
+| Tasks criadas | 40 |
 | Tasks em andamento | 0 |
 | Tasks aguardando aprovação | 0 |
-| Tasks concluídas | 26 |
+| Tasks concluídas | 27 |
 | Bugs críticos abertos | 0 |
 | Skills criadas | 0 |
 | Decisões registradas | 1 |

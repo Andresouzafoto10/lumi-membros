@@ -492,6 +492,108 @@ export default function CourseDetailPage() {
                     <LessonPlayer lesson={activeLesson} />
                   </div>
 
+                  {/* Mobile-only: Conteúdo do curso accordion right below player */}
+                  <div className="md:hidden">
+                    <button
+                      onClick={() => setSidebarOpen(!sidebarOpen)}
+                      className="flex w-full items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/50 active:scale-[0.99]"
+                    >
+                      <span className="flex items-center gap-2 text-sm font-semibold">
+                        <BookOpen className="h-4 w-4" />
+                        Conteúdo do curso
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {Math.round(percentCompleted)}% concluído
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                            sidebarOpen && "rotate-180"
+                          )}
+                        />
+                      </div>
+                    </button>
+                    {sidebarOpen && (
+                      <div className="mt-2">
+                        <CourseSidebar
+                          course={course}
+                          activeLessonId={activeLessonId}
+                          completedLessons={completedLessons}
+                          openModuleId={openModuleId}
+                          onToggleModule={handleToggleModule}
+                          onSelectLesson={(lessonId) => {
+                            handleSelectLesson(lessonId);
+                            setSidebarOpen(false);
+                          }}
+                          percentCompleted={percentCompleted}
+                          lessonAccess={accessMap?.lessonAccess}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mobile-only: navigation + rating + completion (< md) */}
+                  <div className="space-y-2 md:hidden">
+                    {(prevLesson || nextLesson) && (
+                      <div className="flex gap-2 mx-4">
+                        {prevLesson && (
+                          <Button
+                            variant="outline"
+                            className="flex-1 h-9 text-sm"
+                            onClick={() => handleSelectLesson(prevLesson.id)}
+                          >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Voltar aula
+                          </Button>
+                        )}
+                        {nextLesson && (
+                          <Button
+                            variant="outline"
+                            className="flex-1 h-9 text-sm"
+                            onClick={() => handleSelectLesson(nextLesson.id)}
+                          >
+                            Próxima aula
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 px-4">
+                      <LessonRating
+                        lessonId={activeLesson.id}
+                        ratingsEnabled={activeLesson.ratingsEnabled}
+                        hideLabel
+                      />
+                      {(() => {
+                        const quizRequired =
+                          activeLesson.quizRequiredToAdvance &&
+                          activeLesson.quiz &&
+                          activeLesson.quiz.length > 0;
+                        const quizBlocked =
+                          quizRequired && !hasPassedQuiz(currentUserId, activeLesson.id);
+                        return (
+                          <Button
+                            variant={completedLessons[activeLesson.id] ? "outline" : "default"}
+                            onClick={handleToggleCompleteLesson}
+                            disabled={quizBlocked}
+                            title={quizBlocked ? "Aprove no quiz para concluir" : undefined}
+                            className={cn(
+                              "h-8 px-4 text-sm rounded-full border border-border gap-1.5 transition-all active:scale-[0.97]",
+                              !completedLessons[activeLesson.id] &&
+                                "shadow-sm shadow-primary/15"
+                            )}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {completedLessons[activeLesson.id]
+                              ? "Aula concluída"
+                              : "Concluir aula"}
+                          </Button>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
                   {/* Quiz — below video or replacing video */}
                   {activeLesson.quiz && activeLesson.quiz.length > 0 && (
                     <div className="max-w-[860px]">
@@ -504,8 +606,8 @@ export default function CourseDetailPage() {
                     </div>
                   )}
 
-                  {/* Navigation buttons + rating */}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
+                  {/* Navigation buttons + rating (md+ only — mobile uses dedicated compact row above) */}
+                  <div className="hidden md:flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <div className="flex gap-2">
                         {prevLesson && (
@@ -665,9 +767,9 @@ export default function CourseDetailPage() {
               )}
             </div>
 
-            {/* Right column - Sidebar */}
-            <div className="lg:sticky lg:top-24 lg:self-start">
-              {/* Mobile: collapsible accordion header */}
+            {/* Right column - Sidebar (hidden on < md, shown at bottom on tablet, sticky right on desktop) */}
+            <div className="hidden md:block lg:sticky lg:top-24 lg:self-start">
+              {/* Tablet (md to lg): collapsible accordion header */}
               <div className="lg:hidden mb-2">
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
