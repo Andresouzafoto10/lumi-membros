@@ -127,12 +127,32 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
             className="relative h-full flex-shrink-0"
             style={{ width: `${100 / totalSlides}%` }}
           >
-            <img
-              src={banner.imageUrl}
-              alt={banner.title ?? ""}
-              className="h-full w-full object-cover select-none pointer-events-none"
-              draggable={false}
-            />
+            {(banner.mediaType ?? "image") === "video" ? (
+              <video
+                src={banner.imageUrl}
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="h-full w-full object-cover select-none pointer-events-none"
+              />
+            ) : (banner.mediaType ?? "image") === "embed" ? (
+              <iframe
+                src={banner.imageUrl}
+                title={banner.title ?? "Banner"}
+                className="h-full w-full pointer-events-none"
+                allow="autoplay; fullscreen"
+                sandbox="allow-scripts allow-same-origin allow-presentation"
+                loading="lazy"
+              />
+            ) : (
+              <img
+                src={banner.imageUrl}
+                alt={banner.title ?? ""}
+                className="h-full w-full object-cover select-none pointer-events-none"
+                draggable={false}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-black/10" />
 
             <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-10 lg:p-14">
