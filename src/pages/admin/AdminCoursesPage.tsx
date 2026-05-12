@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
-import type { CourseBanner, CourseBannerTargetType } from "@/types/course";
+import type { CourseBanner, CourseBannerMediaType, CourseBannerTargetType } from "@/types/course";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { FileUpload } from "@/components/ui/FileUpload";
@@ -72,6 +72,7 @@ const emptySessionForm: SessionFormState = {
 // ---------------------------------------------------------------------------
 type BannerFormState = {
   imageUrl: string;
+  mediaType: CourseBannerMediaType;
   title: string;
   subtitle: string;
   buttonLabel: string;
@@ -83,6 +84,7 @@ type BannerFormState = {
 
 const emptyBannerForm: BannerFormState = {
   imageUrl: "",
+  mediaType: "image",
   title: "",
   subtitle: "",
   buttonLabel: "",
@@ -163,6 +165,7 @@ export default function AdminCoursesPage() {
     setEditingBannerId(banner.id);
     setBannerForm({
       imageUrl: banner.imageUrl,
+      mediaType: banner.mediaType ?? "image",
       title: banner.title ?? "",
       subtitle: banner.subtitle ?? "",
       buttonLabel: banner.buttonLabel ?? "",
@@ -181,6 +184,7 @@ export default function AdminCoursesPage() {
     }
     const payload = {
       imageUrl: bannerForm.imageUrl.trim(),
+      mediaType: bannerForm.mediaType,
       title: bannerForm.title.trim() || null,
       subtitle: bannerForm.subtitle.trim() || null,
       buttonLabel: bannerForm.buttonLabel.trim() || null,
@@ -427,15 +431,20 @@ export default function AdminCoursesPage() {
                 <Label>Imagem do banner</Label>
                 <FileUpload
                   value={bannerForm.imageUrl}
-                  onChange={(url) =>
-                    setBannerForm({ ...bannerForm, imageUrl: url })
+                  mediaType={bannerForm.mediaType}
+                  onChange={(url, mediaType) =>
+                    setBannerForm({
+                      ...bannerForm,
+                      imageUrl: url,
+                      mediaType: mediaType ?? "image",
+                    })
                   }
                   folder="banners"
                   imagePreset="banner"
                   allowUrl={true}
                   aspectRatio="21/9"
-                  maxSizeMB={10}
-                  placeholder="Arraste ou clique para enviar"
+                  maxSizeMB={50}
+                  placeholder="Arraste imagem/video ou cole URL do Canva"
                 />
               </div>
 
