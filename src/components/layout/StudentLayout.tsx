@@ -596,7 +596,7 @@ export function StudentLayout() {
       <DailyLoginTracker />
       <StudentScriptInjector />
       <div className="flex min-h-screen flex-col bg-background">
-        <nav className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-border/70 bg-background/95 px-4 backdrop-blur-sm md:h-16 md:px-6">
+        <nav className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-border/70 bg-background/95 px-5 backdrop-blur-sm md:h-16 md:px-8">
           <div className="flex h-full items-center justify-between gap-4 md:gap-6">
             <div className="flex min-w-0 items-center gap-6 lg:gap-10">
               <Link

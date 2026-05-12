@@ -488,7 +488,7 @@ export default function CourseDetailPage() {
               {/* Active lesson (accessible) */}
               {activeLesson && !lessonBlocked && (
                 <>
-                  <div className="-mx-3 sm:mx-0 sm:max-w-[860px]">
+                  <div className="sm:max-w-[860px]">
                     <LessonPlayer lesson={activeLesson} />
                   </div>
 
