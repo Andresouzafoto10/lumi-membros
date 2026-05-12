@@ -130,10 +130,11 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
             {(banner.mediaType ?? "image") === "video" ? (
               <video
                 src={banner.imageUrl}
-                autoPlay
+                autoPlay={idx === currentIndex}
                 muted
                 loop
                 playsInline
+                preload="metadata"
                 className="h-full w-full object-cover select-none pointer-events-none"
               />
             ) : (banner.mediaType ?? "image") === "embed" ? (
@@ -142,7 +143,7 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
                 title={banner.title ?? "Banner"}
                 className="h-full w-full pointer-events-none"
                 allow="autoplay; fullscreen"
-                sandbox="allow-scripts allow-same-origin allow-presentation"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-presentation"
                 loading="lazy"
               />
             ) : (
