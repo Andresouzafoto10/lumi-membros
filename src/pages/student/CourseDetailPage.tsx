@@ -582,7 +582,7 @@ export default function CourseDetailPage() {
                             disabled={quizBlocked}
                             title={quizBlocked ? "Aprove no quiz para concluir" : undefined}
                             className={cn(
-                              "h-9 px-4 text-sm rounded-full gap-1.5 transition-all active:scale-[0.97]",
+                              "h-9 px-4 mr-16 text-sm rounded-full gap-1.5 transition-all active:scale-[0.97]",
                               isCompleted
                                 ? "bg-primary text-white border border-primary hover:bg-primary/90 hover:text-white"
                                 : "bg-transparent text-foreground border border-border hover:bg-muted/50"
