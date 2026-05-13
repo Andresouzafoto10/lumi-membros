@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useCourses } from "@/hooks/useCourses";
 import { useAdminLessonRatings } from "@/hooks/useLessonRatings";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { clearDialogBodyLock } from "@/lib/dialogScrollLockFix";
 import {
   extractIframeSrc,
   inferEmbedMode,
@@ -346,6 +347,9 @@ export default function AdminModuleEditPage() {
       toast.success("Aula criada.");
     }
     setLessonDialogOpen(false);
+    // Safety net: ensure body scroll-lock is released even if Radix's
+    // onCloseAutoFocus is interrupted by the React Query refetch re-render.
+    setTimeout(clearDialogBodyLock, 200);
   }
 
   function handleToggleLesson(lessonId: string, current: boolean) {
