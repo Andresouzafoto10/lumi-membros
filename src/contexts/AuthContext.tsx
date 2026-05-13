@@ -54,7 +54,54 @@ const missingSupabaseConfigMessage =
 // Helper: map Supabase user + profile → AuthUser
 // ---------------------------------------------------------------------------
 
+const PROFILE_CACHE_KEY = "lumi:auth:profile";
+
+function readCachedProfile(userId: string): AuthUser | null {
+  try {
+    const raw = localStorage.getItem(`${PROFILE_CACHE_KEY}:${userId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AuthUser;
+    if (parsed.id !== userId) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedProfile(profile: AuthUser) {
+  try {
+    localStorage.setItem(
+      `${PROFILE_CACHE_KEY}:${profile.id}`,
+      JSON.stringify(profile)
+    );
+  } catch {
+    // ignore quota errors
+  }
+}
+
+function clearCachedProfile(userId?: string) {
+  try {
+    if (userId) {
+      localStorage.removeItem(`${PROFILE_CACHE_KEY}:${userId}`);
+      return;
+    }
+    // Clear all cached profiles (sign-out without id)
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(`${PROFILE_CACHE_KEY}:`)) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function fallbackUser(user: User): AuthUser {
+  // Prefer cached profile from a prior session so a transient fetch failure
+  // on F5 doesn't demote an admin to "student" and trigger a redirect.
+  const cached = readCachedProfile(user.id);
+  if (cached) return cached;
   return {
     id: user.id,
     email: user.email ?? "",
@@ -84,7 +131,7 @@ async function fetchProfile(
       .then(({ data, error }) => {
         if (error || !data) return fb;
         const d = data as { name?: string; role?: string; status?: string };
-        return {
+        const profile: AuthUser = {
           id: user.id,
           email: user.email ?? "",
           name: d.name ?? user.email ?? "",
@@ -92,6 +139,8 @@ async function fetchProfile(
           status: d.status ?? "active",
           avatarUrl: "",
         };
+        writeCachedProfile(profile);
+        return profile;
       });
     return await Promise.race([query, timeout]);
   } catch {
@@ -226,7 +275,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!isSupabaseConfigured) return;
+    const previousUserId = lastKnownProfile.current?.id;
     await supabase.auth.signOut();
+    clearCachedProfile(previousUserId);
     lastKnownProfile.current = null;
     setUser(null);
     setSession(null);
