@@ -16,8 +16,11 @@ import {
   LogOut,
   Video,
   Route,
+  Sun,
+  Moon,
   type LucideIcon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import * as LucideIcons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -268,6 +271,7 @@ function ProfileHeaderButton() {
   const { currentUserId } = useCurrentUser();
   const { findProfile } = useProfiles();
   const { user, signOut, isAdmin } = useAuth();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [sheetOpen, setSheetOpen] = useState(false);
   const profile = findProfile(currentUserId);
@@ -427,6 +431,17 @@ function ProfileHeaderButton() {
                       Painel Admin
                     </button>
                   )}
+                  <button
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent active:scale-[0.98]"
+                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  >
+                    {theme === "dark" ? (
+                      <Sun className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <Moon className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    {theme === "dark" ? "Modo claro" : "Modo escuro"}
+                  </button>
                   <div className="my-2 h-px bg-border" />
                   <button
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 active:scale-[0.98]"
