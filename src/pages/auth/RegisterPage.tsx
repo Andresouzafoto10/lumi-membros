@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEmailNotifications } from "@/hooks/useEmailNotifications";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 export default function RegisterPage() {
   const { signUp } = useAuth();
+  const { notifyWelcome } = useEmailNotifications();
   const navigate = useNavigate();
   const { settings } = usePlatformSettings();
 
@@ -53,12 +55,16 @@ export default function RegisterPage() {
 
     setError(null);
     setLoading(true);
-    const { error } = await signUp(email, password, name, cpf.replace(/\D/g, ""));
+    const { error, userId } = await signUp(email, password, name, cpf.replace(/\D/g, ""));
     setLoading(false);
 
     if (error) {
       setError(error);
       return;
+    }
+
+    if (userId) {
+      void notifyWelcome(userId);
     }
 
     setDone(true);
@@ -109,7 +115,7 @@ export default function RegisterPage() {
             <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
             <h2 className="text-xl font-semibold">Cadastro realizado!</h2>
             <p className="text-sm text-muted-foreground">
-              Verifique seu e-mail para confirmar a conta.
+              Enviamos um email de boas-vindas. Verifique sua caixa de entrada.
               <br />
               Redirecionando…
             </p>

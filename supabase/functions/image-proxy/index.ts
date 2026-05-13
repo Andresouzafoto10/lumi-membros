@@ -4,10 +4,21 @@ import {
   S3Client,
 } from "https://esm.sh/@aws-sdk/client-s3@3";
 
-const R2_ENDPOINT =
+function sanitizeEndpoint(raw: string): string {
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return raw.replace(/\/[^/]*$/, "").replace(/\/$/, "");
+  }
+}
+
+const R2_ENDPOINT = sanitizeEndpoint(
   Deno.env.get("R2_ENDPOINT") ??
-  Deno.env.get("VITE_R2_ENDPOINT") ??
-  "";
+    Deno.env.get("VITE_R2_ENDPOINT") ??
+    "",
+);
 const R2_ACCESS_KEY =
   Deno.env.get("R2_ACCESS_KEY") ??
   Deno.env.get("R2_ACCESS_KEY_ID") ??
@@ -36,6 +47,7 @@ const corsHeaders = {
 const s3 = new S3Client({
   region: "auto",
   endpoint: R2_ENDPOINT,
+  forcePathStyle: true,
   credentials: {
     accessKeyId: R2_ACCESS_KEY,
     secretAccessKey: R2_SECRET_KEY,

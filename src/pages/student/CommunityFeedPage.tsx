@@ -211,7 +211,7 @@ export default function CommunityFeedPage() {
           }
         />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {feedPosts.map((post, idx) => (
             <div key={post.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
               <PostCard

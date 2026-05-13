@@ -244,7 +244,7 @@ export default function CommunityPage() {
           description="Seja o primeiro a publicar nesta comunidade!"
         />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {regularPosts.map((post, idx) => (
             <div key={post.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
               <PostCard

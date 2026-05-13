@@ -33,7 +33,7 @@ type AuthContextValue = {
     password: string,
     name: string,
     cpf?: string
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ error: string | null; userId?: string }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   sendMagicLink: (email: string) => Promise<{ error: string | null }>;
@@ -268,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           following: [],
         });
       }
-      return { error: null };
+      return { error: null, userId: data.user?.id };
     },
     []
   );

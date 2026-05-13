@@ -60,7 +60,7 @@ function buildSubject(type: EmailType, payload: NotifyEmailPayload): string {
     case "badge_earned":
       return `Voce conquistou o badge "${ctx.badge_name}"!`;
     case "welcome":
-      return `Bem-vindo(a) a ${PLATFORM_NAME}! 🎉`;
+      return `Bem-vindo(a) a Escola Master! Sua jornada comeca agora 📸`;
     case "welcome_with_setup":
       return `Bem-vindo(a) a ${PLATFORM_NAME}! Crie sua senha 🔐`;
     case "course_unlocked":
@@ -97,13 +97,26 @@ function buildBody(type: EmailType, payload: NotifyEmailPayload): { heading: str
   switch (type) {
     case "welcome":
       return {
-        heading: `Bem-vindo(a), ${name}!`,
-        bodyHtml: `<p style="margin:0 0 16px 0;">Estamos muito felizes em ter voce conosco na <strong>${PLATFORM_NAME}</strong>!</p>
-          <p style="margin:0 0 16px 0;">Aqui voce vai encontrar cursos exclusivos, uma comunidade incrivel e muito conteudo para sua evolucao.</p>
-          <p style="margin:0;">Comece agora explorando os cursos disponiveis.</p>`,
-        ctaText: "Explorar cursos",
+        heading: `Que bom te ver aqui, ${name}!`,
+        bodyHtml: `<p style="margin:0 0 16px 0;">Voce acaba de entrar na <strong style="color:#ff7b00;">Escola Master</strong> &mdash; o lugar onde fotografos viram profissionais que vivem da propria arte.</p>
+          <p style="margin:0 0 12px 0;">Aqui voce vai dominar tudo que um fotografo de verdade precisa:</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 20px 0;width:100%;">
+            <tr><td style="padding:6px 0;color:#fafafa;"><span style="color:#ff7b00;font-weight:700;">&#9679;</span> &nbsp;<strong>Fotografia</strong> &mdash; tecnica, luz, composicao, direcao</td></tr>
+            <tr><td style="padding:6px 0;color:#fafafa;"><span style="color:#ff7b00;font-weight:700;">&#9679;</span> &nbsp;<strong>Edicao</strong> &mdash; fluxo profissional, cor e retoque</td></tr>
+            <tr><td style="padding:6px 0;color:#fafafa;"><span style="color:#ff7b00;font-weight:700;">&#9679;</span> &nbsp;<strong>Marketing</strong> &mdash; atrair clientes que pagam o seu preco</td></tr>
+            <tr><td style="padding:6px 0;color:#fafafa;"><span style="color:#ff7b00;font-weight:700;">&#9679;</span> &nbsp;<strong>Vendas</strong> &mdash; fechar contratos sem medo</td></tr>
+            <tr><td style="padding:6px 0;color:#fafafa;"><span style="color:#ff7b00;font-weight:700;">&#9679;</span> &nbsp;<strong>Gestao</strong> &mdash; organizar agenda, financas e equipe</td></tr>
+            <tr><td style="padding:6px 0;color:#fafafa;"><span style="color:#ff7b00;font-weight:700;">&#9679;</span> &nbsp;<strong>Ferramentas</strong> &mdash; saber o que usar e quando usar</td></tr>
+          </table>
+          <p style="margin:0 0 16px 0;">E o melhor: <strong>voce nao vai trilhar esse caminho sozinho.</strong></p>
+          <div style="margin:0 0 20px 0;padding:18px 20px;background:#27272a;border:1px solid #3f3f46;border-radius:10px;">
+            <p style="margin:0 0 6px 0;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:#ff7b00;font-weight:700;">Comunidade Master</p>
+            <p style="margin:0;color:#fafafa;line-height:22px;">Poste suas fotos, receba avaliacao direta dos professores Master, troque ideia com outros alunos que estao na mesma jornada e veja seu trabalho evoluir a cada feedback. E ali que muitos descobrem o salto que faltava &mdash; aquela critica certa, no momento certo, que muda tudo.</p>
+          </div>
+          <p style="margin:0;">Sua transformacao comeca com um clique. Bora?</p>`,
+        ctaText: "Entrar na plataforma",
         ctaUrl: `${baseUrl}/cursos`,
-        previewText: "Sua jornada comeca agora",
+        previewText: "Cursos + comunidade + avaliacao dos professores. Tudo pra voce viver de fotografia.",
       };
 
     case "welcome_with_setup": {

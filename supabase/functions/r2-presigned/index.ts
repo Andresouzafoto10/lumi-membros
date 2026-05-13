@@ -4,7 +4,17 @@ import { S3Client, DeleteObjectCommand, PutObjectCommand, GetObjectCommand } fro
 import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3";
 import { makeCorsHeaders } from "../_shared/cors.ts";
 
-const R2_ENDPOINT = Deno.env.get("R2_ENDPOINT") ?? "";
+function sanitizeEndpoint(raw: string): string {
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return raw.replace(/\/[^/]*$/, "").replace(/\/$/, "");
+  }
+}
+
+const R2_ENDPOINT = sanitizeEndpoint(Deno.env.get("R2_ENDPOINT") ?? "");
 const R2_ACCESS_KEY =
   Deno.env.get("R2_ACCESS_KEY") ??
   Deno.env.get("R2_ACCESS_KEY_ID") ??
@@ -23,6 +33,7 @@ const R2_PUBLIC_URL = (
 const s3 = new S3Client({
   region: "auto",
   endpoint: R2_ENDPOINT,
+  forcePathStyle: true,
   credentials: {
     accessKeyId: R2_ACCESS_KEY,
     secretAccessKey: R2_SECRET_KEY,

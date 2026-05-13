@@ -14,6 +14,8 @@ import {
   Trophy,
   FileText,
   Check,
+  UserPlus,
+  UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -309,7 +311,7 @@ export const PostCard = memo(function PostCard({
   onToggleComments?: (postId: string) => void;
 }) {
   const { currentUserId } = useCurrentUser();
-  const { profiles, findProfile } = useProfiles();
+  const { profiles, findProfile, isFollowing, follow, unfollow } = useProfiles();
   const { toggleLike, toggleSave, deletePost, votePoll } = usePosts();
   const { findCommunity } = useCommunities();
   const { getPlayerData, getPlayerMissions } = useGamification();
@@ -333,6 +335,19 @@ export const PostCard = memo(function PostCard({
   const isOwn = post.authorId === currentUserId;
   const liked = post.likedBy.includes(currentUserId);
   const saved = post.savedBy.includes(currentUserId);
+  const following = !isOwn && currentUserId && post.authorId
+    ? isFollowing(currentUserId, post.authorId)
+    : false;
+
+  function handleToggleFollow() {
+    if (!currentUserId || isOwn) return;
+    if (following) {
+      unfollow(currentUserId, post.authorId);
+    } else {
+      follow(currentUserId, post.authorId);
+      toast.success("Seguindo!");
+    }
+  }
 
   function handleLike() {
     toggleLike(post.id, currentUserId);
@@ -366,7 +381,7 @@ export const PostCard = memo(function PostCard({
       <div
         id={post.id}
         data-post-id={post.id}
-        className="relative scroll-mt-24 border-b border-border/20 pb-4 lg:scroll-mt-6"
+        className="relative scroll-mt-24 border-b-2 border-border/50 pb-4 lg:scroll-mt-6"
       >
         <div className="px-1 py-3">
           <div className="flex items-center gap-3">
@@ -397,8 +412,8 @@ export const PostCard = memo(function PostCard({
       id={post.id}
       data-post-id={post.id}
       className={cn(
-        "relative scroll-mt-24 border-b border-border/20 transition-colors duration-200 lg:scroll-mt-6",
-        isPinned && "bg-primary/[0.03] border-b-primary/20"
+        "relative scroll-mt-24 border-b-2 border-border/50 pb-2 transition-colors duration-200 lg:scroll-mt-6",
+        isPinned && "bg-primary/[0.03] border-b-primary/30"
       )}
     >
       <div className="px-1 py-4">
@@ -490,6 +505,32 @@ export const PostCard = memo(function PostCard({
               )}
             </div>
           </div>
+
+          {/* Follow button */}
+          {!isOwn && (
+            <Button
+              size="sm"
+              variant={following ? "outline" : "default"}
+              onClick={handleToggleFollow}
+              className={cn(
+                "h-8 px-3 text-xs rounded-full shrink-0 active:scale-95 transition-all",
+                following && "hover:text-destructive hover:border-destructive/30",
+                !following && "shadow-sm shadow-primary/15"
+              )}
+            >
+              {following ? (
+                <>
+                  <UserCheck className="mr-1 h-3.5 w-3.5" />
+                  Seguindo
+                </>
+              ) : (
+                <>
+                  <UserPlus className="mr-1 h-3.5 w-3.5" />
+                  Seguir
+                </>
+              )}
+            </Button>
+          )}
 
           {/* Menu */}
           <div className="relative">
