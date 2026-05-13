@@ -1,0 +1,95 @@
+{
+  "migrated_at": "2026-05-13T14:06:11.441Z",
+  "entries": [
+    {
+      "source": {
+        "bucket": "home-covers",
+        "path": "2a3e1af4-3983-4eb1-a283-a84476439aa8/1773452988981.jpg",
+        "size": 180777,
+        "sha256": "1367d60543d013d21933668944a1239033aabe91ad949a4205cd96643823f703",
+        "mimetype": "image/jpeg"
+      },
+      "destination": {
+        "bucket": "lumi-membros",
+        "key": "legacy/home-covers/2a3e1af4-3983-4eb1-a283-a84476439aa8/1773452988981.jpg",
+        "publicUrl": "https://pub-bfe5cbaa2089421394e7b291cf2bac7b.r2.dev/legacy/home-covers/2a3e1af4-3983-4eb1-a283-a84476439aa8/1773452988981.jpg"
+      },
+      "migrated_at": "2026-05-13T14:05:53.344Z"
+    },
+    {
+      "source": {
+        "bucket": "home-covers",
+        "path": "2a3e1af4-3983-4eb1-a283-a84476439aa8/1774641043515.jpg",
+        "size": 1241614,
+        "sha256": "e0d6212725ea20610d22c96c1d30f674ae5e6017174045d45d499d4c44043740",
+        "mimetype": "image/jpeg"
+      },
+      "destination": {
+        "bucket": "lumi-membros",
+        "key": "legacy/home-covers/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774641043515.jpg",
+        "publicUrl": "https://pub-bfe5cbaa2089421394e7b291cf2bac7b.r2.dev/legacy/home-covers/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774641043515.jpg"
+      },
+      "migrated_at": "2026-05-13T14:05:57.444Z"
+    },
+    {
+      "source": {
+        "bucket": "home-covers",
+        "path": "2a3e1af4-3983-4eb1-a283-a84476439aa8/1774641054283.jpg",
+        "size": 1241614,
+        "sha256": "e0d6212725ea20610d22c96c1d30f674ae5e6017174045d45d499d4c44043740",
+        "mimetype": "image/jpeg"
+      },
+      "destination": {
+        "bucket": "lumi-membros",
+        "key": "legacy/home-covers/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774641054283.jpg",
+        "publicUrl": "https://pub-bfe5cbaa2089421394e7b291cf2bac7b.r2.dev/legacy/home-covers/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774641054283.jpg"
+      },
+      "migrated_at": "2026-05-13T14:06:02.153Z"
+    },
+    {
+      "source": {
+        "bucket": "lesson-materials",
+        "path": "790be6c7-6937-4696-a76e-653c6b5c4500/1775279812212_logo.png",
+        "size": 68414,
+        "sha256": "bac1b563ec1d69ab9598057b09a23bd331f2e91998f37338a33e443eb9eba229",
+        "mimetype": "image/png"
+      },
+      "destination": {
+        "bucket": "lumi-membros",
+        "key": "legacy/lesson-materials/790be6c7-6937-4696-a76e-653c6b5c4500/1775279812212_logo.png",
+        "publicUrl": "https://pub-bfe5cbaa2089421394e7b291cf2bac7b.r2.dev/legacy/lesson-materials/790be6c7-6937-4696-a76e-653c6b5c4500/1775279812212_logo.png"
+      },
+      "migrated_at": "2026-05-13T14:06:04.542Z"
+    },
+    {
+      "source": {
+        "bucket": "thumbnails",
+        "path": "certificates/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774325885653.jpg",
+        "size": 180777,
+        "sha256": "1367d60543d013d21933668944a1239033aabe91ad949a4205cd96643823f703",
+        "mimetype": "image/jpeg"
+      },
+      "destination": {
+        "bucket": "lumi-membros",
+        "key": "legacy/thumbnails/certificates/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774325885653.jpg",
+        "publicUrl": "https://pub-bfe5cbaa2089421394e7b291cf2bac7b.r2.dev/legacy/thumbnails/certificates/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774325885653.jpg"
+      },
+      "migrated_at": "2026-05-13T14:06:08.369Z"
+    },
+    {
+      "source": {
+        "bucket": "thumbnails",
+        "path": "certificates/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774581795115.jpg",
+        "size": 180777,
+        "sha256": "1367d60543d013d21933668944a1239033aabe91ad949a4205cd96643823f703",
+        "mimetype": "image/jpeg"
+      },
+      "destination": {
+        "bucket": "lumi-membros",
+        "key": "legacy/thumbnails/certificates/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774581795115.jpg",
+        "publicUrl": "https://pub-bfe5cbaa2089421394e7b291cf2bac7b.r2.dev/legacy/thumbnails/certificates/2a3e1af4-3983-4eb1-a283-a84476439aa8/1774581795115.jpg"
+      },
+      "migrated_at": "2026-05-13T14:06:11.441Z"
+    }
+  ]
+}

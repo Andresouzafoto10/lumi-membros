@@ -1229,37 +1229,14 @@ create policy "lesson_materials: aluno lê via matrícula"
   );
 
 -- =============================================================================
--- 28. STORAGE BUCKET: lesson-materials (privado)
+-- 28. STORAGE — deprecated
 -- =============================================================================
-
-insert into storage.buckets (id, name, public)
-values ('lesson-materials', 'lesson-materials', false)
-on conflict (id) do nothing;
-
--- Admins fazem upload
-create policy "lesson_materials_storage: admin upload"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'lesson-materials'
-    and exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid() and p.role in ('owner','admin','support')
-    )
-  );
-
--- Admins deletam
-create policy "lesson_materials_storage: admin delete"
-  on storage.objects for delete
-  using (
-    bucket_id = 'lesson-materials'
-    and exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid() and p.role in ('owner','admin','support')
-    )
-  );
-
--- Service role lê (para Edge Function download-material)
--- Alunos NUNCA acessam o bucket diretamente — download sempre via Edge Function
+-- Supabase Storage no longer used. All media/files (avatars, banners, covers,
+-- lesson materials, certificates, post media, logos) are stored exclusively in
+-- Cloudflare R2 bucket `lumi-membros`. Uploads flow through Edge Function
+-- `r2-presigned` (presigned PUT) and `useR2Upload` on the frontend.
+-- See migration 002_drop_storage_policies.sql for the removal step on
+-- existing projects.
 
 -- =============================================================================
 -- 29. EMAIL AUTOMATIONS

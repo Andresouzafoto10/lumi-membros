@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
+import { deleteFromR2, isR2Url } from "@/lib/r2Upload";
 import type {
   CertificateTemplate,
   CertificateBlock,
@@ -129,6 +130,9 @@ export function useCertificates() {
 
   const updateTemplate = useCallback(
     async (id: string, data: Partial<CertificateTemplate>) => {
+      const previous = templates.find((t) => t.id === id);
+      const previousBg = previous?.backgroundUrl;
+
       const { error } = await supabase
         .from("certificate_templates")
         .update({
@@ -143,13 +147,25 @@ export function useCertificates() {
         })
         .eq("id", id);
       if (error) throw error;
+
+      if (
+        data.backgroundUrl !== undefined &&
+        previousBg &&
+        previousBg !== data.backgroundUrl &&
+        isR2Url(previousBg)
+      ) {
+        await deleteFromR2(previousBg);
+      }
+
       invalidateTemplates();
     },
-    [invalidateTemplates]
+    [invalidateTemplates, templates]
   );
 
   const deleteTemplate = useCallback(
     async (id: string) => {
+      const template = templates.find((t) => t.id === id);
+
       // Delete earned certificates referencing this template (FK constraint, NOT NULL)
       await supabase
         .from("earned_certificates")
@@ -161,10 +177,15 @@ export function useCertificates() {
         .delete()
         .eq("id", id);
       if (error) throw error;
+
+      if (template?.backgroundUrl && isR2Url(template.backgroundUrl)) {
+        await deleteFromR2(template.backgroundUrl);
+      }
+
       invalidateTemplates();
       invalidateEarned();
     },
-    [invalidateTemplates, invalidateEarned]
+    [invalidateTemplates, invalidateEarned, templates]
   );
 
   const getTemplates = useCallback(() => templates, [templates]);

@@ -759,6 +759,16 @@ export function CreatePostDialog({
     try {
       if (isEdit && editPost) {
         // --- Edit mode ---
+        const removedImages = (editPost.images ?? []).filter(
+          (url) => !images.includes(url),
+        );
+        const newAttachmentUrls = new Set(
+          attachments.map((a) => a.dataUrl).filter(Boolean),
+        );
+        const removedAttachments = (editPost.attachments ?? []).filter(
+          (a) => a.dataUrl && !newAttachmentUrls.has(a.dataUrl),
+        );
+
         await updatePost(editPost.id, {
           title: title.trim(),
           body: body.trim(),
@@ -777,6 +787,15 @@ export function CreatePostDialog({
               }
             : null,
         });
+
+        for (const url of removedImages) {
+          if (isR2Url(url)) deleteFromR2(url).catch(() => {});
+        }
+        for (const att of removedAttachments) {
+          if (att.dataUrl && isR2Url(att.dataUrl))
+            deleteFromR2(att.dataUrl).catch(() => {});
+        }
+
         toast.success("Publicação atualizada!");
       } else {
         // --- Create mode ---
