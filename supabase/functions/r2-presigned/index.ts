@@ -33,7 +33,6 @@ const R2_PUBLIC_URL = (
 const s3 = new S3Client({
   region: "auto",
   endpoint: R2_ENDPOINT,
-  forcePathStyle: true,
   credentials: {
     accessKeyId: R2_ACCESS_KEY,
     secretAccessKey: R2_SECRET_KEY,

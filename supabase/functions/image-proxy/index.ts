@@ -1,36 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import {
-  GetObjectCommand,
-  S3Client,
-} from "https://esm.sh/@aws-sdk/client-s3@3";
 
-function sanitizeEndpoint(raw: string): string {
-  if (!raw) return "";
-  try {
-    const url = new URL(raw);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return raw.replace(/\/[^/]*$/, "").replace(/\/$/, "");
-  }
-}
-
-const R2_ENDPOINT = sanitizeEndpoint(
-  Deno.env.get("R2_ENDPOINT") ??
-    Deno.env.get("VITE_R2_ENDPOINT") ??
-    "",
-);
-const R2_ACCESS_KEY =
-  Deno.env.get("R2_ACCESS_KEY") ??
-  Deno.env.get("R2_ACCESS_KEY_ID") ??
-  "";
-const R2_SECRET_KEY =
-  Deno.env.get("R2_SECRET_KEY") ??
-  Deno.env.get("R2_SECRET_ACCESS_KEY") ??
-  "";
-const R2_BUCKET =
-  Deno.env.get("R2_BUCKET_NAME") ??
-  Deno.env.get("VITE_R2_BUCKET_NAME") ??
-  "";
 const R2_PUBLIC_URL = (
   Deno.env.get("R2_PUBLIC_URL") ??
   Deno.env.get("VITE_R2_PUBLIC_URL") ??
@@ -44,73 +13,26 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: R2_ENDPOINT,
-  forcePathStyle: true,
-  credentials: {
-    accessKeyId: R2_ACCESS_KEY,
-    secretAccessKey: R2_SECRET_KEY,
-  },
-});
-
-function extractAllowedR2Key(candidate: string): string | null {
-  if (!R2_PUBLIC_URL) return null;
-
+function isAllowedR2Url(candidate: string): boolean {
+  if (!R2_PUBLIC_URL) return false;
   try {
     const requestedUrl = new URL(candidate);
     const allowedUrl = new URL(R2_PUBLIC_URL);
     const allowedPath = allowedUrl.pathname.replace(/\/$/, "");
     const requestedPath = requestedUrl.pathname.replace(/\/$/, "");
 
-    if (requestedUrl.origin !== allowedUrl.origin) return null;
-
+    if (requestedUrl.origin !== allowedUrl.origin) return false;
     if (
       requestedPath !== allowedPath &&
       !requestedPath.startsWith(`${allowedPath}/`)
     ) {
-      return null;
+      return false;
     }
-
-    const rawKey = requestedUrl.pathname
-      .slice(allowedPath.length)
-      .replace(/^\/+/, "");
-    const decodedOnce = decodeURIComponent(rawKey);
-    const decodedTwice = decodeURIComponent(decodedOnce);
-
-    if (!decodedTwice) return null;
-    if (decodedOnce.includes("..") || decodedTwice.includes("..")) return null;
-    if (!/^[a-zA-Z0-9/_.\-]+$/.test(decodedTwice)) return null;
-    return decodedTwice;
+    if (requestedPath.includes("..")) return false;
+    if (!/^[a-zA-Z0-9/_.\-]+$/.test(requestedPath)) return false;
+    return true;
   } catch {
-    return null;
-  }
-}
-
-async function fetchPublicImageFallback(imageUrl: string): Promise<Response | null> {
-  try {
-    const upstream = await fetch(imageUrl, {
-      headers: {
-        Accept: "image/*,*/*;q=0.8",
-      },
-    });
-
-    if (!upstream.ok || !upstream.body) return null;
-
-    const contentType =
-      upstream.headers.get("Content-Type") || "application/octet-stream";
-    if (!contentType.startsWith("image/")) return null;
-
-    return new Response(upstream.body, {
-      status: upstream.status,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400",
-      },
-    });
-  } catch {
-    return null;
+    return false;
   }
 }
 
@@ -126,7 +48,7 @@ serve(async (req) => {
     });
   }
 
-  if (!R2_PUBLIC_URL || !R2_ENDPOINT || !R2_ACCESS_KEY || !R2_SECRET_KEY || !R2_BUCKET) {
+  if (!R2_PUBLIC_URL) {
     return new Response("R2 não configurado", {
       status: 500,
       headers: corsHeaders,
@@ -134,17 +56,16 @@ serve(async (req) => {
   }
 
   const requestUrl = new URL(req.url);
-  const imageUrl = requestUrl.searchParams.get("url");
+  const mediaUrl = requestUrl.searchParams.get("url");
 
-  if (!imageUrl) {
+  if (!mediaUrl) {
     return new Response("Parâmetro url é obrigatório", {
       status: 400,
       headers: corsHeaders,
     });
   }
 
-  const objectKey = extractAllowedR2Key(imageUrl);
-  if (!objectKey) {
+  if (!isAllowedR2Url(mediaUrl)) {
     return new Response("URL não permitida", {
       status: 400,
       headers: corsHeaders,
@@ -152,29 +73,30 @@ serve(async (req) => {
   }
 
   try {
-    const object = await s3.send(
-      new GetObjectCommand({
-        Bucket: R2_BUCKET,
-        Key: objectKey,
-      }),
-    );
+    const upstream = await fetch(mediaUrl, {
+      headers: { Accept: "image/*,video/*,*/*;q=0.8" },
+    });
 
-    if (!object.Body) {
-      return new Response("Imagem não encontrada", {
-        status: 404,
+    if (!upstream.ok || !upstream.body) {
+      return new Response("Mídia não encontrada", {
+        status: upstream.status || 404,
         headers: corsHeaders,
       });
     }
 
-    const contentType = object.ContentType || "application/octet-stream";
-    if (!contentType.startsWith("image/")) {
-      return new Response("Recurso não é uma imagem", {
+    const contentType =
+      upstream.headers.get("Content-Type") || "application/octet-stream";
+    if (
+      !contentType.startsWith("image/") &&
+      !contentType.startsWith("video/")
+    ) {
+      return new Response("Recurso não é uma imagem ou vídeo", {
         status: 415,
         headers: corsHeaders,
       });
     }
 
-    return new Response(object.Body as ReadableStream, {
+    return new Response(upstream.body, {
       status: 200,
       headers: {
         ...corsHeaders,
@@ -184,13 +106,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("image-proxy error:", error);
-    const message = String(error);
-    if (/NoSuchKey|NotFound|404/.test(message)) {
-      const fallback = await fetchPublicImageFallback(imageUrl);
-      if (fallback) return fallback;
-      return new Response("Imagem não encontrada", { status: 404, headers: corsHeaders });
-    }
-    return new Response("Erro ao processar imagem", {
+    return new Response("Erro ao processar mídia", {
       status: 500,
       headers: corsHeaders,
     });
