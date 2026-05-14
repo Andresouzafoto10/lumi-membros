@@ -29,6 +29,7 @@ export function usePinnedPosts() {
   const { data: pins = [], isLoading } = useQuery({
     queryKey: QK,
     queryFn: fetchPinnedPosts,
+    enabled: !!user,
     staleTime: 1000 * 60 * 2,
   });
 
@@ -90,6 +91,9 @@ export function usePinnedPosts() {
         const code = (error as { code?: string }).code;
         if (code === "23514" || error.message?.includes("Limite de 3")) {
           throw new Error("Limite de 3 fixados atingido neste destino. Desafixe um antes.");
+        }
+        if (code === "23505") {
+          throw new Error("Este post já está fixado neste destino.");
         }
         console.error("[pinned_posts] insert:", error.message);
         throw error;

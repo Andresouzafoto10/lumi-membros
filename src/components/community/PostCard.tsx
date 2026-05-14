@@ -328,8 +328,11 @@ export const PostCard = memo(function PostCard({
   const [editOpen, setEditOpen] = useState(false);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
 
-  const pinDest = getPinDestinations(post.id, post.communityId);
-  const anyPinned = pinDest.community || pinDest.feed || pinDest.sidebar;
+  const pinDest = useMemo(
+    () => (isAdmin ? getPinDestinations(post.id, post.communityId) : null),
+    [isAdmin, getPinDestinations, post.id, post.communityId]
+  );
+  const anyPinned = pinDest ? (pinDest.community || pinDest.feed || pinDest.sidebar) : false;
 
   const author = findProfile(post.authorId);
   const community = findCommunity(post.communityId);

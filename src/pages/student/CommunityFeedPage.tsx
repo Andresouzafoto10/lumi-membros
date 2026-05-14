@@ -107,7 +107,7 @@ export default function CommunityFeedPage() {
       window.cancelAnimationFrame(frameId);
       window.clearTimeout(timeoutId);
     };
-  }, [location.hash, feedPosts.length]);
+  }, [location.hash, feedPosts.length, feedPinnedPosts.length]);
 
   if (!settings.feedEnabled && !isAdmin) {
     return (

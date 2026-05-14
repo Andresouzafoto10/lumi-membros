@@ -30,7 +30,7 @@ export function PinPostDialog({
   postId,
   communityId,
 }: PinPostDialogProps) {
-  const { getPinDestinations, pinPost, unpinPost } = usePinnedPosts();
+  const { getPinDestinations, pinPost, unpinPost, loading } = usePinnedPosts();
   const { findCommunity } = useCommunities();
   const community = findCommunity(communityId ?? undefined);
 
@@ -161,7 +161,7 @@ export function PinPostDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || loading}>
             {saving ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>
