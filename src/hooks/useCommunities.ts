@@ -31,7 +31,6 @@ async function fetchCommunities(): Promise<Community[]> {
     coverUrl: c.cover_url,
     iconUrl: c.icon_url,
     classIds: c.class_ids ?? [],
-    pinnedPostId: c.pinned_post_id,
     settings: c.settings as CommunitySettings,
     status: c.status as "active" | "inactive",
     createdAt: c.created_at,
@@ -135,7 +134,6 @@ export function useCommunities() {
           cover_url: data.coverUrl ?? "",
           icon_url: data.iconUrl ?? "",
           class_ids: data.classIds ?? [],
-          pinned_post_id: null,
           settings: data.settings ?? {
             allowStudentPosts: true,
             requireApproval: false,
@@ -165,9 +163,6 @@ export function useCommunities() {
           ...(patch.classIds !== undefined && { class_ids: patch.classIds }),
           ...(patch.settings !== undefined && { settings: patch.settings }),
           ...(patch.status !== undefined && { status: patch.status }),
-          ...(patch.pinnedPostId !== undefined && {
-            pinned_post_id: patch.pinnedPostId,
-          }),
         })
         .eq("id", communityId);
       if (error) throw error;
@@ -192,20 +187,6 @@ export function useCommunities() {
     [communities, invalidate]
   );
 
-  const pinPost = useCallback(
-    async (communityId: string, postId: string) => {
-      await updateCommunity(communityId, { pinnedPostId: postId });
-    },
-    [updateCommunity]
-  );
-
-  const unpinPost = useCallback(
-    async (communityId: string) => {
-      await updateCommunity(communityId, { pinnedPostId: null });
-    },
-    [updateCommunity]
-  );
-
   return {
     communities,
     activeCommunities,
@@ -219,7 +200,5 @@ export function useCommunities() {
     createCommunity,
     updateCommunity,
     deleteCommunity,
-    pinPost,
-    unpinPost,
   };
 }

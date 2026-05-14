@@ -10,7 +10,6 @@ export const mockCommunities: Community[] = [
     coverUrl: "https://picsum.photos/seed/comm-foto/1200/400",
     iconUrl: "https://picsum.photos/seed/comm-foto-icon/100/100",
     classIds: ["turma-001"],
-    pinnedPostId: "post-001",
     settings: {
       allowStudentPosts: true,
       requireApproval: false,
@@ -28,7 +27,6 @@ export const mockCommunities: Community[] = [
     coverUrl: "https://picsum.photos/seed/comm-lr/1200/400",
     iconUrl: "https://picsum.photos/seed/comm-lr-icon/100/100",
     classIds: ["turma-002"],
-    pinnedPostId: null,
     settings: {
       allowStudentPosts: true,
       requireApproval: false,
@@ -46,7 +44,6 @@ export const mockCommunities: Community[] = [
     coverUrl: "https://picsum.photos/seed/comm-ensaio/1200/400",
     iconUrl: "https://picsum.photos/seed/comm-ensaio-icon/100/100",
     classIds: ["turma-003"],
-    pinnedPostId: null,
     settings: {
       allowStudentPosts: true,
       requireApproval: true,
