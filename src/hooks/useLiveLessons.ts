@@ -28,6 +28,15 @@ export type LiveLesson = {
   /** Raw DB status — use getComputedStatus() for display */
   status: LiveLessonStatus;
   createdAt: string;
+  // NEW
+  replayEnabled: boolean;
+  notifyEmailEnabled: boolean;
+  notify24h: boolean;
+  notify12h: boolean;
+  notify1h: boolean;
+  notify24hSentAt: string | null;
+  notify12hSentAt: string | null;
+  notify1hSentAt: string | null;
 };
 
 export type LiveLessonInput = {
@@ -45,6 +54,12 @@ export type LiveLessonInput = {
   classIds?: string[];
   accessMode?: LiveLessonAccessMode;
   status?: LiveLessonStatus;
+  // NEW
+  replayEnabled?: boolean;
+  notifyEmailEnabled?: boolean;
+  notify24h?: boolean;
+  notify12h?: boolean;
+  notify1h?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -64,6 +79,16 @@ export function getComputedStatus(lesson: LiveLesson): LiveLessonStatus {
   if (now >= start && now <= end) return "live";
   if (now > end) return "ended";
   return "scheduled";
+}
+
+// ---------------------------------------------------------------------------
+// Replay URL resolver — uses recording_url override or meeting_url fallback,
+// respecting the admin's replay_enabled flag.
+// ---------------------------------------------------------------------------
+
+export function getReplayUrl(lesson: LiveLesson): string | null {
+  if (!lesson.replayEnabled) return null;
+  return lesson.recordingUrl ?? lesson.meetingUrl ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +115,14 @@ function mapRow(r: Record<string, unknown>): LiveLesson {
     accessMode: (r.access_mode as LiveLessonAccessMode) ?? "all",
     status: (r.status as LiveLessonStatus) ?? "scheduled",
     createdAt: r.created_at as string,
+    replayEnabled: (r.replay_enabled as boolean) ?? true,
+    notifyEmailEnabled: (r.notify_email_enabled as boolean) ?? false,
+    notify24h: (r.notify_24h as boolean) ?? false,
+    notify12h: (r.notify_12h as boolean) ?? false,
+    notify1h: (r.notify_1h as boolean) ?? false,
+    notify24hSentAt: (r.notify_24h_sent_at as string | null) ?? null,
+    notify12hSentAt: (r.notify_12h_sent_at as string | null) ?? null,
+    notify1hSentAt: (r.notify_1h_sent_at as string | null) ?? null,
   };
 }
 
@@ -156,6 +189,11 @@ export function useLiveLessons() {
         class_ids: input.classIds ?? [],
         access_mode: input.accessMode ?? "all",
         status: input.status ?? "scheduled",
+        replay_enabled: input.replayEnabled ?? true,
+        notify_email_enabled: input.notifyEmailEnabled ?? false,
+        notify_24h: input.notify24h ?? false,
+        notify_12h: input.notify12h ?? false,
+        notify_1h: input.notify1h ?? false,
       });
       if (error) throw error;
       invalidate();
@@ -180,6 +218,11 @@ export function useLiveLessons() {
       if (input.classIds !== undefined) payload.class_ids = input.classIds;
       if (input.accessMode !== undefined) payload.access_mode = input.accessMode;
       if (input.status !== undefined) payload.status = input.status;
+      if (input.replayEnabled !== undefined) payload.replay_enabled = input.replayEnabled;
+      if (input.notifyEmailEnabled !== undefined) payload.notify_email_enabled = input.notifyEmailEnabled;
+      if (input.notify24h !== undefined) payload.notify_24h = input.notify24h;
+      if (input.notify12h !== undefined) payload.notify_12h = input.notify12h;
+      if (input.notify1h !== undefined) payload.notify_1h = input.notify1h;
 
       const { error } = await supabase.from("live_lessons").update(payload).eq("id", id);
       if (error) throw error;
