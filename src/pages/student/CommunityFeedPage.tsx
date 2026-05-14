@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCommunities } from "@/hooks/useCommunities";
 import { usePosts } from "@/hooks/usePosts";
+import { usePinnedPosts } from "@/hooks/usePinnedPosts";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useRestrictions } from "@/hooks/useRestrictions";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
@@ -25,7 +26,8 @@ export default function CommunityFeedPage() {
   const location = useLocation();
   const { currentUserId } = useCurrentUser();
   const { getCommunitiesForStudent } = useCommunities();
-  const { getFeedPosts, getPostsByHashtag } = usePosts();
+  const { getFeedPosts, getPostsByHashtag, findPost } = usePosts();
+  const { pinnedByScope } = usePinnedPosts();
   const { findProfile } = useProfiles();
   const { isRestricted } = useRestrictions();
   const { settings } = usePlatformSettings();
@@ -58,6 +60,25 @@ export default function CommunityFeedPage() {
     }
     return getFeedPosts(communityIds, filter, followingIds);
   }, [tagFilter, getPostsByHashtag, getFeedPosts, communityIds, filter, followingIds]);
+
+  const feedPinRows = useMemo(() => pinnedByScope("feed"), [pinnedByScope]);
+  const feedPinnedPosts = useMemo(
+    () =>
+      feedPinRows
+        .map((r) => findPost(r.postId))
+        .filter((p): p is NonNullable<typeof p> => p !== null && p !== undefined)
+        .filter((p) => p.status === "published"),
+    [feedPinRows, findPost]
+  );
+  const pinnedIdSet = useMemo(
+    () => new Set(feedPinnedPosts.map((p) => p.id)),
+    [feedPinnedPosts]
+  );
+  const regularFeedPosts = useMemo(
+    () => feedPosts.filter((p) => !pinnedIdSet.has(p.id)),
+    [feedPosts, pinnedIdSet]
+  );
+  const showPins = !tagFilter && feedPinnedPosts.length > 0;
 
   function toggleComments(postId: string) {
     setExpandedComments((prev) => {
@@ -200,7 +221,25 @@ export default function CommunityFeedPage() {
       </div>
 
       {/* Posts */}
-      {feedPosts.length === 0 ? (
+      {showPins && (
+        <div className="space-y-6">
+          {feedPinnedPosts.map((post) => (
+            <div key={`pin-${post.id}`}>
+              <PostCard
+                post={post}
+                showCommunity
+                isPinned
+                onToggleComments={toggleComments}
+              />
+              {expandedComments.has(post.id) && (
+                <PostComments postId={post.id} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {regularFeedPosts.length === 0 && !showPins ? (
         <EmptyState
           icon={PenSquare}
           title={tagFilter ? "Nenhum post com essa tag" : "Feed vazio"}
@@ -212,7 +251,7 @@ export default function CommunityFeedPage() {
         />
       ) : (
         <div className="space-y-6">
-          {feedPosts.map((post, idx) => (
+          {regularFeedPosts.map((post, idx) => (
             <div key={post.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
               <PostCard
                 post={post}
