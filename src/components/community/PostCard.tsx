@@ -22,10 +22,12 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import type { CommunityPost } from "@/types/student";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useProfiles } from "@/hooks/useProfiles";
 import { usePosts } from "@/hooks/usePosts";
 import { useCommunities } from "@/hooks/useCommunities";
+import { usePinnedPosts } from "@/hooks/usePinnedPosts";
 import { useGamification } from "@/hooks/useGamification";
 import { useGamificationConfig } from "@/hooks/useGamificationConfig";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
@@ -45,6 +47,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ImageLightbox } from "@/components/community/ImageLightbox";
 import { CreatePostDialog } from "@/components/community/CreatePostDialog";
+import { PinPostDialog } from "@/components/community/PinPostDialog";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -311,9 +314,11 @@ export const PostCard = memo(function PostCard({
   onToggleComments?: (postId: string) => void;
 }) {
   const { currentUserId } = useCurrentUser();
+  const { isAdmin } = useAuth();
   const { profiles, findProfile, isFollowing, follow, unfollow } = useProfiles();
   const { toggleLike, toggleSave, deletePost, votePoll } = usePosts();
   const { findCommunity } = useCommunities();
+  const { getPinDestinations } = usePinnedPosts();
   const { getPlayerData, getPlayerMissions } = useGamification();
   const { getLevelForPoints } = useGamificationConfig();
 
@@ -321,6 +326,10 @@ export const PostCard = memo(function PostCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [likeAnimating, setLikeAnimating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+
+  const pinDest = getPinDestinations(post.id, post.communityId);
+  const anyPinned = pinDest.community || pinDest.feed || pinDest.sidebar;
 
   const author = findProfile(post.authorId);
   const community = findCommunity(post.communityId);
@@ -549,6 +558,18 @@ export const PostCard = memo(function PostCard({
                   onClick={() => setMenuOpen(false)}
                 />
                 <div className="absolute right-0 top-9 z-50 w-40 rounded-lg border border-border/50 bg-popover p-1 shadow-lg">
+                  {isAdmin && (
+                    <button
+                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm hover:bg-accent transition-colors"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setPinDialogOpen(true);
+                      }}
+                    >
+                      <Pin className="h-3.5 w-3.5" />
+                      {anyPinned ? "Editar fixação..." : "Fixar..."}
+                    </button>
+                  )}
                   {isOwn && (
                     <>
                       <button
@@ -746,6 +767,14 @@ export const PostCard = memo(function PostCard({
           }}
         />
       )}
+
+      {/* Pin dialog (admin only) */}
+      <PinPostDialog
+        open={pinDialogOpen}
+        onOpenChange={setPinDialogOpen}
+        postId={post.id}
+        communityId={post.communityId}
+      />
     </div>
   );
 });
