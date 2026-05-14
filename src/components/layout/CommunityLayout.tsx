@@ -10,12 +10,14 @@ import {
   Flame,
   Lock,
   EyeOff,
+  Pin,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCommunities } from "@/hooks/useCommunities";
 import { usePosts } from "@/hooks/usePosts";
+import { usePinnedPosts } from "@/hooks/usePinnedPosts";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useSidebarConfig } from "@/hooks/useSidebarConfig";
 import { useCommunityLastSeen } from "@/hooks/useCommunityLastSeen";
@@ -33,8 +35,9 @@ export function CommunityLayout() {
   const location = useLocation();
   const { currentUserId } = useCurrentUser();
   const { getCommunitiesForStudent, activeCommunities } = useCommunities();
-  const { getTrendingHashtags, getTopPosts, getPostsByCommunity } = usePosts();
+  const { getTrendingHashtags, getTopPosts, getPostsByCommunity, findPost } = usePosts();
   const { findProfile } = useProfiles();
+  const { pinnedByScope } = usePinnedPosts();
   const { items: sidebarItems } = useSidebarConfig();
   const { getLastSeen, markSeen } = useCommunityLastSeen();
   const { settings } = usePlatformSettings();
@@ -60,10 +63,33 @@ export function CommunityLayout() {
     [getTrendingHashtags, communityIds]
   );
 
-  const topPosts = useMemo(
+  const sidebarPinRows = useMemo(() => pinnedByScope("sidebar"), [pinnedByScope]);
+
+  const sidebarPinnedPosts = useMemo(
+    () =>
+      sidebarPinRows
+        .map((r) => findPost(r.postId))
+        .filter((p): p is NonNullable<typeof p> => p !== null && p !== undefined)
+        .filter((p) => p.status === "published"),
+    [sidebarPinRows, findPost]
+  );
+
+  const autoTopPosts = useMemo(
     () => getTopPosts(communityIds, 3),
     [getTopPosts, communityIds]
   );
+
+  const sidebarFinalList = useMemo(() => {
+    const pinnedIds = new Set(sidebarPinnedPosts.map((p) => p.id));
+    const fillCount = Math.max(0, 3 - sidebarPinnedPosts.length);
+    const autoFill = autoTopPosts
+      .filter((p) => !pinnedIds.has(p.id))
+      .slice(0, fillCount);
+    return [
+      ...sidebarPinnedPosts.map((post) => ({ post, pinned: true })),
+      ...autoFill.map((post) => ({ post, pinned: false })),
+    ];
+  }, [sidebarPinnedPosts, autoTopPosts]);
 
   // Unread counts per community
   const unreadCounts = useMemo(() => {
@@ -237,7 +263,7 @@ export function CommunityLayout() {
   const rightSidebar = (
     <div className="flex flex-col h-full p-4 space-y-5">
       {/* Top posts */}
-      {topPosts.length > 0 && (
+      {sidebarFinalList.length > 0 && (
         <div>
           <div className="mb-3">
             <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-[0.15em] flex items-center gap-1.5">
@@ -246,12 +272,16 @@ export function CommunityLayout() {
             </p>
           </div>
           <div className="space-y-2.5">
-            {topPosts.map((post, index) => {
+            {sidebarFinalList.map((item, index) => {
+              const post = item.post;
               const author = findProfile(post.authorId);
-              const community = activeCommunities.find((item) => item.id === post.communityId);
+              const community = activeCommunities.find((c) => c.id === post.communityId);
               const href = community
                 ? `/comunidade/${community.slug}#${post.id}`
                 : `/comunidade/feed#${post.id}`;
+
+              // Auto-fill numbering starts after pinned items
+              const autoIndex = index - sidebarPinnedPosts.length + 1;
 
               return (
                 <Link
@@ -260,8 +290,13 @@ export function CommunityLayout() {
                   onClick={() => setMobileOpen(false)}
                   className="group/top flex items-start gap-2.5 rounded-xl border border-border/30 bg-card/35 px-3 py-2.5 text-sm transition-all duration-200 hover:border-primary/30 hover:bg-muted/40"
                 >
-                  <span className="mt-0.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
-                    {index + 1}
+                  <span className={cn(
+                    "mt-0.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                    item.pinned
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    {item.pinned ? <Pin className="h-3 w-3" /> : autoIndex}
                   </span>
 
                   <div className="min-w-0 flex-1">
