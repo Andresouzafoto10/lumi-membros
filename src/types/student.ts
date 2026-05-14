@@ -433,13 +433,13 @@ export type InviteLink = {
 // Pinned Posts (multi-scope)
 // ---------------------------------------------------------------------------
 
-export type PinScope = 'community' | 'feed' | 'sidebar';
+export type PinScope = "community" | "feed" | "sidebar";
 
-export interface PinnedPost {
+export type PinnedPost = {
   id: string;
   postId: string;
   scope: PinScope;
   communityId: string | null;
   pinnedAt: string;
   pinnedBy: string | null;
-}
+};

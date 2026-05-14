@@ -443,7 +443,7 @@ export interface Database {
         Row: {
           id: string;
           post_id: string;
-          scope: 'community' | 'feed' | 'sidebar';
+          scope: string; // 'community' | 'feed' | 'sidebar'
           community_id: string | null;
           pinned_at: string;
           pinned_by: string | null;
@@ -451,7 +451,7 @@ export interface Database {
         Insert: {
           id?: string;
           post_id: string;
-          scope: 'community' | 'feed' | 'sidebar';
+          scope: string; // 'community' | 'feed' | 'sidebar'
           community_id?: string | null;
           pinned_at?: string;
           pinned_by?: string | null;
@@ -459,12 +459,11 @@ export interface Database {
         Update: {
           id?: string;
           post_id?: string;
-          scope?: 'community' | 'feed' | 'sidebar';
+          scope?: string; // 'community' | 'feed' | 'sidebar'
           community_id?: string | null;
           pinned_at?: string;
           pinned_by?: string | null;
         };
-        Relationships: [];
       };
 
       // -----------------------------------------------------------------------
