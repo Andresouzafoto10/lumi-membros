@@ -87,9 +87,11 @@ export function usePinnedPosts() {
         pinned_by: user.id,
       });
       if (error) {
-        if (error.message?.includes("Limite de 3")) {
+        const code = (error as { code?: string }).code;
+        if (code === "23514" || error.message?.includes("Limite de 3")) {
           throw new Error("Limite de 3 fixados atingido neste destino. Desafixe um antes.");
         }
+        console.error("[pinned_posts] insert:", error.message);
         throw error;
       }
       invalidate();
@@ -105,12 +107,18 @@ export function usePinnedPosts() {
         .eq("post_id", args.postId)
         .eq("scope", args.scope);
       if (args.scope === "community") {
-        query = query.eq("community_id", args.communityId ?? "");
+        if (!args.communityId) {
+          throw new Error("communityId obrigatório para scope=community");
+        }
+        query = query.eq("community_id", args.communityId);
       } else {
         query = query.is("community_id", null);
       }
       const { error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error("[pinned_posts] delete:", error.message);
+        throw error;
+      }
       invalidate();
     },
     [invalidate]
