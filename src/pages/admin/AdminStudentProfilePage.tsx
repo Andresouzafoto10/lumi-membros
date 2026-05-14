@@ -147,6 +147,7 @@ const ADMIN_PREF_ROWS: { label: string; emailField?: string; notifField?: string
   { label: "Resposta no post", emailField: "email_post_reply", notifField: "notif_post_reply" },
   { label: "Resumo semanal", emailField: "email_weekly_digest" },
   { label: "Marco seguidores", emailField: "email_follower_milestone" },
+  { label: "Lembretes de aulas ao vivo", emailField: "email_live_reminder" },
 ];
 
 function AdminNotificationPrefsCard({ userId }: { userId: string }) {

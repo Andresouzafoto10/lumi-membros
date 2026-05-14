@@ -20,6 +20,7 @@ export interface NotificationPreferences {
   email_follower_milestone: boolean;
   email_weekly_digest: boolean;
   email_marketing: boolean;
+  email_live_reminder: boolean;
   // In-app
   notif_comments: boolean;
   notif_comment_replies: boolean;
@@ -48,6 +49,7 @@ const EMAIL_FIELDS = [
   "email_post_reply",
   "email_follower_milestone",
   "email_weekly_digest",
+  "email_live_reminder",
 ] as const;
 
 const NOTIF_FIELDS = [
