@@ -157,7 +157,6 @@ export type Community = {
   coverUrl: string;
   iconUrl: string;
   classIds: string[];
-  pinnedPostId: string | null;
   settings: CommunitySettings;
   status: "active" | "inactive";
   createdAt: string;
@@ -429,3 +428,18 @@ export type InviteLink = {
   // Joined
   class_name?: string;
 };
+
+// ---------------------------------------------------------------------------
+// Pinned Posts (multi-scope)
+// ---------------------------------------------------------------------------
+
+export type PinScope = 'community' | 'feed' | 'sidebar';
+
+export interface PinnedPost {
+  id: string;
+  postId: string;
+  scope: PinScope;
+  communityId: string | null;
+  pinnedAt: string;
+  pinnedBy: string | null;
+}

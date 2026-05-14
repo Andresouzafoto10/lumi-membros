@@ -404,7 +404,6 @@ export interface Database {
           cover_url: string;
           icon_url: string;
           class_ids: string[];
-          pinned_post_id: string | null;
           settings: Json; // { allowStudentPosts, requireApproval, allowImages }
           status: string; // 'active' | 'inactive'
           created_at: string;
@@ -418,7 +417,6 @@ export interface Database {
           cover_url?: string;
           icon_url?: string;
           class_ids?: string[];
-          pinned_post_id?: string | null;
           settings?: Json;
           status?: string;
           created_at?: string;
@@ -432,11 +430,41 @@ export interface Database {
           cover_url?: string;
           icon_url?: string;
           class_ids?: string[];
-          pinned_post_id?: string | null;
           settings?: Json;
           status?: string;
           updated_at?: string;
         };
+      };
+
+      // -----------------------------------------------------------------------
+      // pinned_posts
+      // -----------------------------------------------------------------------
+      pinned_posts: {
+        Row: {
+          id: string;
+          post_id: string;
+          scope: 'community' | 'feed' | 'sidebar';
+          community_id: string | null;
+          pinned_at: string;
+          pinned_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          scope: 'community' | 'feed' | 'sidebar';
+          community_id?: string | null;
+          pinned_at?: string;
+          pinned_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          scope?: 'community' | 'feed' | 'sidebar';
+          community_id?: string | null;
+          pinned_at?: string;
+          pinned_by?: string | null;
+        };
+        Relationships: [];
       };
 
       // -----------------------------------------------------------------------
