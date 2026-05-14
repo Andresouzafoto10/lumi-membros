@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-05-12 | **Versão do Tracker:** 2.4.3
+**Última atualização:** 2026-05-13 | **Versão do Tracker:** 2.5.0
 
 ---
 
@@ -25,6 +25,9 @@
 | ECO-003 | Testar ativação de cada time (ALPHA, BETA, GAMMA, DELTA) com cenário simulado | CEO | MÉDIA | 2026-03-29 |
 | ECO-004 | Criar CHANGELOG.md, DECISIONS.md, ROADMAP.md, BUGS.md (estrutura inicial) | DOCS | MÉDIA | 2026-03-29 |
 | ECO-005 | Revisar e otimizar prompts de todos os agentes com /prompt-optimize | SKILL | MÉDIA | 2026-03-29 |
+| SIGMA-001 | Criar primeira página de vendas com Time SIGMA (status: BACKLOG) | SIGMA | ALTA | 2026-05-13 |
+| SIGMA-002 | Testar rota `/vendas/:courseSlug` em produção — depende de SIGMA-001 (status: BACKLOG) | SIGMA-QA | ALTA | 2026-05-13 |
+| SIGMA-003 | Criar variação B para teste A/B da headline — depende de SIGMA-001 (status: BACKLOG) | SIGMA-COPY | MÉDIA | 2026-05-13 |
 
 ---
 
@@ -159,4 +162,6 @@ TASK-001 (Research Cademi) → alimenta → TASK-009 (Design player)
 TASK-002 (Research Circle) → alimenta → TASK-008 (Design analytics)
 TASK-003 (Mapa comparativo) → alimenta → TASK-008, TASK-009, TASK-010
 TASK-015 (QA aluno) → depende de → TASK-009 (player melhorado)
+SIGMA-001 (1ª página vendas) → bloqueia → SIGMA-002 (teste em prod)
+SIGMA-001 (1ª página vendas) → bloqueia → SIGMA-003 (variação A/B)
 ```

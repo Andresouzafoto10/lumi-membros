@@ -499,6 +499,7 @@ Impacto | Esforco | Risco | Dependencia
 | `"pesquisa: [X]"` | Roteamento para ALPHA (so Research) |
 | `"urgente: [X]"` | Roteamento para TIME DELTA |
 | `"testar [X]"` | Aciona QA diretamente |
+| `"vendas: [curso]"` | Ativa Time SIGMA para criar página de vendas do curso |
 
 ### Agentes Disponiveis
 
@@ -520,6 +521,7 @@ Impacto | Esforco | Risco | Dependencia
 | 🟩 BETA | DESIGN + DEV + SKILL | Feature aprovada para implementacao |
 | 🟨 GAMMA | QA + DOCS | Feature entregue, bug reportado |
 | 🟥 DELTA | CEO + DEV + QA | Emergencia, plataforma caiu |
+| 🟪 SIGMA | SIGMA-COPY + SIGMA-DESIGN + SIGMA-PERF + SIGMA-QA | Criar páginas de vendas de alta conversão |
 
 ### Skills e Ferramentas por Agente (Atualizado 2026-04-04)
 

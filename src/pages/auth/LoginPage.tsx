@@ -164,7 +164,7 @@ export default function LoginPage() {
         </title>
       </Helmet>
 
-      <div className="min-h-screen bg-background flex flex-col lg:flex-row">
+      <div className="lg:min-h-screen bg-background flex flex-col lg:flex-row">
         {/* ── COVER IMAGE (left side, desktop only) ── */}
         {coverUrl ? (
           <div className="hidden lg:block lg:w-[60%] xl:w-[65%] relative overflow-hidden">
@@ -190,7 +190,7 @@ export default function LoginPage() {
         )}
 
         {/* ── FORM SIDE (right side) ── */}
-        <div className="flex flex-1 flex-col min-h-screen lg:min-h-0">
+        <div className="flex flex-1 flex-col">
           {/* Form content — centered */}
           <div className="flex flex-1 items-center justify-center p-6 sm:p-8">
             <div className="w-full max-w-sm">
@@ -399,8 +399,8 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Footer — pinned to bottom of right panel (desktop), above hero image (mobile) */}
-          <div className="pb-6 px-6">
+          {/* Footer — desktop only (pinned to bottom of right panel) */}
+          <div className="hidden lg:block pb-6 px-6">
             {footer}
           </div>
         </div>
@@ -426,6 +426,11 @@ export default function LoginPage() {
             <div className="absolute inset-0 bg-gradient-to-b from-background to-transparent h-16" />
           </div>
         )}
+
+        {/* Footer — mobile only (below hero image) */}
+        <div className="lg:hidden pt-4 pb-6 px-6">
+          {footer}
+        </div>
       </div>
     </>
   );

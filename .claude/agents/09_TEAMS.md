@@ -297,3 +297,125 @@ OUTPUT -> Fix deployado + post-mortem agendado
               v
          ENTREGA
 ```
+
+---
+
+## 🟪 Time SIGMA — Páginas de Vendas de Alta Conversão
+
+**Composição:** SIGMA-COPY + SIGMA-DESIGN + SIGMA-PERF + SIGMA-QA
+**Cor:** Roxo
+**Gatilho:** Sempre que o fundador precisar criar uma página de vendas para qualquer curso/produto da plataforma Master Membros.
+
+### Gatilhos de Ativação
+
+- "Criar página de vendas para [curso]"
+- "Landing page do curso X"
+- "Sales page de [produto]"
+- "Página do curso para divulgar"
+- "Vendas: [curso]" (atalho)
+- Lançamento de novo curso que precisa de página externa
+- Reformulação de página de vendas existente
+
+### Sequência de Handoff
+
+```
+FUNDADOR -> briefing do curso (persona, oferta, preço, urgência, prova social)
+     |
+     v
+[SIGMA-COPY] Cria copy completa
+  - Mapa de persona
+  - 5 variações de headline (uma marcada como recomendada)
+  - Copy estruturada em 12 seções
+  - 10 bullets de benefício
+  - 3 variações de CTA
+  - FAQ com 7 objeções
+  - Output em markdown estruturado
+     |
+     v
+GATE-1: Fundador aprova a copy antes de ir para Design
+     |
+     v
+[SIGMA-DESIGN] Transforma copy em código
+  - SalesPage.tsx + 12+ componentes em src/components/sales/
+  - Tipos em src/types/sales.ts
+  - Dados em src/data/sales-courses.ts
+  - Rota PÚBLICA /vendas/:courseSlug em App.tsx
+  - Mobile-first, dark+light mode, sem hardcode
+  - Build sem erros
+     |
+     v
+[SIGMA-PERF] Otimiza e instrumenta
+  - Lighthouse mobile baseline + final
+  - Imagens (fetchPriority, lazy, dimensões)
+  - Vídeo com thumbnail + click-to-play
+  - Code splitting nas seções below-the-fold
+  - Tracking (page_view, cta_click, scroll_depth, video_play, faq_open, exit_intent)
+  - Meta tags + Open Graph + Schema markup
+     |
+     v
+[SIGMA-QA] Checklist completo (copy + design + técnico + CWV)
+  - Aprovado → próximo passo
+  - Reprovado → devolve para agente responsável
+     |
+     v
+GATE-2: Fundador aprova página antes do deploy
+     |
+     v
+DEPLOY: git push origin main → Vercel (auto-deploy)
+```
+
+### Skills Utilizadas
+
+| Agente | Skill |
+|--------|-------|
+| SIGMA-COPY | `.claude/agents/skills/SKILL_COPY_VENDAS.md` |
+| SIGMA-DESIGN | `.claude/agents/skills/SKILL_DESIGN_VENDAS.md` + `CLAUDE.md` |
+| SIGMA-PERF | `.claude/agents/skills/SKILL_PERFORMANCE_VENDAS.md` |
+| SIGMA-QA | Todas as 3 skills + checklist próprio do agente |
+
+### SLA por Agente
+
+| Agente | SLA |
+|--------|-----|
+| SIGMA-COPY | Entrega em 1 sessão |
+| SIGMA-DESIGN | Entrega em 1-2 sessões |
+| SIGMA-PERF | Entrega em 1 sessão |
+| SIGMA-QA | Checklist em 30 min |
+
+**Tempo total estimado:** 1 dia útil do briefing ao deploy.
+
+### Roteamento pelo CEO
+
+**Palavras-gatilho** que ativam o Time SIGMA automaticamente:
+- "página de vendas"
+- "landing page"
+- "sales page"
+- "página do curso"
+- "divulgar curso"
+- "vendas: [nome]"
+- "lançamento de [curso]"
+
+→ CEO classifica como TIPO-A (feature nova) ou TIPO-B (melhoria de existente), ativa Time SIGMA e inicia pelo SIGMA-COPY.
+
+### Gates de Aprovação
+
+| Gate | Quando | Quem aprova | O que aprova |
+|------|--------|-------------|--------------|
+| 🔴 GATE-1 | Após SIGMA-COPY | Fundador | Mensagem, persona, headline, oferta |
+| 🔴 GATE-2 | Após SIGMA-QA | Fundador | Página final pronta para deploy |
+
+Sem aprovação, não avança. CEO segura o handoff.
+
+### Métricas de Sucesso (pós-deploy)
+
+Toda página de vendas SIGMA deve mensurar (via tracking instrumentado):
+- Conversion Rate (visitas → checkout)
+- CTR Hero (cliques no primeiro CTA)
+- Scroll Depth médio
+- Tempo médio na página
+- Bounce Rate
+- Vídeo Play Rate
+- FAQ Open Rate
+
+Benchmark de mercado (cursos): CR 3-7% é bom, > 7% é excelente.
+
