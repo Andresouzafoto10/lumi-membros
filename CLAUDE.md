@@ -106,6 +106,7 @@ Almost all state uses **React Query + Supabase**. Each hook fetches from Supabas
 - **`useNotifications`** — In-app notifications with grouping, delete, bulk actions. React Query (limit 50). Supabase table: `notifications`. Groups same-type notifications on same target within 24h (e.g. "Maria e +2 curtiram"). Exports `useNotifications()` with `getGroupedForUser()`, `markGroupAsRead()`, `deleteNotification()`, `deleteAllRead()`, `clearAll()`, `markAllAsRead()`, `addNotification()`.
 - **`usePlatformSettings`** — Platform name, logo, theme colors, certificate config, ratings toggle. React Query. Supabase table: `platform_settings`.
 - **`usePosts`** — Community posts CRUD with likes, saves, polls, hashtags, approval workflow. React Query. Supabase table: `community_posts`. Triggers gamification. `deletePost` cleans up R2 images and attachments.
+- **`usePinnedPosts`** — Posts fixados multi-escopo (community/feed/sidebar) com limite de 3 por destino. React Query. Supabase table: `pinned_posts`. Mutations `pinPost`/`unpinPost`. Helpers `pinnedByScope`, `isPinned`, `getPinDestinations`, `allPinnedPostIds`.
 - **`useProfiles`** — Student profiles CRUD (bio, avatar, cover, coverPosition, followers). React Query + direct accessor cache. Supabase table: `profiles`. `updateProfile` accepts `avatarUrl`, `coverUrl`, `coverPosition`, etc. Exports `useProfiles()`, `findProfileDirect()`, `findProfileByUsernameDirect()`.
 - **`useQuizAttempts`** — Quiz attempt submission with auto-scoring. React Query. Supabase table: `quiz_attempts`. Best attempt + course average score.
 - **`useRestrictions`** — Student restriction CRUD with duration-based expiry. React Query. Supabase table: `restrictions`. Triggers notifications.
@@ -130,10 +131,11 @@ AccessProfile (permissions: courses, students, classes, settings, community)
 PlatformSettings (name, logo, theme, ratings, certificates, emailNotifications)
 
 StudentProfile = profiles table (displayName, username, avatarUrl, coverUrl, coverPosition, bio, link, location, cpf, followers[], following[])
-Community (slug, classIds[], settings: allowStudentPosts/requireApproval/allowImages, pinnedPostId)
+Community (slug, classIds[], settings: allowStudentPosts/requireApproval/allowImages)
 CommunityPost (authorId, type user/system, title, body, images[], attachments[], poll?, hashtags[], mentions[], likedBy[], savedBy[], status published/pending/rejected)
 PostComment (postId, parentCommentId for nesting, body, likedBy[])
 CommunitySidebarItem (communityId, emoji, order, visible, salesPageUrl)
+PinnedPost (postId, scope: community|feed|sidebar, communityId?, pinnedAt, pinnedBy)
 
 AppNotification (recipientId, type like/comment/follow/mention/system, targetId, targetType post/comment/profile, read)
 StudentRestriction (reason, duration via startsAt/endsAt, appliedBy, active)
@@ -318,10 +320,11 @@ Brand color is **Lumi teal** (`#00C2CB`, HSL `183 100% 40%`) used as `--primary`
 - `enrollments` — id, student_id (FK), class_id (FK), type, expires_at, status (active/expired/cancelled), enrolled_at. UNIQUE(student_id, class_id)
 
 **Community:**
-- `communities` — id, slug (unique), name, description, cover_url, icon_url, class_ids[], pinned_post_id, settings (jsonb), status
+- `communities` — id, slug (unique), name, description, cover_url, icon_url, class_ids[], settings (jsonb), status
 - `community_posts` — id, community_id (FK), author_id (FK), type (user/system), system_event (jsonb), title, body, images[], attachments (jsonb), poll (jsonb), hashtags[], mentions[], likes_count, comments_count, liked_by[], saved_by[], status (published/pending/rejected)
 - `post_comments` — id, post_id (FK), author_id (FK), parent_comment_id (FK self), body, likes_count, liked_by[]
 - `sidebar_config` — id, community_id (FK), emoji, order, visible, sales_page_url
+- `pinned_posts` — id, post_id (FK community_posts CASCADE), scope (enum: community/feed/sidebar), community_id (FK communities CASCADE, null exceto p/ scope=community), pinned_at, pinned_by (FK profiles SET NULL). UNIQUE(post_id, scope, community_id). Limit 3 per scope via `enforce_pinned_posts_limit` trigger.
 
 **Notifications:**
 - `notifications` — id, recipient_id (FK), actor_id (FK), type (like/comment/follow/mention/system), target_id, target_type (post/comment/profile), message, read. Max 50 per user (enforced by `enforce_notification_limit` trigger). Users can DELETE own notifications. Old read notifications cleaned after 30 days by `cleanup_old_notifications()`.
@@ -356,6 +359,7 @@ Brand color is **Lumi teal** (`#00C2CB`, HSL `183 100% 40%`) used as `--primary`
 - `is_admin_user()` — SECURITY DEFINER function. Returns boolean checking if `auth.uid()` has role IN ('owner', 'admin', 'support'). Used in RLS policies to prevent infinite recursion.
 - `enforce_notification_limit()` — AFTER INSERT trigger on notifications. Deletes oldest notifications when user exceeds 50. Prevents unbounded growth.
 - `cleanup_old_notifications()` — SECURITY DEFINER function. Deletes notifications where `read = true AND created_at < now() - 30 days`. Called by email-scheduler. Returns count of deleted rows.
+- `enforce_pinned_posts_limit()` — BEFORE INSERT trigger em `pinned_posts`. Rejeita insert se já existem 3 pins no mesmo `(scope, community_id)`. Mensagem em PT-BR.
 
 ### RLS Policies
 
@@ -367,6 +371,7 @@ All tables have RLS enabled. Key patterns:
 - **Enrollment-gated:** classes (read via active enrollment), lesson_materials (read via enrollment in class containing course)
 - **Author-owned:** community_posts (author can edit/delete own), post_comments (author can edit/delete own)
 - **Deletable by owner:** notifications (users can DELETE own notifications), notification_preferences (users manage own row)
+- **`pinned_posts`:** SELECT autenticado; INSERT/UPDATE/DELETE só admin (`is_admin_user()` cobre owner/admin/support; policy adicional p/ moderator)
 
 ### Storage
 
