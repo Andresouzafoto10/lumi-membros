@@ -1289,7 +1289,8 @@ values
   ('follower_milestone_10', 'Marco de 10 seguidores', 'Enviado a cada 10 seguidores', 'engagement', 0, 'Voce tem {{follower_count}} seguidores!', 'Audiencia crescendo'),
   ('post_reply', 'Resposta no post', 'Enviado quando alguem comenta no post', 'community', 0, '{{author_name}} respondeu seu post', 'Veja o que acharam'),
   ('mission_complete', 'Missao concluida', 'Enviado quando missao completada', 'gamification', 0, 'Missao concluida: {{mission_name}}', 'Voce ganhou pontos'),
-  ('comment_milestone', 'Marco de comentarios', 'Enviado a cada X comentarios', 'gamification', 0, 'Voce fez {{comment_count}} comentarios!', 'Continue engajando')
+  ('comment_milestone', 'Marco de comentarios', 'Enviado a cada X comentarios', 'gamification', 0, 'Voce fez {{comment_count}} comentarios!', 'Continue engajando'),
+  ('live_reminder', 'Lembrete de aula ao vivo', 'Email enviado antes de aula ao vivo (24h / 12h / 1h)', 'engagement', 0, 'Sua aula ao vivo {{when_label}}: {{title}}', 'Nao perca: {{title}} {{when_human}}')
 on conflict (type) do nothing;
 
 -- =============================================================================
@@ -1312,6 +1313,7 @@ create table if not exists public.notification_preferences (
   email_follower_milestone boolean default true,
   email_weekly_digest boolean default true,
   email_marketing boolean default false,
+  email_live_reminder boolean default true,
   notif_comments  boolean default true,
   notif_comment_replies boolean default true,
   notif_mentions  boolean default true,
@@ -1770,6 +1772,25 @@ CREATE POLICY "pinned_posts_moderator_write" ON pinned_posts
   FOR ALL TO authenticated
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'moderator'))
   WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'moderator'));
+
+-- =============================================================================
+-- LIVE LESSONS — replay flag + email reminder settings (2026-05-14)
+-- Mirrors migration 20260514000001_live_lessons_replay_reminders.sql.
+-- live_lessons table itself is created in 20260409100001_live_lessons.sql.
+-- =============================================================================
+ALTER TABLE live_lessons
+  ADD COLUMN IF NOT EXISTS replay_enabled boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS notify_email_enabled boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS notify_24h boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS notify_12h boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS notify_1h boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS notify_24h_sent_at timestamptz NULL,
+  ADD COLUMN IF NOT EXISTS notify_12h_sent_at timestamptz NULL,
+  ADD COLUMN IF NOT EXISTS notify_1h_sent_at timestamptz NULL;
+
+CREATE INDEX IF NOT EXISTS idx_live_lessons_scheduled_at_notify
+  ON live_lessons (scheduled_at)
+  WHERE notify_email_enabled = true;
 
 -- =============================================================================
 -- FIM DO SCHEMA
