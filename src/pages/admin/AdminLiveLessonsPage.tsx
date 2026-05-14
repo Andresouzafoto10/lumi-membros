@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -70,6 +71,12 @@ const EMPTY_FORM = {
   classIds: [] as string[],
   accessMode: "all" as "all" | "classes" | "open",
   status: "scheduled" as LiveLessonStatus,
+  // NEW
+  replayEnabled: true,
+  notifyEmailEnabled: false,
+  notify24h: false,
+  notify12h: false,
+  notify1h: false,
 };
 
 export default function AdminLiveLessonsPage() {
@@ -111,6 +118,11 @@ export default function AdminLiveLessonsPage() {
       classIds: l.classIds,
       accessMode: l.accessMode,
       status: l.status,
+      replayEnabled: l.replayEnabled,
+      notifyEmailEnabled: l.notifyEmailEnabled,
+      notify24h: l.notify24h,
+      notify12h: l.notify12h,
+      notify1h: l.notify1h,
     });
     setDialogOpen(true);
   };
@@ -136,6 +148,11 @@ export default function AdminLiveLessonsPage() {
         classIds: form.classIds,
         accessMode: form.accessMode,
         status: form.status,
+        replayEnabled: form.replayEnabled,
+        notifyEmailEnabled: form.notifyEmailEnabled,
+        notify24h: form.notify24h,
+        notify12h: form.notify12h,
+        notify1h: form.notify1h,
       };
       if (editingId) {
         await updateLesson(editingId, payload);
@@ -249,6 +266,23 @@ export default function AdminLiveLessonsPage() {
                         {lesson.courseId && courseMap[lesson.courseId] && (
                           <Badge variant="outline" className="text-[10px]">
                             {courseMap[lesson.courseId]}
+                          </Badge>
+                        )}
+                        {lesson.notifyEmailEnabled && (
+                          <Badge variant="outline" className="text-[10px] gap-1">
+                            📧 Lembretes
+                            {[
+                              lesson.notify24h && "24h",
+                              lesson.notify12h && "12h",
+                              lesson.notify1h && "1h",
+                            ]
+                              .filter(Boolean)
+                              .join(" • ") || "(nenhum)"}
+                          </Badge>
+                        )}
+                        {!lesson.replayEnabled && (
+                          <Badge variant="outline" className="text-[10px]">
+                            Replay off
                           </Badge>
                         )}
                       </div>
@@ -390,6 +424,20 @@ export default function AdminLiveLessonsPage() {
               />
             </div>
 
+            <div className="rounded-md border border-border/40 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="cursor-pointer">Manter disponível como replay após o término</Label>
+                <Switch
+                  checked={form.replayEnabled}
+                  onCheckedChange={(v) => setForm({ ...form, replayEnabled: v })}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Quando ligado, a aula continua acessível em Aulas ao Vivo após o horário.
+                Usa a URL da gravação se preenchida, ou a URL da reunião como fallback.
+              </p>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Curso vinculado (opcional)</Label>
@@ -420,6 +468,54 @@ export default function AdminLiveLessonsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="rounded-md border border-border/40 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Enviar lembretes por email</Label>
+                <Switch
+                  checked={form.notifyEmailEnabled}
+                  disabled={form.accessMode === "open"}
+                  onCheckedChange={(v) => setForm({ ...form, notifyEmailEnabled: v })}
+                />
+              </div>
+              {form.accessMode === "open" && (
+                <p className="text-xs text-amber-500">
+                  Acesso aberto não permite envio de email (sem usuários autenticados).
+                </p>
+              )}
+              {form.notifyEmailEnabled && form.accessMode !== "open" && (
+                <div className="space-y-2 pl-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.notify24h}
+                      onChange={(e) => setForm({ ...form, notify24h: e.target.checked })}
+                    />
+                    24h antes — "é amanhã"
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.notify12h}
+                      onChange={(e) => setForm({ ...form, notify12h: e.target.checked })}
+                    />
+                    12h antes
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.notify1h}
+                      onChange={(e) => setForm({ ...form, notify1h: e.target.checked })}
+                    />
+                    1h antes
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Enviado apenas para alunos com acesso e que mantêm notificações de
+                    aulas ao vivo ativadas no perfil.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">
