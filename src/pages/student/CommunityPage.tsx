@@ -4,13 +4,13 @@ import { MessageSquare, PenSquare, Plus, Users } from "lucide-react";
 
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCommunities } from "@/hooks/useCommunities";
+import { usePinnedPosts } from "@/hooks/usePinnedPosts";
 import { usePosts } from "@/hooks/usePosts";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useRestrictions } from "@/hooks/useRestrictions";
 import { useStudents } from "@/hooks/useStudents";
 import { renderCommunityIcon, detectIconType } from "@/lib/communityIcon";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
-import type { CommunityPost } from "@/types/student";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ export default function CommunityPage() {
   const { currentUserId } = useCurrentUser();
   const { findBySlug, getCommunitiesForStudent } = useCommunities();
   const { getPostsByCommunity, findPost } = usePosts();
+  const { pinnedByScope } = usePinnedPosts();
   const { findProfile } = useProfiles();
   const { isRestricted } = useRestrictions();
   const { enrollments } = useStudents();
@@ -49,16 +50,25 @@ export default function CommunityPage() {
     [community, getPostsByCommunity]
   );
 
-  const pinnedPost: CommunityPost | null = community?.pinnedPostId
-    ? findPost(community.pinnedPostId)
-    : null;
+  const pinnedRows = useMemo(
+    () => (community ? pinnedByScope("community", community.id) : []),
+    [community, pinnedByScope]
+  );
+  const pinnedPosts = useMemo(
+    () =>
+      pinnedRows
+        .map((r) => findPost(r.postId))
+        .filter((p): p is NonNullable<typeof p> => p !== null && p !== undefined),
+    [pinnedRows, findPost]
+  );
+  const pinnedIdSet = useMemo(
+    () => new Set(pinnedPosts.map((p) => p.id)),
+    [pinnedPosts]
+  );
 
   const regularPosts = useMemo(
-    () =>
-      pinnedPost
-        ? communityPosts.filter((p) => p.id !== pinnedPost.id)
-        : communityPosts,
-    [communityPosts, pinnedPost]
+    () => communityPosts.filter((p) => !pinnedIdSet.has(p.id)),
+    [communityPosts, pinnedIdSet]
   );
 
   // Count members: students enrolled in any class linked to this community
@@ -100,7 +110,7 @@ export default function CommunityPage() {
       window.cancelAnimationFrame(frameId);
       window.clearTimeout(timeoutId);
     };
-  }, [location.hash, regularPosts.length, pinnedPost?.id]);
+  }, [location.hash, regularPosts.length, pinnedPosts.length]);
 
   if (!community) {
     return (
@@ -221,23 +231,27 @@ export default function CommunityPage() {
         </div>
       )}
 
-      {/* Pinned post */}
-      {pinnedPost && (
-        <div>
-          <PostCard
-            post={pinnedPost}
-            showCommunity={false}
-            isPinned
-            onToggleComments={toggleComments}
-          />
-          {expandedComments.has(pinnedPost.id) && (
-            <PostComments postId={pinnedPost.id} />
-          )}
+      {/* Pinned posts */}
+      {pinnedPosts.length > 0 && (
+        <div className="space-y-6">
+          {pinnedPosts.map((post) => (
+            <div key={post.id}>
+              <PostCard
+                post={post}
+                showCommunity={false}
+                isPinned
+                onToggleComments={toggleComments}
+              />
+              {expandedComments.has(post.id) && (
+                <PostComments postId={post.id} />
+              )}
+            </div>
+          ))}
         </div>
       )}
 
       {/* Posts */}
-      {regularPosts.length === 0 && !pinnedPost ? (
+      {regularPosts.length === 0 && pinnedPosts.length === 0 ? (
         <EmptyState
           icon={MessageSquare}
           title="Nenhuma publicação"
