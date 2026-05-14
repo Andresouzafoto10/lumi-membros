@@ -286,7 +286,206 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
-    // 3. Cleanup old read notifications (30+ days)
+    // 3. Live lesson reminders — 24h / 12h / 1h before scheduled_at
+    // ------------------------------------------------------------------
+    const { data: liveAutomation } = await supabase
+      .from("email_automations")
+      .select("is_active")
+      .eq("type", "live_reminder")
+      .single();
+
+    if (liveAutomation?.is_active) {
+      const nowMs = Date.now();
+      const WINDOW_MIN = 15;
+
+      const fromIso = new Date(nowMs - 60 * 60 * 1000).toISOString();   // -1h
+      const toIso = new Date(nowMs + 25 * 60 * 60 * 1000).toISOString(); // +25h
+
+      const { data: liveLessons } = await supabase
+        .from("live_lessons")
+        .select("*")
+        .eq("notify_email_enabled", true)
+        .not("status", "in", "(cancelled,ended,recorded)")
+        .gte("scheduled_at", fromIso)
+        .lte("scheduled_at", toIso);
+
+      type LL = {
+        id: string;
+        title: string;
+        description: string | null;
+        cover_url: string | null;
+        meeting_url: string | null;
+        scheduled_at: string;
+        duration_minutes: number;
+        access_mode: "all" | "classes" | "open";
+        class_ids: string[] | null;
+        notify_24h: boolean;
+        notify_12h: boolean;
+        notify_1h: boolean;
+        notify_24h_sent_at: string | null;
+        notify_12h_sent_at: string | null;
+        notify_1h_sent_at: string | null;
+      };
+
+      for (const lessonRaw of (liveLessons ?? []) as LL[]) {
+        const startMs = new Date(lessonRaw.scheduled_at).getTime();
+        const minsToStart = (startMs - nowMs) / 60_000;
+
+        const slots: Array<{ key: "24h" | "12h" | "1h"; target: number; enabled: boolean; sent: string | null }> = [
+          { key: "24h", target: 24 * 60, enabled: lessonRaw.notify_24h, sent: lessonRaw.notify_24h_sent_at },
+          { key: "12h", target: 12 * 60, enabled: lessonRaw.notify_12h, sent: lessonRaw.notify_12h_sent_at },
+          { key: "1h",  target: 1 * 60,  enabled: lessonRaw.notify_1h,  sent: lessonRaw.notify_1h_sent_at  },
+        ];
+
+        for (const slot of slots) {
+          if (!slot.enabled || slot.sent) continue;
+          if (Math.abs(minsToStart - slot.target) > WINDOW_MIN) continue;
+
+          // Resolve recipients
+          if (lessonRaw.access_mode === "open") continue;
+
+          let enrollmentQ = supabase
+            .from("enrollments")
+            .select("student_id, expires_at")
+            .eq("status", "active");
+          if (lessonRaw.access_mode === "classes") {
+            enrollmentQ = enrollmentQ.in("class_id", lessonRaw.class_ids ?? []);
+          }
+          const { data: enrollmentRows } = await enrollmentQ;
+
+          const studentIds = new Set<string>();
+          for (const e of enrollmentRows ?? []) {
+            if (e.expires_at && new Date(e.expires_at as string).getTime() < nowMs) continue;
+            studentIds.add(e.student_id as string);
+          }
+          if (studentIds.size === 0) {
+            // Nothing to send; mark slot to avoid retrying the same empty list forever
+            await supabase
+              .from("live_lessons")
+              .update({ [`notify_${slot.key}_sent_at`]: new Date().toISOString() })
+              .eq("id", lessonRaw.id);
+            continue;
+          }
+
+          const ids = Array.from(studentIds);
+          const { data: profileRows } = await supabase
+            .from("profiles")
+            .select("id, email, display_name, name, email_notifications")
+            .in("id", ids);
+
+          // Bulk-fetch notification_preferences for these IDs
+          const { data: prefRows } = await supabase
+            .from("notification_preferences")
+            .select("user_id, email_live_reminder")
+            .in("user_id", ids);
+          const prefMap = new Map<string, boolean>();
+          for (const p of prefRows ?? []) {
+            prefMap.set(p.user_id as string, (p.email_live_reminder as boolean) ?? true);
+          }
+
+          const whenLabel = slot.key === "24h" ? "é amanhã" : slot.key === "12h" ? "em 12 horas" : "em 1 hora";
+          const whenHuman =
+            slot.key === "24h"
+              ? `amanhã às ${new Date(lessonRaw.scheduled_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`
+              : slot.key === "12h"
+              ? "em 12 horas"
+              : "em 1 hora";
+          const subject = `Sua aula ao vivo ${whenLabel}: ${lessonRaw.title}`;
+          const previewText = `Não perca: ${lessonRaw.title} ${whenHuman}`;
+
+          let slotSent = 0;
+          let slotSkipped = 0;
+
+          for (const p of (profileRows ?? []) as Array<{ id: string; email: string; display_name: string | null; name: string | null; email_notifications: boolean | null }>) {
+            if (!p.email) {
+              slotSkipped++;
+              continue;
+            }
+            // Tier 1: user global opt-in
+            if (p.email_notifications === false) {
+              await supabase.from("email_notification_log").insert({
+                recipient_id: p.id, type: "live_reminder", automation_type: "live_reminder",
+                subject, status: "skipped", metadata: { lesson_id: lessonRaw.id, slot: slot.key, reason: "user_email_off" },
+              });
+              slotSkipped++;
+              continue;
+            }
+            // Tier 4: per-type preference
+            const pref = prefMap.get(p.id);
+            if (pref === false) {
+              await supabase.from("email_notification_log").insert({
+                recipient_id: p.id, type: "live_reminder", automation_type: "live_reminder",
+                subject, status: "skipped", metadata: { lesson_id: lessonRaw.id, slot: slot.key, reason: "pref_off" },
+              });
+              slotSkipped++;
+              continue;
+            }
+
+            const displayName = (p.display_name as string) || (p.name as string) || "Membro";
+            const coverHtml = lessonRaw.cover_url
+              ? `<img src="${lessonRaw.cover_url}" alt="" style="width:100%;border-radius:8px;margin-bottom:16px;" />`
+              : "";
+            const bodyHtml = `${coverHtml}
+              <p style="margin:0 0 12px 0;">Olá, ${displayName}!</p>
+              <p style="margin:0 0 16px 0;">Sua aula ao vivo <strong>${lessonRaw.title}</strong> começa ${whenHuman}.</p>
+              ${lessonRaw.description ? `<p style="margin:0 0 16px 0;color:#a1a1aa;">${lessonRaw.description}</p>` : ""}`;
+
+            const html = buildEmailHtml({
+              subject,
+              previewText,
+              heading: lessonRaw.title,
+              subheading: whenHuman,
+              bodyHtml,
+              ctaText: "Salvar link",
+              ctaUrl: lessonRaw.meeting_url ?? `${PLATFORM_URL}/ao-vivo`,
+              platformName: PLATFORM_NAME,
+              platformUrl: PLATFORM_URL,
+            });
+
+            const res = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${RESEND_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: FROM_EMAIL,
+                to: [p.email],
+                subject,
+                html,
+              }),
+            });
+
+            if (res.ok) {
+              slotSent++;
+              await supabase.from("email_notification_log").insert({
+                recipient_id: p.id, type: "live_reminder", automation_type: "live_reminder",
+                subject, status: "sent", metadata: { lesson_id: lessonRaw.id, slot: slot.key },
+              });
+            } else {
+              slotSkipped++;
+              await supabase.from("email_notification_log").insert({
+                recipient_id: p.id, type: "live_reminder", automation_type: "live_reminder",
+                subject, status: "failed", metadata: { lesson_id: lessonRaw.id, slot: slot.key, http: res.status },
+              });
+            }
+          }
+
+          totalSent += slotSent;
+          totalSkipped += slotSkipped;
+
+          // Mark the slot dispatched (idempotency) — set sent_at regardless of per-recipient outcome
+          // to avoid hot-retry loops if Resend is failing for a single send.
+          await supabase
+            .from("live_lessons")
+            .update({ [`notify_${slot.key}_sent_at`]: new Date().toISOString() })
+            .eq("id", lessonRaw.id);
+        }
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // 4. Cleanup old read notifications (30+ days)
     // ------------------------------------------------------------------
     let cleanedNotifications = 0;
     try {
