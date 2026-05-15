@@ -1,5 +1,5 @@
 # 📋 LUMI MEMBROS — TASK TRACKER
-**Última atualização:** 2026-05-13 | **Versão do Tracker:** 2.5.0
+**Última atualização:** 2026-05-14 | **Versão do Tracker:** 2.6.0
 
 ---
 
@@ -49,6 +49,7 @@
 
 | ID | Descrição | Agente | Concluído |
 |----|-----------|--------|----------|
+| SIGMA-004 | CRO da página vendas Master (escola-master-vendas.html): novo H1+H2 ancorado em prova (+800/24 países), strip 4 stats reais (800/24/150/8 anos) após hero, preço movido ACIMA do CTA hero, microcopy 7d garantia sob 5 CTAs principais, reorder Mentores→Oferta→Garantia (autoridade antes ancoragem preço), credencial badge laranja sob nome de cada mentor (8 anos / R$500k / +500 alunos), fix typo "De impactar"→"impactam", price-list simplificada (removido duplicação). Zero claims inventadas — só números já presentes em bios e FAQ. Build OK. | SIGMA-COPY+SIGMA-DESIGN | 2026-05-14 |
 | UI-003 | LessonRating redesenhado estilo YouTube: pill único `h-9 rounded-full border border-border` com 👍 [count] | 👎 [count]. Student vê count público de likes via RPC `get_lesson_like_count` (SECURITY DEFINER). Dislike count student-side mostra "1" só quando próprio aluno dislike (RLS já limita ao self). Admin vê counts reais (likes+dislikes) via `useAdminLessonRatings`. Formatador BR: 3,4 mil / 1,2 mi. Migration RPC adicionada em `001_initial_schema.sql`. | DEV | 2026-05-12 |
 | UI-002 | Fix layout botão "Concluir aula" mobile: `justify-between` distribui 👍👎 à esquerda e botão de conclusão à direita. Estilo condicional invertido — não-concluído: `bg-transparent text-foreground border border-border` (neutro, sem laranja); concluído: `bg-primary text-white border-primary` (pill laranja). Altura h-9 igual aos botões Voltar/Próxima. | DEV | 2026-05-12 |
 | UI-001 | Reorganização mobile (< md) abaixo do player na CourseDetailPage: "Conteúdo do curso" movido para logo abaixo do vídeo, botões Voltar/Próxima aula compactos (h-9, text-sm, mx-4), linha única `[👍][👎][Aula concluída]` (px-4, gap-2, pill h-8), título da seção de comentários trocado para "Deixe seu comentário sobre a aula". LessonRating ganhou prop `hideLabel`. Right column escondido em < md (`hidden md:block`). Desktop inalterado. Build OK. | DEV | 2026-05-12 |
