@@ -297,9 +297,10 @@ serve(async (req) => {
     if (liveAutomation?.is_active) {
       const nowMs = Date.now();
       const WINDOW_MIN = 15;
-
-      const fromIso = new Date(nowMs - 60 * 60 * 1000).toISOString();   // -1h
-      const toIso = new Date(nowMs + 25 * 60 * 60 * 1000).toISOString(); // +25h
+      const HOUR_MS = 60 * 60 * 1000;
+      // Query window covers the [-1h .. +25h+WINDOW] range so the 24h slot's ±WINDOW_MIN tolerance lands inside the SQL filter.
+      const fromIso = new Date(nowMs - 1 * HOUR_MS).toISOString();
+      const toIso = new Date(nowMs + (25 * HOUR_MS) + (WINDOW_MIN * 60 * 1000)).toISOString();
 
       const { data: liveLessons } = await supabase
         .from("live_lessons")
@@ -359,11 +360,8 @@ serve(async (req) => {
             studentIds.add(e.student_id as string);
           }
           if (studentIds.size === 0) {
-            // Nothing to send; mark slot to avoid retrying the same empty list forever
-            await supabase
-              .from("live_lessons")
-              .update({ [`notify_${slot.key}_sent_at`]: new Date().toISOString() })
-              .eq("id", lessonRaw.id);
+            // No eligible recipients yet; don't stamp sent_at so the slot
+            // remains eligible if admin changes access_mode or enrolls students.
             continue;
           }
 
@@ -394,11 +392,12 @@ serve(async (req) => {
           const previewText = `Não perca: ${lessonRaw.title} ${whenHuman}`;
 
           let slotSent = 0;
-          let slotSkipped = 0;
+          let slotSkippedByPref = 0;
+          let slotFailed = 0;
 
           for (const p of (profileRows ?? []) as Array<{ id: string; email: string; display_name: string | null; name: string | null; email_notifications: boolean | null }>) {
             if (!p.email) {
-              slotSkipped++;
+              slotFailed++;
               continue;
             }
             // Tier 1: user global opt-in
@@ -407,7 +406,7 @@ serve(async (req) => {
                 recipient_id: p.id, type: "live_reminder", automation_type: "live_reminder",
                 subject, status: "skipped", metadata: { lesson_id: lessonRaw.id, slot: slot.key, reason: "user_email_off" },
               });
-              slotSkipped++;
+              slotSkippedByPref++;
               continue;
             }
             // Tier 4: per-type preference
@@ -417,7 +416,7 @@ serve(async (req) => {
                 recipient_id: p.id, type: "live_reminder", automation_type: "live_reminder",
                 subject, status: "skipped", metadata: { lesson_id: lessonRaw.id, slot: slot.key, reason: "pref_off" },
               });
-              slotSkipped++;
+              slotSkippedByPref++;
               continue;
             }
 
@@ -463,7 +462,7 @@ serve(async (req) => {
                 subject, status: "sent", metadata: { lesson_id: lessonRaw.id, slot: slot.key },
               });
             } else {
-              slotSkipped++;
+              slotFailed++;
               await supabase.from("email_notification_log").insert({
                 recipient_id: p.id, type: "live_reminder", automation_type: "live_reminder",
                 subject, status: "failed", metadata: { lesson_id: lessonRaw.id, slot: slot.key, http: res.status },
@@ -472,14 +471,16 @@ serve(async (req) => {
           }
 
           totalSent += slotSent;
-          totalSkipped += slotSkipped;
+          totalSkipped += slotSkippedByPref + slotFailed;
 
-          // Mark the slot dispatched (idempotency) — set sent_at regardless of per-recipient outcome
-          // to avoid hot-retry loops if Resend is failing for a single send.
-          await supabase
-            .from("live_lessons")
-            .update({ [`notify_${slot.key}_sent_at`]: new Date().toISOString() })
-            .eq("id", lessonRaw.id);
+          // Stamp sent_at only when at least one send succeeded OR every recipient was a legitimate skip.
+          // If every recipient failed at Resend, leave sent_at NULL so the next tick retries.
+          if (slotSent > 0 || (slotSkippedByPref > 0 && slotFailed === 0)) {
+            await supabase
+              .from("live_lessons")
+              .update({ [`notify_${slot.key}_sent_at`]: new Date().toISOString() })
+              .eq("id", lessonRaw.id);
+          }
         }
       }
     }
