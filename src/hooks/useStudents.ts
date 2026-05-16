@@ -75,7 +75,10 @@ export function useStudents() {
     [enrollments]
   );
 
-  // Admin creates a student record (invites via Supabase Admin API or just creates profile)
+  // Admin creates a student via the `admin-create-student` Edge Function.
+  // The function provisions the auth user (default password "123456" when
+  // none provided), patches the profile, creates enrollments and triggers the
+  // `welcome_with_setup` email so the student receives credentials + login link.
   const createStudent = useCallback(
     async (data: {
       name: string;
@@ -83,39 +86,26 @@ export function useStudents() {
       role: StudentRole;
       status: StudentStatus;
       classIds?: string[];
+      password?: string;
     }) => {
-      // For admin-created students, use Supabase Admin API via Edge Function.
-      // Here we create a profile entry directly (assumes user will be invited separately).
-      const tempId = crypto.randomUUID();
-      const { error: pe } = await supabase.from("profiles").insert({
-        id: tempId,
-        email: data.email,
-        name: data.name,
-        role: data.role,
-        status: data.status,
-        display_name: data.name,
-        username: data.email.split("@")[0],
-        avatar_url: "",
-        cover_url: "",
-        bio: "",
-        link: "",
-        location: "",
-        followers: [],
-        following: [],
+      const { data: result, error } = await supabase.functions.invoke<{
+        userId: string;
+        email: string;
+        emailSent: boolean;
+        emailError?: string | null;
+      }>("admin-create-student", {
+        body: {
+          name: data.name,
+          email: data.email,
+          password: data.password ?? "",
+          role: data.role,
+          classIds: data.classIds ?? [],
+        },
       });
-      if (pe) throw pe;
-      // Create enrollments
-      for (const classId of data.classIds ?? []) {
-        const { error: enrollError } = await supabase.from("enrollments").insert({
-          student_id: tempId,
-          class_id: classId,
-          type: "individual",
-          status: "active",
-        });
-        if (enrollError) console.error("[enrollments] insert:", enrollError.message);
-      }
+      if (error) throw error;
+      if (!result?.userId) throw new Error("Falha ao cadastrar aluno");
       invalidate();
-      return tempId;
+      return { userId: result.userId, emailSent: result.emailSent, emailError: result.emailError ?? null };
     },
     [invalidate]
   );

@@ -217,21 +217,31 @@ export default function AdminStudentsPage() {
   // ---------------------------------------------------------------------------
   // Handlers — new student
   // ---------------------------------------------------------------------------
-  function handleCreateStudent() {
+  async function handleCreateStudent() {
     if (!form.name.trim()) { toast.error("Informe o nome do aluno."); return; }
     if (!form.email.trim()) { toast.error("Informe o e-mail do aluno."); return; }
-    if (!form.tempPassword.trim()) { toast.error("Informe a senha temporária."); return; }
 
-    createStudent({
-      name: form.name.trim(),
-      email: form.email.trim(),
-      role: form.role,
-      status: "active",
-      classIds: form.classIds,
-    });
-    toast.success("Aluno cadastrado com sucesso.");
-    setForm(EMPTY_FORM);
-    setNewDialogOpen(false);
+    try {
+      const result = await createStudent({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.tempPassword.trim(),
+        role: form.role,
+        status: "active",
+        classIds: form.classIds,
+      });
+      const r = result as { emailSent?: boolean; emailError?: string | null } | undefined;
+      if (r?.emailSent) {
+        toast.success("Aluno cadastrado. E-mail de acesso enviado.");
+      } else {
+        toast.warning(`Aluno cadastrado, mas e-mail falhou${r?.emailError ? `: ${r.emailError}` : ""}.`);
+      }
+      setForm(EMPTY_FORM);
+      setNewDialogOpen(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Falha ao cadastrar aluno.";
+      toast.error(msg);
+    }
   }
 
   function toggleClassInForm(classId: string) {
@@ -513,14 +523,17 @@ export default function AdminStudentsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ns-pw">Senha temporária</Label>
+              <Label htmlFor="ns-pw">Senha temporária (opcional)</Label>
               <Input
                 id="ns-pw"
-                type="password"
-                placeholder="••••••••"
+                type="text"
+                placeholder="Deixe vazio para usar 123456"
                 value={form.tempPassword}
                 onChange={(e) => setForm({ ...form, tempPassword: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground">
+                Em branco = padrão <code className="font-mono">123456</code>. Enviada no e-mail de boas-vindas.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Perfil de acesso</Label>
