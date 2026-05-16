@@ -11,7 +11,50 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { makeCorsHeaders } from "../_shared/cors.ts";
+
+// CORS inlined here (not the _shared helper) so we can keep the membrosmaster
+// domain allowlist in sync without touching other functions.
+const ALLOWED_ORIGIN_SUFFIXES = [".membrosmaster.com.br"];
+const ALLOWED_ORIGINS_EXACT = new Set([
+  "https://membrosmaster.com.br",
+  "https://www.membrosmaster.com.br",
+  "https://app.membrosmaster.com.br",
+  "https://teste.membrosmaster.com.br",
+  "http://localhost:5174",
+  "http://localhost:5173",
+]);
+
+function makeCorsHeaders(req: Request): Record<string, string> {
+  const envList = (Deno.env.get("APP_URL") ?? Deno.env.get("VITE_APP_URL") ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  for (const o of envList) ALLOWED_ORIGINS_EXACT.add(o);
+
+  const origin = req.headers.get("Origin") ?? "";
+  let allowed = "https://app.membrosmaster.com.br";
+  if (origin) {
+    if (ALLOWED_ORIGINS_EXACT.has(origin)) {
+      allowed = origin;
+    } else {
+      try {
+        const host = new URL(origin).hostname;
+        if (ALLOWED_ORIGIN_SUFFIXES.some((s) => host.endsWith(s))) {
+          allowed = origin;
+        }
+      } catch {
+        // ignore malformed origin
+      }
+    }
+  }
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Vary": "Origin",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
