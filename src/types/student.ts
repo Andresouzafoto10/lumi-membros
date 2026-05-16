@@ -113,6 +113,7 @@ export type PlatformSettings = {
   whatsappNumber?: string | null;
   whatsappMessage?: string | null;
   whatsappStyle?: "icon" | "transparent" | "text";
+  whatsappPosition?: "left" | "right";
 };
 
 // ---------------------------------------------------------------------------

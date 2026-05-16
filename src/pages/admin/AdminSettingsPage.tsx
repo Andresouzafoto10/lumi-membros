@@ -162,6 +162,9 @@ export default function AdminSettingsPage() {
   const [whatsappStyle, setWhatsappStyle] = useState<"icon" | "transparent" | "text">(
     (settings.whatsappStyle as "icon" | "transparent" | "text" | undefined) ?? "icon",
   );
+  const [whatsappPosition, setWhatsappPosition] = useState<"left" | "right">(
+    (settings.whatsappPosition as "left" | "right" | undefined) ?? "left",
+  );
   const [whatsappSaving, setWhatsappSaving] = useState(false);
 
   // Scripts
@@ -219,6 +222,7 @@ export default function AdminSettingsPage() {
     setWhatsappNumber(settings.whatsappNumber ?? "");
     setWhatsappMessage(settings.whatsappMessage ?? "");
     setWhatsappStyle((settings.whatsappStyle as "icon" | "transparent" | "text" | undefined) ?? "icon");
+    setWhatsappPosition((settings.whatsappPosition as "left" | "right" | undefined) ?? "left");
     setFaviconUrl(settings.faviconUrl ?? "");
     setFaviconMode(settings.faviconUrl?.startsWith("http") && !settings.faviconUrl?.includes("r2") ? "url" : settings.faviconUrl ? "upload" : "url");
     setLoginCoverUrl(settings.loginCoverUrl ?? "");
@@ -1137,6 +1141,37 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
+              <div className="space-y-1.5">
+                <Label>Posição na tela</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "left", label: "Inferior esquerdo", hint: "Canto esquerdo" },
+                    { value: "right", label: "Inferior direito", hint: "Canto direito" },
+                  ].map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={
+                        `cursor-pointer rounded-md border p-3 text-center transition ` +
+                        (whatsappPosition === opt.value
+                          ? "border-primary bg-primary/10"
+                          : "border-border/60 hover:bg-muted/50")
+                      }
+                    >
+                      <input
+                        type="radio"
+                        name="wa-position"
+                        className="sr-only"
+                        value={opt.value}
+                        checked={whatsappPosition === opt.value}
+                        onChange={() => setWhatsappPosition(opt.value as typeof whatsappPosition)}
+                      />
+                      <p className="text-sm font-medium">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{opt.hint}</p>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex justify-end pt-2">
                 <Button
                   onClick={async () => {
@@ -1147,6 +1182,7 @@ export default function AdminSettingsPage() {
                         whatsappNumber: whatsappNumber.trim() || null,
                         whatsappMessage: whatsappMessage.trim() || null,
                         whatsappStyle,
+                        whatsappPosition,
                       });
                       toast.success("Configuração de WhatsApp salva.");
                     } catch (err) {

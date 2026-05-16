@@ -117,6 +117,8 @@ async function fetchSettings(): Promise<PlatformSettings> {
         | "icon"
         | "transparent"
         | "text",
+    whatsappPosition:
+      ((data.whatsapp_position as string | null) ?? "left") as "left" | "right",
   };
 }
 
@@ -165,6 +167,7 @@ export function usePlatformSettings() {
       if (patch.whatsappNumber !== undefined) dbPatch.whatsapp_number = patch.whatsappNumber;
       if (patch.whatsappMessage !== undefined) dbPatch.whatsapp_message = patch.whatsappMessage;
       if (patch.whatsappStyle !== undefined) dbPatch.whatsapp_style = patch.whatsappStyle;
+      if (patch.whatsappPosition !== undefined) dbPatch.whatsapp_position = patch.whatsappPosition;
       const { error } = await supabase
         .from("platform_settings")
         .update(dbPatch)
