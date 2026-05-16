@@ -29,6 +29,7 @@ import {
   Link2,
   Copy,
   LogIn,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -341,6 +342,8 @@ export default function AdminStudentProfilePage() {
   const [copyLinkLoading, setCopyLinkLoading] = useState(false);
   const [impersonateLoading, setImpersonateLoading] = useState(false);
   const [impersonateConfirm, setImpersonateConfirm] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendConfirm, setResendConfirm] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -396,6 +399,33 @@ export default function AdminStudentProfilePage() {
       toast.error("Erro ao enviar email de redefinicao.");
     }
     setResetPwLoading(false);
+  }
+
+  // Resend access email: resets the student's password to "123456" and
+  // re-sends the welcome email with the credentials and login link.
+  async function handleResendAccess() {
+    if (!student) return;
+    setResendConfirm(false);
+    setResendLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke<{
+        emailSent: boolean;
+        emailError?: string | null;
+        email?: string;
+      }>("admin-resend-access", {
+        body: { userId: student.id },
+      });
+      if (error) throw error;
+      if (data?.emailSent) {
+        toast.success(`E-mail de acesso reenviado para ${data.email ?? student.email}. Senha resetada para 123456.`);
+      } else {
+        toast.warning(`Senha resetada, mas e-mail falhou${data?.emailError ? `: ${data.emailError}` : ""}.`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Falha ao reenviar acesso.";
+      toast.error(msg);
+    }
+    setResendLoading(false);
   }
 
   // Generate admin auth link via edge function (recovery / magiclink)
@@ -692,6 +722,15 @@ export default function AdminStudentProfilePage() {
           >
             <Copy className="mr-1.5 h-4 w-4" />
             {copyLinkLoading ? "Gerando..." : "Copiar link"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setResendConfirm(true)}
+            disabled={resendLoading}
+          >
+            <Send className="mr-1.5 h-4 w-4" />
+            {resendLoading ? "Enviando..." : "Reenviar acesso"}
           </Button>
           <Button
             variant="outline"
@@ -1542,6 +1581,28 @@ export default function AdminStudentProfilePage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleImpersonateConfirmed}>
               Abrir em nova aba
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reenviar acesso confirm dialog */}
+      <AlertDialog open={resendConfirm} onOpenChange={setResendConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reenviar e-mail de acesso?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A senha do aluno sera <strong>resetada para 123456</strong> e um
+              novo e-mail de boas-vindas com as credenciais sera enviado para{" "}
+              <strong>{student?.email}</strong>.
+              <br /><br />
+              Use quando o aluno perdeu o e-mail original ou nao consegue logar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResendAccess}>
+              Reenviar acesso
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
