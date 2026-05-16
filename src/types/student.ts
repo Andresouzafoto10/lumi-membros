@@ -114,6 +114,9 @@ export type PlatformSettings = {
   whatsappMessage?: string | null;
   whatsappStyle?: "icon" | "transparent" | "text";
   whatsappPosition?: "left" | "right";
+  // Custom label for the "text" style. When empty, falls back to
+  // "Falar no WhatsApp".
+  whatsappButtonText?: string | null;
 };
 
 // ---------------------------------------------------------------------------

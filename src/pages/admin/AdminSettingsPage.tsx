@@ -165,6 +165,7 @@ export default function AdminSettingsPage() {
   const [whatsappPosition, setWhatsappPosition] = useState<"left" | "right">(
     (settings.whatsappPosition as "left" | "right" | undefined) ?? "left",
   );
+  const [whatsappButtonText, setWhatsappButtonText] = useState(settings.whatsappButtonText ?? "");
   const [whatsappSaving, setWhatsappSaving] = useState(false);
 
   // Scripts
@@ -223,6 +224,7 @@ export default function AdminSettingsPage() {
     setWhatsappMessage(settings.whatsappMessage ?? "");
     setWhatsappStyle((settings.whatsappStyle as "icon" | "transparent" | "text" | undefined) ?? "icon");
     setWhatsappPosition((settings.whatsappPosition as "left" | "right" | undefined) ?? "left");
+    setWhatsappButtonText(settings.whatsappButtonText ?? "");
     setFaviconUrl(settings.faviconUrl ?? "");
     setFaviconMode(settings.faviconUrl?.startsWith("http") && !settings.faviconUrl?.includes("r2") ? "url" : settings.faviconUrl ? "upload" : "url");
     setLoginCoverUrl(settings.loginCoverUrl ?? "");
@@ -1141,6 +1143,22 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
+              {whatsappStyle === "text" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="wa-button-text">Texto do botão (opcional)</Label>
+                  <Input
+                    id="wa-button-text"
+                    placeholder="Falar no WhatsApp"
+                    value={whatsappButtonText}
+                    onChange={(e) => setWhatsappButtonText(e.target.value)}
+                    maxLength={40}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Em branco mostra <code className="font-mono">Falar no WhatsApp</code>. Limite 40 caracteres.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label>Posição na tela</Label>
                 <div className="grid grid-cols-2 gap-2">
@@ -1183,6 +1201,7 @@ export default function AdminSettingsPage() {
                         whatsappMessage: whatsappMessage.trim() || null,
                         whatsappStyle,
                         whatsappPosition,
+                        whatsappButtonText: whatsappButtonText.trim() || null,
                       });
                       toast.success("Configuração de WhatsApp salva.");
                     } catch (err) {

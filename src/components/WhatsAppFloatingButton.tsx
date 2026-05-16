@@ -45,18 +45,19 @@ export default function WhatsAppFloatingButton() {
   // The "text" variant is a pill with a small label; the others are a
   // round 56px chip.
   if (style === "text") {
+    const label = settings.whatsappButtonText?.trim() || "Falar no WhatsApp";
     return (
       <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Falar no WhatsApp"
+        aria-label={label}
         className={
           `fixed ${sideClass} z-50 bottom-20 sm:bottom-6 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/30 transition hover:scale-[1.03] active:scale-95`
         }
       >
         <WhatsAppGlyph className="h-4 w-4" />
-        Falar no WhatsApp
+        {label}
       </a>
     );
   }
