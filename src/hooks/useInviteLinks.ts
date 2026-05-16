@@ -15,18 +15,27 @@ function generateSlug(name: string): string {
 }
 
 async function fetchInviteLinks(): Promise<InviteLink[]> {
-  const { data, error } = await supabase
-    .from("invite_links")
-    .select("*, classes(name)")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map((row: Record<string, unknown>) => {
+  const [linksRes, classesRes] = await Promise.all([
+    supabase
+      .from("invite_links")
+      .select("*, classes(name)")
+      .order("created_at", { ascending: false }),
+    supabase.from("classes").select("id, name"),
+  ]);
+  if (linksRes.error) throw linksRes.error;
+  const classNameById = new Map<string, string>();
+  for (const c of (classesRes.data ?? []) as Array<{ id: string; name: string }>) {
+    classNameById.set(c.id, c.name);
+  }
+  return (linksRes.data ?? []).map((row: Record<string, unknown>) => {
     const classes = row.classes as { name?: string } | null | undefined;
+    const classIds = ((row.class_ids as string[] | null) ?? []).filter(Boolean);
     return {
       id: row.id as string,
       name: row.name as string,
       slug: row.slug as string,
-      class_id: row.class_id as string,
+      class_id: (row.class_id as string | null) ?? null,
+      class_ids: classIds,
       created_by: row.created_by as string,
       max_uses: row.max_uses as number | null,
       use_count: row.use_count as number,
@@ -35,6 +44,9 @@ async function fetchInviteLinks(): Promise<InviteLink[]> {
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
       class_name: classes?.name ?? undefined,
+      class_names: classIds
+        .map((id) => classNameById.get(id))
+        .filter((n): n is string => Boolean(n)),
     };
   });
 }
@@ -54,18 +66,21 @@ export function useInviteLinks() {
   const createInviteLink = useCallback(
     async (data: {
       name: string;
-      class_id?: string | null;
+      class_ids?: string[];
       max_uses?: number | null;
       expires_at?: string | null;
       created_by?: string | null;
     }) => {
       const slug = generateSlug(data.name);
+      const classIds = data.class_ids ?? [];
       const { data: row, error } = await supabase
         .from("invite_links")
         .insert({
           name: data.name,
           slug,
-          class_id: data.class_id ?? null,
+          // Keep class_id in sync with the first class for legacy readers.
+          class_id: classIds[0] ?? null,
+          class_ids: classIds,
           max_uses: data.max_uses ?? null,
           expires_at: data.expires_at ?? null,
           created_by: data.created_by ?? null,
@@ -84,15 +99,20 @@ export function useInviteLinks() {
       id: string,
       data: {
         name?: string;
-        class_id?: string | null;
+        class_ids?: string[];
         max_uses?: number | null;
         expires_at?: string | null;
         is_active?: boolean;
       }
     ) => {
+      const payload: Record<string, unknown> = { ...data };
+      if (data.class_ids !== undefined) {
+        payload.class_ids = data.class_ids;
+        payload.class_id = data.class_ids[0] ?? null;
+      }
       const { error } = await supabase
         .from("invite_links")
-        .update(data)
+        .update(payload)
         .eq("id", id);
       if (error) throw error;
       invalidate();

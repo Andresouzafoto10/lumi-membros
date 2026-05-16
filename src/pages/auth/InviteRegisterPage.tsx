@@ -5,6 +5,7 @@ import { Eye, EyeOff, Loader2, CheckCircle2, Tag, AlertTriangle } from "lucide-r
 import { isPast, parseISO } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useEmailNotifications } from "@/hooks/useEmailNotifications";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ export default function InviteRegisterPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const { settings } = usePlatformSettings();
+  const { notifyWelcome } = useEmailNotifications();
 
   const logoSrc = getProxiedImageUrl(settings.logoUploadUrl || settings.logoUrl || null);
   const coverUrl = getProxiedImageUrl(settings.loginCoverUrl || null);
@@ -86,11 +88,29 @@ export default function InviteRegisterPage() {
           return;
         }
 
+        const classIds = ((data.class_ids as string[] | null) ?? []).filter(Boolean);
+        const effectiveClassIds = classIds.length > 0
+          ? classIds
+          : data.class_id
+          ? [data.class_id as string]
+          : [];
+
+        // Resolve class names for display when more than one is linked.
+        let classNames: string[] = [];
+        if (effectiveClassIds.length > 0) {
+          const { data: cls } = await supabase
+            .from("classes")
+            .select("name")
+            .in("id", effectiveClassIds);
+          classNames = (cls ?? []).map((c) => c.name as string).filter(Boolean);
+        }
+
         setInviteLink({
           id: data.id,
           name: data.name,
           slug: data.slug,
           class_id: data.class_id,
+          class_ids: effectiveClassIds,
           created_by: data.created_by,
           max_uses: data.max_uses,
           use_count: data.use_count,
@@ -99,6 +119,7 @@ export default function InviteRegisterPage() {
           created_at: data.created_at,
           updated_at: data.updated_at,
           class_name: (data as { classes?: { name?: string } | null }).classes?.name ?? undefined,
+          class_names: classNames,
         });
         setInviteLoading(false);
       } catch {
@@ -142,14 +163,51 @@ export default function InviteRegisterPage() {
         })
         .eq("id", authUser.id);
 
-      // Auto-enroll in class if linked
-      if (inviteLink.class_id) {
-        await supabase.from("enrollments").insert({
-          student_id: authUser.id,
-          class_id: inviteLink.class_id,
-          type: "unlimited",
-          status: "active",
+      // Auto-enroll in every class linked to this invite. Respect each
+      // class's access_duration_days so the access window matches the
+      // class config instead of being unlimited by default.
+      const targetClassIds = inviteLink.class_ids.length > 0
+        ? inviteLink.class_ids
+        : inviteLink.class_id
+        ? [inviteLink.class_id]
+        : [];
+
+      if (targetClassIds.length > 0) {
+        const { data: classesInfo } = await supabase
+          .from("classes")
+          .select("id, access_duration_days, access_grace_days, enrollment_type")
+          .in("id", targetClassIds);
+
+        const nowIso = new Date().toISOString();
+        const rows = targetClassIds.map((cid) => {
+          const cls = (classesInfo ?? []).find((c) => c.id === cid) as
+            | {
+                id: string;
+                access_duration_days: number | null;
+                access_grace_days: number | null;
+                enrollment_type: string | null;
+              }
+            | undefined;
+          const durationDays = cls?.access_duration_days ?? null;
+          const graceDays = cls?.access_grace_days ?? 0;
+          let expiresAt: string | null = null;
+          if (durationDays && durationDays > 0) {
+            const d = new Date();
+            d.setDate(d.getDate() + durationDays + Math.max(0, graceDays));
+            expiresAt = d.toISOString();
+          }
+          return {
+            student_id: authUser.id,
+            class_id: cid,
+            type: cls?.enrollment_type ?? "individual",
+            status: "active",
+            enrolled_at: nowIso,
+            expires_at: expiresAt,
+          };
         });
+        await supabase
+          .from("enrollments")
+          .upsert(rows, { onConflict: "student_id,class_id" });
       }
 
       // Increment use_count
@@ -163,6 +221,13 @@ export default function InviteRegisterPage() {
         invite_link_id: inviteLink.id,
         student_id: authUser.id,
       });
+
+      // Send the welcome confirmation email (best-effort).
+      try {
+        await notifyWelcome(authUser.id);
+      } catch (err) {
+        console.error("welcome email failed:", err);
+      }
     }
 
     setLoading(false);

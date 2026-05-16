@@ -417,7 +417,10 @@ export type InviteLink = {
   id: string;
   name: string;
   slug: string;
+  // Legacy single class column — kept for backward compat. New code reads
+  // class_ids. May be removed once all rows are migrated.
   class_id: string | null;
+  class_ids: string[];
   created_by: string | null;
   max_uses: number | null;
   use_count: number;
@@ -427,6 +430,7 @@ export type InviteLink = {
   updated_at: string;
   // Joined
   class_name?: string;
+  class_names?: string[];
 };
 
 // ---------------------------------------------------------------------------

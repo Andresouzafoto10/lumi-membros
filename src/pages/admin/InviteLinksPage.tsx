@@ -23,13 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -98,14 +92,20 @@ function InviteLinkDialog({
   link: InviteLink | null;
   onSave: (data: {
     name: string;
-    class_id: string | null;
+    class_ids: string[];
     max_uses: number | null;
     expires_at: string | null;
   }) => Promise<any>;
   classes: { id: string; name: string }[];
 }) {
   const [name, setName] = useState(link?.name ?? "");
-  const [classId, setClassId] = useState(link?.class_id ?? "none");
+  const initialClassIds =
+    link?.class_ids && link.class_ids.length > 0
+      ? link.class_ids
+      : link?.class_id
+      ? [link.class_id]
+      : [];
+  const [classIds, setClassIds] = useState<string[]>(initialClassIds);
   const [maxUses, setMaxUses] = useState(
     link?.max_uses != null ? String(link.max_uses) : ""
   );
@@ -124,7 +124,7 @@ function InviteLinkDialog({
     try {
       const result = await onSave({
         name: name.trim(),
-        class_id: classId === "none" ? null : classId,
+        class_ids: classIds,
         max_uses: maxUses ? parseInt(maxUses, 10) : null,
         expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
       });
@@ -196,20 +196,39 @@ function InviteLinkDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="invite-class">Turma vinculada</Label>
-            <Select value={classId} onValueChange={setClassId}>
-              <SelectTrigger id="invite-class">
-                <SelectValue placeholder="Nenhuma turma" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nenhuma turma</SelectItem>
-                {classes.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Turmas vinculadas ({classIds.length})</Label>
+            {classes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Nenhuma turma disponivel. Crie uma turma primeiro.
+              </p>
+            ) : (
+              <div className="rounded-md border divide-y max-h-56 overflow-y-auto">
+                {classes.map((c) => {
+                  const checked = classIds.includes(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => {
+                          setClassIds((prev) =>
+                            prev.includes(c.id)
+                              ? prev.filter((id) => id !== c.id)
+                              : [...prev, c.id],
+                          );
+                        }}
+                      />
+                      <span className="text-sm">{c.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              O aluno sera matriculado automaticamente em todas as turmas marcadas.
+            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -282,7 +301,7 @@ export default function InviteLinksPage() {
 
   async function handleSave(data: {
     name: string;
-    class_id: string | null;
+    class_ids: string[];
     max_uses: number | null;
     expires_at: string | null;
   }) {
@@ -388,7 +407,19 @@ export default function InviteLinksPage() {
                   <TableRow key={link.id}>
                     <TableCell className="font-medium">{link.name}</TableCell>
                     <TableCell>
-                      {link.class_name ? (
+                      {link.class_names && link.class_names.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {link.class_names.map((n, i) => (
+                            <Badge
+                              key={`${link.id}-${i}`}
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0"
+                            >
+                              {n}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : link.class_name ? (
                         link.class_name
                       ) : (
                         <span className="text-muted-foreground text-sm">Sem turma</span>
