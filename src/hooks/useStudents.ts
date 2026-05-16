@@ -187,13 +187,23 @@ export function useStudents() {
 
   const addEnrollment = useCallback(
     async (data: Omit<Enrollment, "id" | "enrolledAt">) => {
-      const { error } = await supabase.from("enrollments").insert({
-        student_id: data.studentId,
-        class_id: data.classId,
-        type: data.type,
-        expires_at: data.expiresAt,
-        status: data.status,
-      });
+      // UPSERT so a previously cancelled enrollment can be reactivated.
+      // UNIQUE(student_id, class_id) means a plain INSERT collides with the
+      // cancelled row left behind by `revokeEnrollment`. Refresh enrolled_at
+      // so the access window starts fresh on re-add.
+      const { error } = await supabase
+        .from("enrollments")
+        .upsert(
+          {
+            student_id: data.studentId,
+            class_id: data.classId,
+            type: data.type,
+            expires_at: data.expiresAt,
+            status: data.status,
+            enrolled_at: new Date().toISOString(),
+          },
+          { onConflict: "student_id,class_id" },
+        );
       if (error) throw error;
       invalidate();
     },
