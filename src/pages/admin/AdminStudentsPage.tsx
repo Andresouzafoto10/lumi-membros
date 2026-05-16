@@ -19,6 +19,7 @@ import { ptBR } from "date-fns/locale";
 import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
 import { useRestrictions } from "@/hooks/useRestrictions";
+import { supabase } from "@/lib/supabase";
 import type { StudentRole, StudentStatus } from "@/types/student";
 
 import { Button } from "@/components/ui/button";
@@ -148,13 +149,115 @@ const EMPTY_FORM: NewStudentForm = {
 // ---------------------------------------------------------------------------
 // CSV preview row
 // ---------------------------------------------------------------------------
-type CsvRow = { name: string; email: string; valid: boolean };
+type CsvRow = {
+  name: string;
+  email: string;
+  phone: string;
+  whatsapp: string;
+  cpf: string;
+  valid: boolean;
+  reason?: string;
+};
+
+// Maps a CSV header cell to the canonical field name. Strips accents,
+// punctuation, and matches the most common Portuguese/English variants.
+function normalizeHeader(h: string): string {
+  return h
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+const HEADER_ALIASES: Record<string, "name" | "email" | "phone" | "whatsapp" | "cpf"> = {
+  // name
+  name: "name",
+  nome: "name",
+  nomecompleto: "name",
+  fullname: "name",
+  aluno: "name",
+  // email
+  email: "email",
+  emai: "email",
+  mail: "email",
+  ema: "email",
+  // phone
+  phone: "phone",
+  telefone: "phone",
+  fone: "phone",
+  tel: "phone",
+  celular: "phone",
+  // whatsapp
+  whatsapp: "whatsapp",
+  whats: "whatsapp",
+  zap: "whatsapp",
+  wpp: "whatsapp",
+  // cpf
+  cpf: "cpf",
+  documento: "cpf",
+  doc: "cpf",
+};
+
+// Minimal RFC4180-ish CSV parser supporting quoted fields, escaped quotes
+// and both \n and \r\n line endings. Returns array of cells per line.
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i++;
+        continue;
+      }
+      cell += ch;
+      i++;
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+      i++;
+      continue;
+    }
+    if (ch === ",") {
+      row.push(cell);
+      cell = "";
+      i++;
+      continue;
+    }
+    if (ch === "\n" || ch === "\r") {
+      row.push(cell);
+      cell = "";
+      if (row.length > 1 || row[0].trim() !== "") rows.push(row);
+      row = [];
+      if (ch === "\r" && text[i + 1] === "\n") i += 2;
+      else i++;
+      continue;
+    }
+    cell += ch;
+    i++;
+  }
+  if (cell.length > 0 || row.length > 0) {
+    row.push(cell);
+    if (row.length > 1 || row[0].trim() !== "") rows.push(row);
+  }
+  return rows;
+}
 
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminStudentsPage() {
-  const { students, enrollments, createStudent, createStudentsBulk, updateStudent, deleteStudent } =
+  const { students, enrollments, createStudent, updateStudent, deleteStudent } =
     useStudents();
   const { classes } = useClasses();
   const { isRestricted } = useRestrictions();
@@ -176,6 +279,8 @@ export default function AdminStudentsPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
   const [csvClassIds, setCsvClassIds] = useState<string[]>([]);
+  const [csvSendEmail, setCsvSendEmail] = useState(true);
+  const [importLoading, setImportLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Delete confirmation
@@ -261,14 +366,65 @@ export default function AdminStudentsPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      const rows: CsvRow[] = lines.map((line) => {
-        const parts = line.split(",").map((p) => p.trim());
-        const name = parts[0] ?? "";
-        const email = parts[1] ?? "";
-        const valid = name.length > 0 && email.includes("@");
-        return { name, email, valid };
+      const text = (ev.target?.result as string) ?? "";
+      const matrix = parseCsv(text);
+      if (matrix.length === 0) {
+        setCsvRows([]);
+        toast.error("CSV vazio.");
+        return;
+      }
+
+      // Detect header by checking if the first row contains a header alias.
+      const first = matrix[0].map((c) => normalizeHeader(c));
+      const hasHeader = first.some((c) => HEADER_ALIASES[c] !== undefined);
+      const headerRow = hasHeader ? first : null;
+      const dataRows = hasHeader ? matrix.slice(1) : matrix;
+
+      // Build column index map (header → column position).
+      const idx: Record<"name" | "email" | "phone" | "whatsapp" | "cpf", number> = {
+        name: -1,
+        email: -1,
+        phone: -1,
+        whatsapp: -1,
+        cpf: -1,
+      };
+      if (headerRow) {
+        headerRow.forEach((h, i) => {
+          const key = HEADER_ALIASES[h];
+          if (key && idx[key] === -1) idx[key] = i;
+        });
+      } else {
+        // No header → fall back to positional: Nome, Email, Telefone, WhatsApp, CPF.
+        idx.name = 0;
+        idx.email = 1;
+        idx.phone = 2;
+        idx.whatsapp = 3;
+        idx.cpf = 4;
+      }
+
+      if (idx.name === -1 || idx.email === -1) {
+        setCsvRows([]);
+        toast.error("CSV precisa conter colunas Nome e Email.");
+        return;
+      }
+
+      const seenEmails = new Set<string>();
+      const rows: CsvRow[] = dataRows.map((cells) => {
+        const get = (i: number) => (i >= 0 ? (cells[i] ?? "").trim() : "");
+        const name = get(idx.name);
+        const email = get(idx.email).toLowerCase();
+        const phone = get(idx.phone);
+        const whatsapp = get(idx.whatsapp);
+        const cpf = get(idx.cpf);
+        let valid = name.length > 0 && email.includes("@");
+        let reason: string | undefined;
+        if (!valid) reason = "Nome ou email invalido";
+        if (valid && seenEmails.has(email)) {
+          valid = false;
+          reason = "Email duplicado no CSV";
+        }
+        if (valid) seenEmails.add(email);
+        return { name, email, phone, whatsapp, cpf, valid, reason };
       });
       setCsvRows(rows);
     };
@@ -277,13 +433,53 @@ export default function AdminStudentsPage() {
 
   async function handleConfirmImport() {
     const valid = csvRows.filter((r) => r.valid);
-    if (valid.length === 0) { toast.error("Nenhuma linha válida para importar."); return; }
-    const count = await createStudentsBulk(valid, csvClassIds);
-    toast.success(`${count} aluno${count !== 1 ? "s" : ""} importado${count !== 1 ? "s" : ""} com sucesso.`);
-    setCsvRows([]);
-    setCsvClassIds([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setImportDialogOpen(false);
+    if (valid.length === 0) {
+      toast.error("Nenhuma linha válida para importar.");
+      return;
+    }
+    setImportLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke<{
+        imported: number;
+        skipped: number;
+        failed: number;
+        results: Array<{ email: string; status: string; error?: string }>;
+      }>("admin-bulk-create-students", {
+        body: {
+          students: valid.map((r) => ({
+            name: r.name,
+            email: r.email,
+            phone: r.phone || null,
+            whatsapp: r.whatsapp || null,
+            cpf: r.cpf || null,
+          })),
+          classIds: csvClassIds,
+          sendEmail: csvSendEmail,
+        },
+      });
+      if (error) throw error;
+      const imported = data?.imported ?? 0;
+      const skipped = data?.skipped ?? 0;
+      const failed = data?.failed ?? 0;
+      if (imported > 0 && failed === 0 && skipped === 0) {
+        toast.success(`${imported} aluno${imported !== 1 ? "s" : ""} importado${imported !== 1 ? "s" : ""}.`);
+      } else {
+        toast.message(`Importacao concluida`, {
+          description: `${imported} criados · ${skipped} ja existiam · ${failed} falharam`,
+        });
+        const failedRows = (data?.results ?? []).filter((r) => r.status === "failed");
+        if (failedRows.length > 0) {
+          console.error("Falhas na importacao:", failedRows);
+        }
+      }
+      // Invalidate students query so the table refreshes
+      window.location.reload();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao importar alunos.";
+      toast.error(msg);
+    } finally {
+      setImportLoading(false);
+    }
   }
 
   function toggleCsvClass(classId: string) {
@@ -587,19 +783,24 @@ export default function AdminStudentsPage() {
       <Dialog
         open={importDialogOpen}
         onOpenChange={(open) => {
-          if (!open) { setCsvRows([]); setCsvClassIds([]); }
+          if (!open) {
+            setCsvRows([]);
+            setCsvClassIds([]);
+            setCsvSendEmail(true);
+          }
           setImportDialogOpen(open);
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Importar alunos via CSV</DialogTitle>
             <DialogDescription>
-              Suba um arquivo CSV com colunas:{" "}
+              Colunas suportadas (com cabeçalho na primeira linha):{" "}
               <code className="rounded bg-muted px-1 py-0.5 text-xs font-mono">
-                Nome, Email
-              </code>{" "}
-              (uma linha por aluno, sem cabeçalho).
+                Nome, Email, Telefone, WhatsApp, CPF
+              </code>
+              . <strong>Nome</strong> e <strong>Email</strong> são obrigatórios;
+              as demais são opcionais. Senha padrão atribuída: <code className="font-mono">123456</code>.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
@@ -622,36 +823,59 @@ export default function AdminStudentsPage() {
                     {csvRows.filter((r) => r.valid).length !== 1 ? "s" : ""} de{" "}
                     {csvRows.length})
                   </p>
-                  <div className="rounded-md border divide-y max-h-40 overflow-y-auto">
-                    {csvRows.map((row, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 px-3 py-2 text-sm"
-                      >
-                        <span
-                          className={
-                            row.valid
-                              ? "text-emerald-500 font-bold"
-                              : "text-destructive font-bold"
-                          }
-                        >
-                          {row.valid ? "✓" : "✗"}
-                        </span>
-                        <span className="flex-1 truncate">
-                          {row.name || <em className="text-muted-foreground">sem nome</em>}
-                        </span>
-                        <span className="text-muted-foreground truncate">
-                          {row.email || <em>sem e-mail</em>}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="rounded-md border max-h-72 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/40 sticky top-0">
+                        <tr>
+                          <th className="px-2 py-1.5 text-left w-6"></th>
+                          <th className="px-2 py-1.5 text-left">Nome</th>
+                          <th className="px-2 py-1.5 text-left">E-mail</th>
+                          <th className="px-2 py-1.5 text-left">Telefone</th>
+                          <th className="px-2 py-1.5 text-left">WhatsApp</th>
+                          <th className="px-2 py-1.5 text-left">CPF</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {csvRows.map((row, i) => (
+                          <tr key={i} className={row.valid ? "" : "bg-destructive/5"}>
+                            <td className="px-2 py-1.5">
+                              <span
+                                className={
+                                  row.valid
+                                    ? "text-emerald-500 font-bold"
+                                    : "text-destructive font-bold"
+                                }
+                                title={row.reason ?? ""}
+                              >
+                                {row.valid ? "✓" : "✗"}
+                              </span>
+                            </td>
+                            <td className="px-2 py-1.5 truncate max-w-[160px]">
+                              {row.name || <em className="text-muted-foreground">—</em>}
+                            </td>
+                            <td className="px-2 py-1.5 truncate max-w-[180px] text-muted-foreground">
+                              {row.email || <em>—</em>}
+                            </td>
+                            <td className="px-2 py-1.5 truncate text-muted-foreground">
+                              {row.phone || <em>—</em>}
+                            </td>
+                            <td className="px-2 py-1.5 truncate text-muted-foreground">
+                              {row.whatsapp || <em>—</em>}
+                            </td>
+                            <td className="px-2 py-1.5 truncate text-muted-foreground">
+                              {row.cpf || <em>—</em>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
                 {classes.length > 0 && (
                   <div className="space-y-2">
-                    <Label>Vincular às turmas</Label>
-                    <div className="rounded-md border divide-y">
+                    <Label>Vincular às turmas (matricula automática)</Label>
+                    <div className="rounded-md border divide-y max-h-44 overflow-y-auto">
                       {classes.map((cls) => (
                         <label
                           key={cls.id}
@@ -665,22 +889,37 @@ export default function AdminStudentsPage() {
                         </label>
                       ))}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cada aluno será matriculado em todas as turmas marcadas, respeitando a duração de cada uma.
+                    </p>
                   </div>
                 )}
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <Checkbox
+                    checked={csvSendEmail}
+                    onCheckedChange={(v) => setCsvSendEmail(v === true)}
+                  />
+                  <span className="text-sm">
+                    Enviar e-mail de boas-vindas (com senha <code className="font-mono">123456</code>) para cada aluno
+                  </span>
+                </label>
               </>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={importLoading}>
               Cancelar
             </Button>
             <Button
               onClick={handleConfirmImport}
-              disabled={csvRows.filter((r) => r.valid).length === 0}
+              disabled={importLoading || csvRows.filter((r) => r.valid).length === 0}
             >
-              Importar {csvRows.filter((r) => r.valid).length > 0
-                ? `(${csvRows.filter((r) => r.valid).length})`
-                : ""}
+              {importLoading
+                ? "Importando..."
+                : `Importar ${csvRows.filter((r) => r.valid).length > 0
+                    ? `(${csvRows.filter((r) => r.valid).length})`
+                    : ""}`}
             </Button>
           </DialogFooter>
         </DialogContent>
