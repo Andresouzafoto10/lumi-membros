@@ -53,7 +53,7 @@ export default function WhatsAppFloatingButton() {
         rel="noopener noreferrer"
         aria-label={label}
         className={
-          `fixed ${sideClass} z-50 bottom-20 sm:bottom-6 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/30 transition hover:scale-[1.03] active:scale-95`
+          `fixed ${sideClass} z-50 bottom-24 sm:bottom-6 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/30 transition hover:scale-[1.03] active:scale-95`
         }
       >
         <WhatsAppGlyph className="h-4 w-4" />
@@ -71,7 +71,7 @@ export default function WhatsAppFloatingButton() {
       rel="noopener noreferrer"
       aria-label="Falar no WhatsApp"
       className={
-        `fixed ${sideClass} z-50 bottom-20 sm:bottom-6 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition hover:scale-[1.05] active:scale-95 ` +
+        `fixed ${sideClass} z-50 bottom-24 sm:bottom-6 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition hover:scale-[1.05] active:scale-95 ` +
         (transparent
           ? "bg-[#25D366]/15 text-[#25D366] backdrop-blur-sm border border-[#25D366]/40 hover:bg-[#25D366]/25"
           : "bg-[#25D366] text-white shadow-emerald-500/30 hover:bg-[#1ebe5d]")
