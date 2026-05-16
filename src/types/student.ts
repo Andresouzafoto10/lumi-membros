@@ -108,6 +108,11 @@ export type PlatformSettings = {
   feedCoverUrl: string;
   feedEnabled: boolean;
   showMyCourses?: boolean;
+  // Floating WhatsApp CTA on the /cursos page (student-only).
+  whatsappEnabled?: boolean;
+  whatsappNumber?: string | null;
+  whatsappMessage?: string | null;
+  whatsappStyle?: "icon" | "transparent" | "text";
 };
 
 // ---------------------------------------------------------------------------

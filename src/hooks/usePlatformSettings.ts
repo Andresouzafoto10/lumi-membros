@@ -109,6 +109,14 @@ async function fetchSettings(): Promise<PlatformSettings> {
     feedCoverUrl: (data.feed_cover_url as string | null) ?? "",
     feedEnabled: (data.feed_enabled as boolean | null) ?? true,
     showMyCourses: (data.show_my_courses as boolean | null) ?? true,
+    whatsappEnabled: (data.whatsapp_enabled as boolean | null) ?? false,
+    whatsappNumber: (data.whatsapp_number as string | null) ?? null,
+    whatsappMessage: (data.whatsapp_message as string | null) ?? null,
+    whatsappStyle:
+      ((data.whatsapp_style as string | null) ?? "icon") as
+        | "icon"
+        | "transparent"
+        | "text",
   };
 }
 
@@ -153,6 +161,10 @@ export function usePlatformSettings() {
       if (patch.feedCoverUrl !== undefined) dbPatch.feed_cover_url = patch.feedCoverUrl;
       if (patch.feedEnabled !== undefined) dbPatch.feed_enabled = patch.feedEnabled;
       if (patch.showMyCourses !== undefined) dbPatch.show_my_courses = patch.showMyCourses;
+      if (patch.whatsappEnabled !== undefined) dbPatch.whatsapp_enabled = patch.whatsappEnabled;
+      if (patch.whatsappNumber !== undefined) dbPatch.whatsapp_number = patch.whatsappNumber;
+      if (patch.whatsappMessage !== undefined) dbPatch.whatsapp_message = patch.whatsappMessage;
+      if (patch.whatsappStyle !== undefined) dbPatch.whatsapp_style = patch.whatsappStyle;
       const { error } = await supabase
         .from("platform_settings")
         .update(dbPatch)

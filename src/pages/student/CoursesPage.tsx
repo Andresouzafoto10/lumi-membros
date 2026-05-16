@@ -25,6 +25,7 @@ import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { isStudentEnrolled, isSessionVisibleToStudent } from "@/lib/accessControl";
 import { UpcomingLiveBanner } from "@/components/courses/UpcomingLiveBanner";
+import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 
 export default function CoursesPage() {
   const { sessions, activeBanners } = useCourses();
@@ -307,6 +308,7 @@ export default function CoursesPage() {
           </section>
         );
       })}
+      <WhatsAppFloatingButton />
     </div>
   );
 }

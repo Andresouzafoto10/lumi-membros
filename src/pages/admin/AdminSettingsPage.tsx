@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, Save, Eye, Award, Star, ShieldCheck, Plus, Pencil, Trash2, Upload, Link as LinkIcon, Globe, Smartphone, Code, Menu as MenuIcon, ChevronUp, ChevronDown, ExternalLink, EyeOff } from "lucide-react";
+import { Settings, Save, Eye, Award, Star, ShieldCheck, Plus, Pencil, Trash2, Upload, Link as LinkIcon, Globe, Smartphone, Code, Menu as MenuIcon, ChevronUp, ChevronDown, ExternalLink, EyeOff, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
@@ -155,6 +155,15 @@ export default function AdminSettingsPage() {
   const [pwaThemeColor, setPwaThemeColor] = useState(settings.pwaThemeColor ?? "#00C2CB");
   const [pwaBackgroundColor, setPwaBackgroundColor] = useState(settings.pwaBackgroundColor ?? "#09090b");
 
+  // WhatsApp floating button
+  const [whatsappEnabled, setWhatsappEnabled] = useState(settings.whatsappEnabled ?? false);
+  const [whatsappNumber, setWhatsappNumber] = useState(settings.whatsappNumber ?? "");
+  const [whatsappMessage, setWhatsappMessage] = useState(settings.whatsappMessage ?? "");
+  const [whatsappStyle, setWhatsappStyle] = useState<"icon" | "transparent" | "text">(
+    (settings.whatsappStyle as "icon" | "transparent" | "text" | undefined) ?? "icon",
+  );
+  const [whatsappSaving, setWhatsappSaving] = useState(false);
+
   // Scripts
   const {
     scripts,
@@ -206,6 +215,10 @@ export default function AdminSettingsPage() {
     setLightColors({ ...settings.theme.light });
     setRatingsEnabled(settings.ratingsEnabled);
     setShowMyCoursesEnabled(settings.showMyCourses ?? true);
+    setWhatsappEnabled(settings.whatsappEnabled ?? false);
+    setWhatsappNumber(settings.whatsappNumber ?? "");
+    setWhatsappMessage(settings.whatsappMessage ?? "");
+    setWhatsappStyle((settings.whatsappStyle as "icon" | "transparent" | "text" | undefined) ?? "icon");
     setFaviconUrl(settings.faviconUrl ?? "");
     setFaviconMode(settings.faviconUrl?.startsWith("http") && !settings.faviconUrl?.includes("r2") ? "url" : settings.faviconUrl ? "upload" : "url");
     setLoginCoverUrl(settings.loginCoverUrl ?? "");
@@ -343,6 +356,10 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="menu" className="flex items-center gap-1.5">
             <MenuIcon className="h-3.5 w-3.5" />
             Menu
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp" className="flex items-center gap-1.5">
+            <MessageCircle className="h-3.5 w-3.5" />
+            WhatsApp
           </TabsTrigger>
         </TabsList>
 
@@ -1038,6 +1055,115 @@ export default function AdminSettingsPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+        </TabsContent>
+
+        {/* ========================== WHATSAPP ========================== */}
+        <TabsContent value="whatsapp" className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-emerald-500" />
+                Botão flutuante de WhatsApp
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <p className="text-sm text-muted-foreground">
+                Aparece no canto inferior esquerdo da página{" "}
+                <code className="font-mono">/cursos</code> (desktop e mobile). Não aparece dentro de cursos nem na comunidade.
+              </p>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={whatsappEnabled}
+                  onChange={(e) => setWhatsappEnabled(e.target.checked)}
+                />
+                <span className="text-sm font-medium">Exibir botão de WhatsApp</span>
+              </label>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="wa-number">Número (com DDD, sem +)</Label>
+                <Input
+                  id="wa-number"
+                  placeholder="11999999999"
+                  value={whatsappNumber}
+                  onChange={(e) => setWhatsappNumber(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Aceita formato BR (DDD + 8/9 dígitos). Se já incluir país (55), preserve.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="wa-message">Mensagem pré-preenchida (opcional)</Label>
+                <Input
+                  id="wa-message"
+                  placeholder="Ola! Vim do app, gostaria de tirar uma duvida."
+                  value={whatsappMessage}
+                  onChange={(e) => setWhatsappMessage(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Estilo do botão</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: "icon", label: "Ícone padrão", hint: "Verde sólido" },
+                    { value: "transparent", label: "Transparente", hint: "Fundo translúcido" },
+                    { value: "text", label: "Pill com texto", hint: "Ícone + texto curto" },
+                  ].map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={
+                        `cursor-pointer rounded-md border p-3 text-center transition ` +
+                        (whatsappStyle === opt.value
+                          ? "border-primary bg-primary/10"
+                          : "border-border/60 hover:bg-muted/50")
+                      }
+                    >
+                      <input
+                        type="radio"
+                        name="wa-style"
+                        className="sr-only"
+                        value={opt.value}
+                        checked={whatsappStyle === opt.value}
+                        onChange={() => setWhatsappStyle(opt.value as typeof whatsappStyle)}
+                      />
+                      <p className="text-sm font-medium">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{opt.hint}</p>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  onClick={async () => {
+                    setWhatsappSaving(true);
+                    try {
+                      await updateSettings({
+                        whatsappEnabled,
+                        whatsappNumber: whatsappNumber.trim() || null,
+                        whatsappMessage: whatsappMessage.trim() || null,
+                        whatsappStyle,
+                      });
+                      toast.success("Configuração de WhatsApp salva.");
+                    } catch (err) {
+                      const msg = err instanceof Error ? err.message : "Erro ao salvar.";
+                      toast.error(msg);
+                    } finally {
+                      setWhatsappSaving(false);
+                    }
+                  }}
+                  disabled={whatsappSaving}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {whatsappSaving ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
