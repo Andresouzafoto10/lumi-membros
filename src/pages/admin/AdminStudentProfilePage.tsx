@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   Users,
@@ -30,6 +30,11 @@ import {
   Copy,
   LogIn,
   Send,
+  Activity,
+  Inbox,
+  MailOpen,
+  AlertCircle,
+  Hourglass,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -253,6 +258,48 @@ export default function AdminStudentProfilePage() {
 
   const profile = findProfile(studentId);
 
+  // Fetch auth.users stats (first/last access) via edge function.
+  useEffect(() => {
+    if (!studentId) return;
+    let cancelled = false;
+    setStatsLoading(true);
+    supabase.functions
+      .invoke<StudentStats>("admin-student-stats", { body: { userId: studentId } })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error && data) setStats(data);
+      })
+      .finally(() => {
+        if (!cancelled) setStatsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [studentId]);
+
+  // Fetch last 20 emails sent to this student.
+  useEffect(() => {
+    if (!studentId) return;
+    let cancelled = false;
+    setEmailLogsLoading(true);
+    supabase
+      .from("email_notification_log")
+      .select("id, type, subject, status, sent_at, opened_at, automation_type")
+      .eq("recipient_id", studentId)
+      .order("sent_at", { ascending: false })
+      .limit(20)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error && data) setEmailLogs(data as EmailLogRow[]);
+      })
+      .then(() => {
+        if (!cancelled) setEmailLogsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [studentId]);
+
   const studentEnrollments = useMemo(
     () => enrollments.filter((e) => e.studentId === studentId),
     [enrollments, studentId]
@@ -344,6 +391,28 @@ export default function AdminStudentProfilePage() {
   const [impersonateConfirm, setImpersonateConfirm] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendConfirm, setResendConfirm] = useState(false);
+
+  // Account activity (first/last access) fetched from auth.users via edge function
+  type StudentStats = {
+    createdAt: string | null;
+    firstAccessAt: string | null;
+    lastAccessAt: string | null;
+  };
+  const [stats, setStats] = useState<StudentStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  // Email history (last N entries from email_notification_log)
+  type EmailLogRow = {
+    id: string;
+    type: string;
+    subject: string | null;
+    status: string | null;
+    sent_at: string;
+    opened_at: string | null;
+    automation_type: string | null;
+  };
+  const [emailLogs, setEmailLogs] = useState<EmailLogRow[]>([]);
+  const [emailLogsLoading, setEmailLogsLoading] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -850,6 +919,83 @@ export default function AdminStudentProfilePage() {
           </CardContent>
         </Card>
 
+        {/* ---- Card: Atividade da conta ---- */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-4 w-4 text-primary" />
+              Atividade da conta
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <div className="space-y-2">
+                <div className="h-4 w-2/3 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-1/2 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-3/5 bg-muted animate-pulse rounded" />
+              </div>
+            ) : (
+              (() => {
+                const fmt = (iso: string | null) =>
+                  iso ? format(parseISO(iso), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR }) : "—";
+                const relative = (iso: string | null) => {
+                  if (!iso) return null;
+                  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+                  if (days < 0) return null;
+                  if (days === 0) return "hoje";
+                  if (days === 1) return "1 dia atras";
+                  if (days < 30) return `${days} dias atras`;
+                  if (days < 365) return `${Math.floor(days / 30)} ${Math.floor(days / 30) === 1 ? "mes" : "meses"} atras`;
+                  return `${Math.floor(days / 365)} ${Math.floor(days / 365) === 1 ? "ano" : "anos"} atras`;
+                };
+                const lastRel = relative(stats?.lastAccessAt ?? null);
+                const lastAccess = stats?.lastAccessAt;
+                const longInactive = lastAccess && (Date.now() - new Date(lastAccess).getTime()) / 86400000 > 30;
+                return (
+                  <div className="grid gap-3 text-sm">
+                    <div className="flex items-start gap-2">
+                      <CalendarDays className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">Conta criada</p>
+                        <p className="font-medium">{fmt(stats?.createdAt ?? student.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <LogIn className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">Primeiro acesso</p>
+                        <p className="font-medium">
+                          {stats?.firstAccessAt ? fmt(stats.firstAccessAt) : (
+                            <span className="text-muted-foreground italic">Aluno nunca acessou</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Clock className={`h-4 w-4 mt-0.5 shrink-0 ${longInactive ? "text-amber-500" : "text-primary"}`} />
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">Ultimo acesso</p>
+                        {stats?.lastAccessAt ? (
+                          <div className="flex flex-wrap items-baseline gap-x-2">
+                            <p className="font-medium">{fmt(stats.lastAccessAt)}</p>
+                            {lastRel && (
+                              <span className={`text-xs ${longInactive ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                                ({lastRel})
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="font-medium text-muted-foreground italic">Nunca acessou</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+          </CardContent>
+        </Card>
+
         {/* ---- Card: Turmas Vinculadas ---- */}
         <Card>
           <CardHeader className="pb-3">
@@ -965,15 +1111,47 @@ export default function AdminStudentProfilePage() {
                       </div>
 
                       {/* Expiration info */}
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
                         <CalendarClock className="h-3 w-3 shrink-0" />
                         {enrollment.expiresAt ? (
-                          <>
-                            Acesso ate {format(parseISO(enrollment.expiresAt), "dd/MM/yyyy", { locale: ptBR })}
-                            {new Date(enrollment.expiresAt) < new Date() && (
-                              <Badge variant="destructive" className="text-[9px] ml-1 px-1 py-0">Expirado</Badge>
-                            )}
-                          </>
+                          (() => {
+                            const expiresMs = new Date(enrollment.expiresAt).getTime();
+                            const daysLeft = Math.ceil((expiresMs - Date.now()) / 86400000);
+                            const expired = daysLeft <= 0;
+                            const dateLabel = format(parseISO(enrollment.expiresAt), "dd/MM/yyyy", { locale: ptBR });
+                            let badgeNode: React.ReactNode = null;
+                            if (expired) {
+                              badgeNode = (
+                                <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
+                                  Expirado
+                                </Badge>
+                              );
+                            } else if (daysLeft <= 7) {
+                              badgeNode = (
+                                <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
+                                  {daysLeft}d restantes
+                                </Badge>
+                              );
+                            } else if (daysLeft <= 30) {
+                              badgeNode = (
+                                <Badge className="text-[9px] px-1.5 py-0 bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/15">
+                                  {daysLeft}d restantes
+                                </Badge>
+                              );
+                            } else {
+                              badgeNode = (
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+                                  {daysLeft}d restantes
+                                </Badge>
+                              );
+                            }
+                            return (
+                              <>
+                                <span>Acesso ate {dateLabel}</span>
+                                {badgeNode}
+                              </>
+                            );
+                          })()
                         ) : (
                           <span>Acesso sem prazo de expiracao</span>
                         )}
@@ -1121,6 +1299,106 @@ export default function AdminStudentProfilePage() {
 
         {/* ---- Card: Estatisticas de Estudo ---- */}
         <StudyAnalyticsCard studentId={studentId} />
+
+        {/* ---- Card: Historico de e-mails ---- */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Inbox className="h-4 w-4 text-primary" />
+              Historico de e-mails ({emailLogs.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {emailLogsLoading ? (
+              <div className="px-6 pb-4 space-y-2">
+                <div className="h-4 w-full bg-muted animate-pulse rounded" />
+                <div className="h-4 w-5/6 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-4/6 bg-muted animate-pulse rounded" />
+              </div>
+            ) : emailLogs.length === 0 ? (
+              <p className="px-6 pb-4 text-sm text-muted-foreground">
+                Nenhum e-mail foi enviado para este aluno ainda.
+              </p>
+            ) : (
+              <div className="divide-y max-h-[420px] overflow-y-auto">
+                {emailLogs.map((log) => {
+                  const ok = (log.status ?? "").toLowerCase() === "sent";
+                  const opened = !!log.opened_at;
+                  const skipped = (log.status ?? "").toLowerCase().startsWith("skip");
+                  const failed = !ok && !skipped;
+                  const TypeLabel: Record<string, string> = {
+                    welcome_with_setup: "Boas-vindas (acesso)",
+                    welcome: "Boas-vindas",
+                    course_unlocked: "Curso liberado",
+                    new_course: "Novo curso",
+                    new_lesson: "Nova aula",
+                    new_post: "Nova publicacao",
+                    comment: "Comentario",
+                    comment_milestone: "Marco de comentarios",
+                    like: "Curtida",
+                    follow: "Novo seguidor",
+                    follower_milestone_10: "Marco de seguidores",
+                    mention: "Mencao",
+                    mention_community: "Mencao na comunidade",
+                    post_reply: "Resposta a post",
+                    badge_earned: "Badge conquistado",
+                    mission_complete: "Missao concluida",
+                    certificate_earned: "Certificado",
+                    access_reminder_7d: "Lembrete de acesso (7d)",
+                    community_post: "Post na comunidade",
+                    community_inactive_30d: "Inatividade (30d)",
+                  };
+                  const typeLabel = TypeLabel[log.type] ?? log.type;
+                  return (
+                    <div key={log.id} className="px-6 py-3 flex items-start gap-3">
+                      <div className="shrink-0 mt-0.5">
+                        {failed ? (
+                          <AlertCircle className="h-4 w-4 text-destructive" />
+                        ) : skipped ? (
+                          <Hourglass className="h-4 w-4 text-muted-foreground" />
+                        ) : opened ? (
+                          <MailOpen className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <Mail className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                          <p className="text-sm font-medium truncate">
+                            {log.subject || typeLabel}
+                          </p>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {format(parseISO(log.sent_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {typeLabel}
+                          </Badge>
+                          {failed && (
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                              Falhou
+                            </Badge>
+                          )}
+                          {skipped && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              {log.status === "skipped" ? "Ignorado" : log.status}
+                            </Badge>
+                          )}
+                          {opened && (
+                            <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/15">
+                              Aberto
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* ---- Card: Gamificacao ---- */}
         <Card>
