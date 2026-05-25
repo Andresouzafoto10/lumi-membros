@@ -23,6 +23,10 @@ type StudentData = {
   email: string;
   name: string;
   productId: string;
+  // Some platforms (Cakto) send the product as both a short_id and a full UUID.
+  // The admin may have saved either form in webhook_mappings, so we carry the
+  // alternate id and match against both during mapping lookup.
+  productIdAlt?: string | null;
   offerId: string | null;
   eventType: NormalizedEvent;
   transactionId: string | null;
@@ -203,11 +207,18 @@ function extractFromCakto(body: Record<string, unknown>): StudentData | null {
     (data.status as string) ??
     "";
 
-  // Prefer short_id when available (matches what admins see in the Cakto UI),
-  // fall back to full UUID. Either form is accepted by the mapping table.
-  const productId = String(
-    product?.short_id ?? product?.id ?? body.product_id ?? ""
-  );
+  // Cakto sends both a short_id (shown in the UI) and a full UUID (product.id).
+  // The mapping may have been saved with either form, so capture both: productId
+  // prefers short_id, productIdAlt holds the other form. The lookup matches both.
+  const productShort = product?.short_id ? String(product.short_id) : "";
+  const productUuid = product?.id ? String(product.id) : "";
+  const productId = productShort || productUuid || String(body.product_id ?? "");
+  const productIdAlt =
+    productShort && productUuid
+      ? productId === productShort
+        ? productUuid
+        : productShort
+      : null;
   const offerId = offer?.id ? String(offer.id) : null;
   const transactionId =
     (data.refId as string) ??
@@ -223,6 +234,7 @@ function extractFromCakto(body: Record<string, unknown>): StudentData | null {
     offerId,
     eventType: normalizeCaktoEvent(rawEvent),
     transactionId,
+    productIdAlt,
   };
 }
 
@@ -465,12 +477,21 @@ serve(async (req) => {
     };
 
     let mappingRow: MappingRow | null = null;
+    // Match against every form of the product id we extracted (short_id + UUID),
+    // since the mapping could have been saved with either one.
+    const productIds = Array.from(
+      new Set(
+        [studentData.productId, studentData.productIdAlt].filter(
+          (v): v is string => !!v
+        )
+      )
+    );
     if (studentData.offerId) {
       const { data: exact } = await supabase
         .from("webhook_mappings")
         .select("class_ids, class_id, external_offer_id")
         .eq("platform_id", platformRow.id)
-        .eq("external_product_id", studentData.productId)
+        .in("external_product_id", productIds)
         .eq("external_offer_id", studentData.offerId)
         .maybeSingle();
       mappingRow = (exact as MappingRow | null) ?? null;
@@ -480,7 +501,7 @@ serve(async (req) => {
         .from("webhook_mappings")
         .select("class_ids, class_id, external_offer_id")
         .eq("platform_id", platformRow.id)
-        .eq("external_product_id", studentData.productId)
+        .in("external_product_id", productIds)
         .is("external_offer_id", null)
         .maybeSingle();
       mappingRow = (fallback as MappingRow | null) ?? null;
@@ -695,57 +716,36 @@ serve(async (req) => {
       );
     }
 
-    // 10. Send the right email to the student based on whether they are new.
-    // Always fire (re-purchases get a "course unlocked" notice too).
+    // 10. Send the access email DIRECTLY via Resend.
+    // We do NOT call the notify-email function: its gateway runs with
+    // verify_jwt=true and rejects server-to-server service-role calls with 401
+    // (same reason admin-resend-access sends Resend directly). Best-effort.
     try {
       const classNames = classIds
         .map((cid) => classMap[cid]?.name)
         .filter(Boolean)
         .join(", ");
+      const appUrl = Deno.env.get("PLATFORM_URL") ?? "https://app.membrosmaster.com.br";
 
-      if (isNewUser && tempPassword) {
-        // New user → email with the temporary password and login CTA. User can
-        // change later in Profile or via "Esqueci minha senha".
-        const appUrl =
-          Deno.env.get("PLATFORM_URL") ?? "https://app.membrosmaster.com.br";
-        await fetch(`${SUPABASE_URL}/functions/v1/notify-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          },
-          body: JSON.stringify({
-            type: "welcome_with_setup",
-            recipient_id: profile.id,
-            recipient_email: studentData.email,
-            recipient_name: studentData.name,
-            context: {
-              classes_list: classNames,
-              temp_password: tempPassword,
-              action_url: `${appUrl}/login`,
-            },
-          }),
-        });
-      } else {
-        // Existing user → "Novo acesso liberado" with direct login CTA.
-        await fetch(`${SUPABASE_URL}/functions/v1/notify-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          },
-          body: JSON.stringify({
-            type: "course_unlocked",
-            recipient_id: profile.id,
-            recipient_email: studentData.email,
-            recipient_name: studentData.name,
-            context: {
-              classes_list: classNames,
-              action_url: `${Deno.env.get("PLATFORM_URL") ?? "https://app.membrosmaster.com.br"}/cursos`,
-            },
-          }),
-        });
-      }
+      const emailType = isNewUser && tempPassword ? "welcome_with_setup" : "course_unlocked";
+      const { subject, html } = buildAccessEmail({
+        name: studentData.name,
+        email: studentData.email,
+        classesList: classNames,
+        tempPassword: isNewUser ? tempPassword : null,
+        loginUrl: `${appUrl}/login`,
+        coursesUrl: `${appUrl}/cursos`,
+      });
+
+      const sent = await sendResendEmail(studentData.email, subject, html);
+      await supabase.from("email_notification_log").insert({
+        recipient_id: profile.id,
+        type: emailType,
+        automation_type: emailType,
+        subject,
+        status: sent.ok ? "sent" : "error",
+        metadata: { source: "webhook-intake", transaction_id: studentData.transactionId, error: sent.error ?? null },
+      });
     } catch (err) {
       console.error("webhook-intake email error:", err);
       // Non-blocking: emails are best-effort.
@@ -845,4 +845,92 @@ async function notifyAdminsUnmappedProduct(
   }));
 
   await supabase.from("notifications").insert(rows);
+}
+
+// ---------------------------------------------------------------------------
+// Access email (sent directly via Resend — see note in step 10)
+// ---------------------------------------------------------------------------
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildAccessEmail(opts: {
+  name: string;
+  email: string;
+  classesList: string;
+  tempPassword: string | null;
+  loginUrl: string;
+  coursesUrl: string;
+}): { subject: string; html: string } {
+  const platformName = Deno.env.get("PLATFORM_NAME") ?? "Membros Master";
+  const safeName = escapeHtml(opts.name || "Aluno");
+  const safeClasses = escapeHtml(opts.classesList);
+  const isNew = !!opts.tempPassword;
+
+  const subject = isNew
+    ? `Seu acesso à ${platformName} 🔐`
+    : `Novo acesso liberado${opts.classesList ? `: ${opts.classesList}` : ""} 🎉`;
+
+  const intro = isNew
+    ? `Sua conta na plataforma <strong>${escapeHtml(platformName)}</strong> está pronta.`
+    : `Você recebeu acesso a <strong>${safeClasses || "novas turmas"}</strong>.`;
+
+  const credsBlock = isNew
+    ? `
+    <div style="background:#fafafa;border:1px solid #eee;padding:20px;border-radius:8px;margin:24px 0;">
+      <p style="margin:0 0 12px 0;"><strong>E-mail:</strong> ${escapeHtml(opts.email)}</p>
+      <p style="margin:0;"><strong>Senha:</strong> <code style="background:#fff;padding:4px 10px;border-radius:4px;border:1px solid #ddd;font-family:monospace;font-size:15px;">${escapeHtml(opts.tempPassword as string)}</code></p>
+    </div>
+    <p style="margin:0 0 24px 0;line-height:1.5;color:#555;">Recomendamos alterar sua senha após o primeiro acesso em "Meu perfil", ou usar "Esqueci minha senha" no login.</p>`
+    : `<p style="margin:0 0 24px 0;line-height:1.5;color:#555;">Seu novo acesso já está liberado. É só entrar com seu e-mail e senha de sempre.</p>`;
+
+  const ctaUrl = isNew ? opts.loginUrl : opts.coursesUrl;
+  const ctaLabel = isNew ? "Acessar plataforma" : "Ver meus cursos";
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${escapeHtml(platformName)}</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;margin:0;padding:20px;color:#1a1a1a;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <h1 style="color:#ff7b00;margin:0 0 16px 0;font-size:24px;">Olá, ${safeName}!</h1>
+    <p style="margin:0 0 16px 0;line-height:1.5;">${intro}</p>
+    ${safeClasses ? `<p style="margin:0 0 16px 0;line-height:1.5;">Turmas: <strong>${safeClasses}</strong></p>` : ""}
+    ${credsBlock}
+    <p style="margin:0 0 24px 0;text-align:center;">
+      <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background:#ff7b00;color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;">${ctaLabel}</a>
+    </p>
+    <p style="margin:24px 0 0 0;color:#999;font-size:13px;text-align:center;">Feito com ♥ ${escapeHtml(platformName)}</p>
+  </div>
+</body></html>`;
+
+  return { subject, html };
+}
+
+async function sendResendEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<{ ok: boolean; error?: string }> {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
+  if (!RESEND_API_KEY) return { ok: false, error: "RESEND_API_KEY ausente" };
+  const platformName = Deno.env.get("PLATFORM_NAME") ?? "Membros Master";
+  const from = `${platformName} <enviar@membrosmaster.com.br>`;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to: [to], subject, html }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    return { ok: false, error: `Resend ${res.status}: ${txt.slice(0, 200)}` };
+  }
+  return { ok: true };
 }

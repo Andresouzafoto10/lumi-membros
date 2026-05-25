@@ -354,6 +354,17 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Public/external Edge Functions must NOT require a Supabase JWT — external
+# callers (payment webhooks, browser image requests) don't send one. These
+# functions do their own auth (HMAC, enrollment checks). Without these blocks
+# a CLI/MCP deploy defaults verify_jwt = true and the Supabase gateway returns
+# 401 before the function ever runs.
+[functions.webhook-intake]
+verify_jwt = false
+
+[functions.image-proxy]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
