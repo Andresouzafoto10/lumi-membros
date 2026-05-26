@@ -55,6 +55,7 @@ export type InviteLinkUse = {
   studentId: string;
   name: string;
   email: string;
+  cpf: string;
   usedAt: string;
 };
 
@@ -71,9 +72,9 @@ export async function fetchInviteLinkUses(linkId: string): Promise<InviteLinkUse
   if (ids.length === 0) return [];
   const { data: profs } = await supabase
     .from("profiles")
-    .select("id, name, display_name, email")
+    .select("id, name, display_name, email, cpf")
     .in("id", ids);
-  const byId = new Map<string, { name?: string; display_name?: string; email?: string }>();
+  const byId = new Map<string, { name?: string; display_name?: string; email?: string; cpf?: string }>();
   for (const p of (profs ?? []) as Array<Record<string, string>>) byId.set(p.id, p);
   return rows.map((r) => {
     const p = byId.get(r.student_id);
@@ -81,6 +82,7 @@ export async function fetchInviteLinkUses(linkId: string): Promise<InviteLinkUse
       studentId: r.student_id,
       name: (p?.display_name || p?.name || "Aluno").trim(),
       email: p?.email ?? "",
+      cpf: p?.cpf ?? "",
       usedAt: r.used_at,
     };
   });

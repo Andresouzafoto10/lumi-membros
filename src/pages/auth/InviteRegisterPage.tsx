@@ -22,8 +22,14 @@ type Mode = "signup" | "login";
 // source + email). Returns an error message or null. The function runs with the
 // caller's session, so signUp/signIn must have completed first.
 async function acceptInvite(slug: string, isNew: boolean): Promise<string | null> {
+  // Pass the access token explicitly: right after signUp/signIn the supabase
+  // client may not have propagated the new session to its functions client yet,
+  // which would make the call hit accept-invite with only the anon key (→ 401).
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
   const { data, error } = await supabase.functions.invoke("accept-invite", {
     body: { slug, isNew },
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
   });
   if (error) {
     let msg = "Não foi possível liberar o acesso. Tente novamente.";

@@ -50,6 +50,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/courses/EmptyState";
+import { formatCpf } from "@/lib/cpf";
 import type { InviteLink } from "@/types/student";
 
 // ---------------------------------------------------------------------------
@@ -503,6 +504,16 @@ export default function InviteLinksPage() {
                           size="icon"
                           variant="ghost"
                           className="h-8 w-8"
+                          onClick={() => openUses(link)}
+                          disabled={link.use_count === 0}
+                          title={link.use_count > 0 ? "Ver inscritos" : "Nenhum inscrito ainda"}
+                        >
+                          <Users className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
                           onClick={() => handleEdit(link)}
                           title="Editar"
                         >
@@ -585,8 +596,13 @@ export default function InviteLinksPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="truncate">
-              Quem entrou por “{usesTarget?.name}”
+              Inscritos por “{usesTarget?.name}”
             </DialogTitle>
+            {!usesLoading && uses.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {uses.length} {uses.length === 1 ? "inscrito" : "inscritos"}
+              </p>
+            )}
           </DialogHeader>
           {usesLoading ? (
             <div className="py-8 flex justify-center">
@@ -599,10 +615,13 @@ export default function InviteLinksPage() {
           ) : (
             <div className="max-h-[60vh] overflow-y-auto divide-y divide-border/50">
               {uses.map((u) => (
-                <div key={u.studentId} className="py-2.5 flex items-center justify-between gap-3">
+                <div key={u.studentId} className="py-2.5 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{u.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                    <p className="text-xs text-muted-foreground">
+                      CPF: {u.cpf ? formatCpf(u.cpf) : "—"}
+                    </p>
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0">
                     {format(parseISO(u.usedAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
