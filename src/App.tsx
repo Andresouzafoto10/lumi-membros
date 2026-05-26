@@ -9,7 +9,7 @@ import { CommunityLayout } from "@/components/layout/CommunityLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { applyThemeToCss } from "@/lib/applyTheme";
-import { applyFavicon, applyPwaManifest } from "@/lib/generatePwaManifest";
+import { applyFavicon } from "@/lib/generatePwaManifest";
 
 // ---------------------------------------------------------------------------
 // Auth pages (NOT lazy — precisam ser rápidas)
@@ -147,7 +147,7 @@ function ThemeApplicator() {
     if (loading) return;
     applyThemeToCss(settings.theme.dark, settings.theme.light);
     applyFavicon(settings.faviconUrl);
-    applyPwaManifest(settings);
+    // Manifest PWA agora é servido por /manifest.webmanifest (api/manifest.ts).
   }, [settings, loading]);
 
   return (
