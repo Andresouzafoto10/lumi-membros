@@ -90,7 +90,9 @@ export default async function handler(
     id: "/",
     name,
     short_name: shortName,
-    start_url: "/",
+    // App instalado abre no login (não na landing de vendas "/"). Se houver
+    // sessão lembrada, a LoginPage redireciona direto para /cursos.
+    start_url: "/login",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
