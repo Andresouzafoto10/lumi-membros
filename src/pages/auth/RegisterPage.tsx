@@ -5,6 +5,7 @@ import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmailNotifications } from "@/hooks/useEmailNotifications";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +65,8 @@ export default function RegisterPage() {
     }
 
     if (userId) {
+      // Mark how the account was created (direct signup at /cadastro).
+      await supabase.from("profiles").update({ signup_source: "direct" }).eq("id", userId);
       void notifyWelcome(userId);
     }
 

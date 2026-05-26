@@ -5,7 +5,6 @@ import { Eye, EyeOff, Loader2, CheckCircle2, Tag, AlertTriangle } from "lucide-r
 import { isPast, parseISO } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
-import { useEmailNotifications } from "@/hooks/useEmailNotifications";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,12 +16,37 @@ import { isPasswordStrong } from "@/lib/password";
 import type { InviteLink } from "@/types/student";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
 
+type Mode = "signup" | "login";
+
+// Calls the accept-invite Edge Function (server-side enrollment + use tracking +
+// source + email). Returns an error message or null. The function runs with the
+// caller's session, so signUp/signIn must have completed first.
+async function acceptInvite(slug: string, isNew: boolean): Promise<string | null> {
+  const { data, error } = await supabase.functions.invoke("accept-invite", {
+    body: { slug, isNew },
+  });
+  if (error) {
+    let msg = "Não foi possível liberar o acesso. Tente novamente.";
+    try {
+      const ctx = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
+      const parsed = ctx?.json ? await ctx.json() : null;
+      if (parsed?.error) msg = parsed.error;
+    } catch {
+      /* keep generic message */
+    }
+    return msg;
+  }
+  if (data && (data as { error?: string }).error) {
+    return (data as { error: string }).error;
+  }
+  return null;
+}
+
 export default function InviteRegisterPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { signUp } = useAuth();
+  const { signUp, signIn } = useAuth();
   const navigate = useNavigate();
   const { settings } = usePlatformSettings();
-  const { notifyWelcome } = useEmailNotifications();
 
   const logoSrc = getProxiedImageUrl(settings.logoUploadUrl || settings.logoUrl || null);
   const coverUrl = getProxiedImageUrl(settings.loginCoverUrl || null);
@@ -33,6 +57,7 @@ export default function InviteRegisterPage() {
   const [inviteLoading, setInviteLoading] = useState(true);
 
   // Form state
+  const [mode, setMode] = useState<Mode>("signup");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
@@ -40,6 +65,7 @@ export default function InviteRegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -47,6 +73,13 @@ export default function InviteRegisterPage() {
   const passwordCheck = isPasswordStrong(password);
   const passwordStrong = passwordCheck.valid;
   const cpfValid = isValidCpf(cpf);
+
+  const classNames =
+    (inviteLink?.class_names && inviteLink.class_names.length > 0)
+      ? inviteLink.class_names
+      : inviteLink?.class_name
+      ? [inviteLink.class_name]
+      : [];
 
   // Fetch invite link on mount
   useEffect(() => {
@@ -64,13 +97,7 @@ export default function InviteRegisterPage() {
           .eq("slug", slug)
           .single();
 
-        if (fetchError || !data) {
-          setInviteError("Este link de convite não é válido ou expirou.");
-          setInviteLoading(false);
-          return;
-        }
-
-        if (!data.is_active) {
+        if (fetchError || !data || !data.is_active) {
           setInviteError("Este link de convite não é válido ou expirou.");
           setInviteLoading(false);
           return;
@@ -95,14 +122,13 @@ export default function InviteRegisterPage() {
           ? [data.class_id as string]
           : [];
 
-        // Resolve class names for display when more than one is linked.
-        let classNames: string[] = [];
+        let resolvedNames: string[] = [];
         if (effectiveClassIds.length > 0) {
           const { data: cls } = await supabase
             .from("classes")
             .select("name")
             .in("id", effectiveClassIds);
-          classNames = (cls ?? []).map((c) => c.name as string).filter(Boolean);
+          resolvedNames = (cls ?? []).map((c) => c.name as string).filter(Boolean);
         }
 
         setInviteLink({
@@ -119,7 +145,7 @@ export default function InviteRegisterPage() {
           created_at: data.created_at,
           updated_at: data.updated_at,
           class_name: (data as { classes?: { name?: string } | null }).classes?.name ?? undefined,
-          class_names: classNames,
+          class_names: resolvedNames,
         });
         setInviteLoading(false);
       } catch {
@@ -129,9 +155,17 @@ export default function InviteRegisterPage() {
     })();
   }, [slug]);
 
-  async function handleSubmit(e: FormEvent) {
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    setPassword("");
+    setConfirmPassword("");
+  }
+
+  // New account → create, then claim the invite.
+  async function handleSignup(e: FormEvent) {
     e.preventDefault();
-    if (!inviteLink) return;
+    if (!inviteLink || !slug) return;
     if (!name || !email || !password || !confirmPassword || !cpfValid) return;
     if (password !== confirmPassword) {
       setError("As senhas não coincidem.");
@@ -143,96 +177,61 @@ export default function InviteRegisterPage() {
     }
 
     setError(null);
+    setNotice(null);
     setLoading(true);
+
     const { error: signUpError } = await signUp(email, password, name, cpf.replace(/\D/g, ""));
     if (signUpError) {
+      // Already registered → switch to login so they can claim the invite.
+      if (/cadastrad/i.test(signUpError)) {
+        setLoading(false);
+        switchMode("login");
+        setNotice("Esse e-mail já tem conta. Entre com sua senha para liberar o acesso do convite.");
+        return;
+      }
       setError(signUpError);
       setLoading(false);
       return;
     }
 
-    // Get the newly created user ID
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser) {
-      // Update profile with invite source
-      await supabase
-        .from("profiles")
-        .update({
-          signup_source: "invite_link",
-          invite_link_id: inviteLink.id,
-        })
-        .eq("id", authUser.id);
+    const claimError = await acceptInvite(slug, true);
+    setLoading(false);
+    if (claimError) {
+      setError(claimError);
+      return;
+    }
+    finish();
+  }
 
-      // Auto-enroll in every class linked to this invite. Respect each
-      // class's access_duration_days so the access window matches the
-      // class config instead of being unlimited by default.
-      const targetClassIds = inviteLink.class_ids.length > 0
-        ? inviteLink.class_ids
-        : inviteLink.class_id
-        ? [inviteLink.class_id]
-        : [];
+  // Existing account → login, then claim the invite.
+  async function handleLogin(e: FormEvent) {
+    e.preventDefault();
+    if (!inviteLink || !slug) return;
+    if (!email || !password) return;
 
-      if (targetClassIds.length > 0) {
-        const { data: classesInfo } = await supabase
-          .from("classes")
-          .select("id, access_duration_days, access_grace_days, enrollment_type")
-          .in("id", targetClassIds);
+    setError(null);
+    setNotice(null);
+    setLoading(true);
 
-        const nowIso = new Date().toISOString();
-        const rows = targetClassIds.map((cid) => {
-          const cls = (classesInfo ?? []).find((c) => c.id === cid) as
-            | {
-                id: string;
-                access_duration_days: number | null;
-                access_grace_days: number | null;
-                enrollment_type: string | null;
-              }
-            | undefined;
-          const durationDays = cls?.access_duration_days ?? null;
-          const graceDays = cls?.access_grace_days ?? 0;
-          let expiresAt: string | null = null;
-          if (durationDays && durationDays > 0) {
-            const d = new Date();
-            d.setDate(d.getDate() + durationDays + Math.max(0, graceDays));
-            expiresAt = d.toISOString();
-          }
-          return {
-            student_id: authUser.id,
-            class_id: cid,
-            type: cls?.enrollment_type ?? "individual",
-            status: "active",
-            enrolled_at: nowIso,
-            expires_at: expiresAt,
-          };
-        });
-        await supabase
-          .from("enrollments")
-          .upsert(rows, { onConflict: "student_id,class_id" });
-      }
-
-      // Increment use_count
-      await supabase
-        .from("invite_links")
-        .update({ use_count: inviteLink.use_count + 1 })
-        .eq("id", inviteLink.id);
-
-      // Record usage
-      await supabase.from("invite_link_uses").insert({
-        invite_link_id: inviteLink.id,
-        student_id: authUser.id,
-      });
-
-      // Send the welcome confirmation email (best-effort).
-      try {
-        await notifyWelcome(authUser.id);
-      } catch (err) {
-        console.error("welcome email failed:", err);
-      }
+    const { error: signInError } = await signIn(email, password);
+    if (signInError) {
+      setError(signInError);
+      setLoading(false);
+      return;
     }
 
+    const claimError = await acceptInvite(slug, false);
     setLoading(false);
+    if (claimError) {
+      setError(claimError);
+      return;
+    }
+    finish();
+  }
+
+  function finish() {
     setDone(true);
-    setTimeout(() => navigate("/cursos", { replace: true }), 2500);
+    setTimeout(() => navigate("/cursos", { replace: true }), 2200);
   }
 
   const logo = (
@@ -270,7 +269,6 @@ export default function InviteRegisterPage() {
     </div>
   );
 
-  // Loading invite
   if (inviteLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -282,7 +280,6 @@ export default function InviteRegisterPage() {
     );
   }
 
-  // Invalid invite
   if (inviteError) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -297,7 +294,6 @@ export default function InviteRegisterPage() {
     );
   }
 
-  // Success
   if (done) {
     return (
       <div className="min-h-screen bg-background flex flex-col lg:flex-row">
@@ -305,9 +301,9 @@ export default function InviteRegisterPage() {
         <div className="flex flex-1 items-center justify-center p-6">
           <div className="text-center space-y-3 animate-fade-in">
             <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
-            <h2 className="text-xl font-semibold">Cadastro realizado!</h2>
+            <h2 className="text-xl font-semibold">Acesso liberado!</h2>
             <p className="text-sm text-muted-foreground">
-              Verifique seu e-mail para confirmar a conta.
+              Suas turmas já estão disponíveis.
               <br />
               Redirecionando…
             </p>
@@ -317,10 +313,12 @@ export default function InviteRegisterPage() {
     );
   }
 
+  const isLogin = mode === "login";
+
   return (
     <>
       <Helmet>
-        <title>Criar conta — Convite</title>
+        <title>{isLogin ? "Entrar — Convite" : "Criar conta — Convite"}</title>
       </Helmet>
 
       <div className="min-h-screen bg-background flex flex-col lg:flex-row">
@@ -331,161 +329,235 @@ export default function InviteRegisterPage() {
             <div className="w-full max-w-sm">
               {logo}
 
-              {/* Invite badge */}
+              {/* Invite badge + classes */}
               <div className="mb-4 flex flex-col items-center gap-2">
                 <Badge className="bg-primary text-primary-foreground px-3 py-1 gap-1.5">
                   <Tag className="h-3.5 w-3.5" />
                   Convite
                 </Badge>
-                {inviteLink?.class_name && (
+                {classNames.length > 0 && (
                   <p className="text-sm text-muted-foreground text-center">
-                    Você receberá acesso automático a:{" "}
-                    <strong className="text-foreground">{inviteLink.class_name}</strong>
+                    Você receberá acesso a:{" "}
+                    <strong className="text-foreground">{classNames.join(", ")}</strong>
                   </p>
                 )}
               </div>
 
-              {/* Error */}
+              {notice && (
+                <div className="mb-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground">
+                  {notice}
+                </div>
+              )}
               {error && (
                 <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   {error}
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">Nome completo</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Seu nome"
-                    autoComplete="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={loading}
-                    required
-                    className="h-11 bg-muted/30 border-border/50"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading}
-                    required
-                    className="h-11 bg-muted/30 border-border/50"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="cpf">CPF</Label>
-                  <Input
-                    id="cpf"
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="000.000.000-00"
-                    autoComplete="off"
-                    maxLength={14}
-                    value={formatCpf(cpf)}
-                    onChange={(e) => setCpf(e.target.value)}
-                    disabled={loading}
-                    required
-                    className={cn(
-                      "h-11 bg-muted/30 border-border/50",
-                      cpf && !cpfValid && "border-destructive/50"
-                    )}
-                  />
-                  {cpf && !cpfValid && (
-                    <p className="text-xs text-destructive">CPF é obrigatório</p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="password">Senha</Label>
-                  <div className="relative">
+              {isLogin ? (
+                /* ---------------- LOGIN MODE (existing account) ---------------- */
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="login-email">E-mail</Label>
                     <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Mínimo 8 caracteres (letras e números)"
-                      autoComplete="new-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      id="login-email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                      required
+                      className="h-11 bg-muted/30 border-border/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="login-password">Senha</Label>
+                    <div className="relative">
+                      <Input
+                        id="login-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Sua senha"
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={loading}
+                        required
+                        className="h-11 pr-10 bg-muted/30 border-border/50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <div className="text-right">
+                      <Link to="/redefinir-senha" className="text-xs text-primary hover:underline underline-offset-4">
+                        Esqueci minha senha
+                      </Link>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-11 rounded-full font-semibold mt-2 shadow-sm shadow-primary/20 active:scale-[0.98] transition-transform"
+                    disabled={loading || !email || !password}
+                  >
+                    {loading ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Liberando acesso…</>
+                    ) : (
+                      "Entrar e liberar acesso"
+                    )}
+                  </Button>
+
+                  <p className="text-center text-sm text-muted-foreground">
+                    Não tem conta?{" "}
+                    <button type="button" onClick={() => switchMode("signup")} className="text-primary font-medium hover:underline underline-offset-4">
+                      Criar conta
+                    </button>
+                  </p>
+                </form>
+              ) : (
+                /* ---------------- SIGNUP MODE (new account) ---------------- */
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name">Nome completo</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Seu nome"
+                      autoComplete="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={loading}
+                      required
+                      className="h-11 bg-muted/30 border-border/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">E-mail</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                      required
+                      className="h-11 bg-muted/30 border-border/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cpf">CPF</Label>
+                    <Input
+                      id="cpf"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="000.000.000-00"
+                      autoComplete="off"
+                      maxLength={14}
+                      value={formatCpf(cpf)}
+                      onChange={(e) => setCpf(e.target.value)}
                       disabled={loading}
                       required
                       className={cn(
-                        "h-11 pr-10 bg-muted/30 border-border/50",
-                        password && !passwordStrong && "border-destructive/50"
+                        "h-11 bg-muted/30 border-border/50",
+                        cpf && !cpfValid && "border-destructive/50"
                       )}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {password && !passwordStrong && (
-                    <p className="text-xs text-destructive">{passwordCheck.reason}</p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="confirmPassword">Confirmar senha</Label>
-                  <Input
-                    id="confirmPassword"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Repita a senha"
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={loading}
-                    required
-                    className={cn(
-                      "h-11 bg-muted/30 border-border/50",
-                      confirmPassword && !passwordsMatch && "border-destructive/50"
+                    {cpf && !cpfValid && (
+                      <p className="text-xs text-destructive">CPF é obrigatório</p>
                     )}
-                  />
-                  {confirmPassword && !passwordsMatch && (
-                    <p className="text-xs text-destructive">As senhas não coincidem</p>
-                  )}
-                </div>
+                  </div>
 
-                <Button
-                  type="submit"
-                  className="w-full h-11 rounded-full font-semibold mt-2 shadow-sm shadow-primary/20 active:scale-[0.98] transition-transform"
-                  disabled={
-                    loading ||
-                    !name ||
-                    !email ||
-                    !cpfValid ||
-                    !password ||
-                    !confirmPassword ||
-                    !passwordsMatch ||
-                    !passwordStrong
-                  }
-                >
-                  {loading ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Criando conta…</>
-                  ) : (
-                    "Criar conta grátis"
-                  )}
-                </Button>
-              </form>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password">Senha</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Mínimo 8 caracteres (letras e números)"
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={loading}
+                        required
+                        className={cn(
+                          "h-11 pr-10 bg-muted/30 border-border/50",
+                          password && !passwordStrong && "border-destructive/50"
+                        )}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {password && !passwordStrong && (
+                      <p className="text-xs text-destructive">{passwordCheck.reason}</p>
+                    )}
+                  </div>
 
-              <p className="mt-6 text-center text-sm text-muted-foreground">
-                Já tem uma conta?{" "}
-                <Link to="/login" className="text-primary font-medium hover:underline underline-offset-4">
-                  Entrar
-                </Link>
-              </p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirmPassword">Confirmar senha</Label>
+                    <Input
+                      id="confirmPassword"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Repita a senha"
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      disabled={loading}
+                      required
+                      className={cn(
+                        "h-11 bg-muted/30 border-border/50",
+                        confirmPassword && !passwordsMatch && "border-destructive/50"
+                      )}
+                    />
+                    {confirmPassword && !passwordsMatch && (
+                      <p className="text-xs text-destructive">As senhas não coincidem</p>
+                    )}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-11 rounded-full font-semibold mt-2 shadow-sm shadow-primary/20 active:scale-[0.98] transition-transform"
+                    disabled={
+                      loading ||
+                      !name ||
+                      !email ||
+                      !cpfValid ||
+                      !password ||
+                      !confirmPassword ||
+                      !passwordsMatch ||
+                      !passwordStrong
+                    }
+                  >
+                    {loading ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Criando conta…</>
+                    ) : (
+                      "Criar conta grátis"
+                    )}
+                  </Button>
+
+                  <p className="text-center text-sm text-muted-foreground">
+                    Já tem uma conta?{" "}
+                    <button type="button" onClick={() => switchMode("login")} className="text-primary font-medium hover:underline underline-offset-4">
+                      Entrar para liberar
+                    </button>
+                  </p>
+                </form>
+              )}
             </div>
           </div>
 

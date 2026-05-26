@@ -91,6 +91,18 @@ const ROLE_LABELS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 // Skeleton rows
 // ---------------------------------------------------------------------------
+// How the account was created (profiles.signup_source).
+const SOURCE_LABELS: Record<string, string> = {
+  invite_link: "Convite",
+  invite: "Convite",
+  webhook: "Webhook",
+  direct: "Direto",
+  admin: "Admin",
+};
+function sourceLabel(s?: string | null): string {
+  return (s && SOURCE_LABELS[s]) || "—";
+}
+
 function SkeletonRows() {
   return (
     <>
@@ -107,6 +119,9 @@ function SkeletonRows() {
           </TableCell>
           <TableCell>
             <div className="h-5 w-14 bg-muted animate-pulse rounded-full" />
+          </TableCell>
+          <TableCell>
+            <div className="h-5 w-16 bg-muted animate-pulse rounded-full" />
           </TableCell>
           <TableCell>
             <div className="h-3.5 w-20 bg-muted animate-pulse rounded" />
@@ -270,6 +285,7 @@ export default function AdminStudentsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<StudentStatus | "all" | "restricted">("all");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [filterSource, setFilterSource] = useState<string>("all");
 
   // New student dialog
   const [newDialogOpen, setNewDialogOpen] = useState(false);
@@ -310,9 +326,19 @@ export default function AdminStudentsPage() {
         return false;
       }
       if (filterRole !== "all" && s.role !== filterRole) return false;
+      if (filterSource !== "all") {
+        const src = s.signupSource ?? "";
+        if (filterSource === "invite_link") {
+          if (src !== "invite_link" && src !== "invite") return false;
+        } else if (filterSource === "none") {
+          if (src) return false;
+        } else if (src !== filterSource) {
+          return false;
+        }
+      }
       return true;
     });
-  }, [students, search, filterStatus, filterRole, isRestricted]);
+  }, [students, search, filterStatus, filterRole, filterSource, isRestricted]);
 
   const uniqueRoles = useMemo(
     () => [...new Set(students.map((s) => s.role))],
@@ -571,11 +597,23 @@ export default function AdminStudentsPage() {
             ))}
           </SelectContent>
         </Select>
-        {(search || filterStatus !== "all" || filterRole !== "all") && (
+        <Select value={filterSource} onValueChange={setFilterSource}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Origem" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as origens</SelectItem>
+            <SelectItem value="invite_link">Convite</SelectItem>
+            <SelectItem value="webhook">Webhook</SelectItem>
+            <SelectItem value="direct">Direto</SelectItem>
+            <SelectItem value="none">Sem origem</SelectItem>
+          </SelectContent>
+        </Select>
+        {(search || filterStatus !== "all" || filterRole !== "all" || filterSource !== "all" || filterSource !== "all") && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => { setSearch(""); setFilterStatus("all"); setFilterRole("all"); }}
+            onClick={() => { setSearch(""); setFilterStatus("all"); setFilterRole("all"); setFilterSource("all"); }}
           >
             <X className="mr-1 h-3.5 w-3.5" />
             Limpar
@@ -591,6 +629,7 @@ export default function AdminStudentsPage() {
               <TableHead>Aluno</TableHead>
               <TableHead>Perfil</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Origem</TableHead>
               <TableHead>Cadastro</TableHead>
               <TableHead>Turmas</TableHead>
               <TableHead className="w-[120px]">Ações</TableHead>
@@ -601,14 +640,14 @@ export default function AdminStudentsPage() {
               <SkeletonRows />
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="p-0">
+                <TableCell colSpan={7} className="p-0">
                   <EmptyState
                     icon={Users}
-                    title={search || filterStatus !== "all" || filterRole !== "all"
+                    title={search || filterStatus !== "all" || filterRole !== "all" || filterSource !== "all"
                       ? "Nenhum aluno encontrado"
                       : "Nenhum aluno cadastrado"}
                     description={
-                      search || filterStatus !== "all" || filterRole !== "all"
+                      search || filterStatus !== "all" || filterRole !== "all" || filterSource !== "all"
                         ? "Tente ajustar os filtros de busca."
                         : "Clique em \"+ Novo aluno\" para cadastrar o primeiro membro."
                     }
@@ -638,6 +677,15 @@ export default function AdminStudentsPage() {
                     <Badge variant={STATUS_VARIANTS[student.status]}>
                       {STATUS_LABELS[student.status]}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {student.signupSource ? (
+                      <Badge variant="outline" className="text-[11px] font-normal">
+                        {sourceLabel(student.signupSource)}
+                      </Badge>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                     {format(parseISO(student.createdAt), "dd/MM/yyyy", { locale: ptBR })}

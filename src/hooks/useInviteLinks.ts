@@ -51,6 +51,41 @@ async function fetchInviteLinks(): Promise<InviteLink[]> {
   });
 }
 
+export type InviteLinkUse = {
+  studentId: string;
+  name: string;
+  email: string;
+  usedAt: string;
+};
+
+// Who joined via a given invite link (admin-only read; RLS allows admins).
+export async function fetchInviteLinkUses(linkId: string): Promise<InviteLinkUse[]> {
+  const { data: uses, error } = await supabase
+    .from("invite_link_uses")
+    .select("student_id, used_at")
+    .eq("invite_link_id", linkId)
+    .order("used_at", { ascending: false });
+  if (error) throw error;
+  const rows = (uses ?? []) as Array<{ student_id: string; used_at: string }>;
+  const ids = rows.map((r) => r.student_id).filter(Boolean);
+  if (ids.length === 0) return [];
+  const { data: profs } = await supabase
+    .from("profiles")
+    .select("id, name, display_name, email")
+    .in("id", ids);
+  const byId = new Map<string, { name?: string; display_name?: string; email?: string }>();
+  for (const p of (profs ?? []) as Array<Record<string, string>>) byId.set(p.id, p);
+  return rows.map((r) => {
+    const p = byId.get(r.student_id);
+    return {
+      studentId: r.student_id,
+      name: (p?.display_name || p?.name || "Aluno").trim(),
+      email: p?.email ?? "",
+      usedAt: r.used_at,
+    };
+  });
+}
+
 export function useInviteLinks() {
   const queryClient = useQueryClient();
   const { data: inviteLinks = [], isLoading } = useQuery({

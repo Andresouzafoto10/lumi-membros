@@ -8,12 +8,13 @@ import {
   EyeOff,
   Copy,
   Loader2,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-import { useInviteLinks } from "@/hooks/useInviteLinks";
+import { useInviteLinks, fetchInviteLinkUses, type InviteLinkUse } from "@/hooks/useInviteLinks";
 import { useClasses } from "@/hooks/useClasses";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -289,6 +290,23 @@ export default function InviteLinksPage() {
   const [editingLink, setEditingLink] = useState<InviteLink | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InviteLink | null>(null);
 
+  const [usesTarget, setUsesTarget] = useState<InviteLink | null>(null);
+  const [uses, setUses] = useState<InviteLinkUse[]>([]);
+  const [usesLoading, setUsesLoading] = useState(false);
+
+  async function openUses(link: InviteLink) {
+    setUsesTarget(link);
+    setUses([]);
+    setUsesLoading(true);
+    try {
+      setUses(await fetchInviteLinkUses(link.id));
+    } catch {
+      toast.error("Erro ao carregar a lista de usos.");
+    } finally {
+      setUsesLoading(false);
+    }
+  }
+
   function handleNew() {
     setEditingLink(null);
     setDialogOpen(true);
@@ -441,15 +459,27 @@ export default function InviteLinksPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="space-y-1">
-                        <span className="text-sm">
+                      <button
+                        type="button"
+                        onClick={() => link.use_count > 0 && openUses(link)}
+                        disabled={link.use_count === 0}
+                        title={link.use_count > 0 ? "Ver quem entrou por este link" : undefined}
+                        className={
+                          "space-y-1 text-left " +
+                          (link.use_count > 0
+                            ? "cursor-pointer hover:text-primary transition-colors"
+                            : "cursor-default")
+                        }
+                      >
+                        <span className="text-sm inline-flex items-center gap-1">
+                          {link.use_count > 0 && <Users className="h-3.5 w-3.5" />}
                           {link.use_count}
                           {link.max_uses != null ? `/${link.max_uses}` : ""}
                         </span>
                         {usagePercent != null && (
                           <Progress value={usagePercent} className="h-1.5 w-16" />
                         )}
-                      </div>
+                      </button>
                     </TableCell>
                     <TableCell>
                       {link.expires_at ? (
@@ -549,6 +579,40 @@ export default function InviteLinksPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Who used this link */}
+      <Dialog open={!!usesTarget} onOpenChange={(o) => !o && setUsesTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="truncate">
+              Quem entrou por “{usesTarget?.name}”
+            </DialogTitle>
+          </DialogHeader>
+          {usesLoading ? (
+            <div className="py-8 flex justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : uses.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Ninguém entrou por este link ainda.
+            </p>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto divide-y divide-border/50">
+              {uses.map((u) => (
+                <div key={u.studentId} className="py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{u.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {format(parseISO(u.usedAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
