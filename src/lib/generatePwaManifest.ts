@@ -1,42 +1,11 @@
-import type { PlatformSettings } from "@/types/student";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
 
-export function applyPwaManifest(settings: PlatformSettings) {
-  if (!settings.pwaEnabled) return;
-
-  const pwaIconUrl = getProxiedImageUrl(settings.pwaIconUrl);
-
-  const manifest = {
-    name: settings.pwaName || settings.name || "Master Membros",
-    short_name:
-      settings.pwaShortName || (settings.name || "Master").slice(0, 12),
-    start_url: "/",
-    display: "standalone" as const,
-    background_color: settings.pwaBackgroundColor || "#09090b",
-    theme_color: settings.pwaThemeColor || "#00C2CB",
-    icons: pwaIconUrl
-      ? [
-          { src: pwaIconUrl, sizes: "192x192", type: "image/png" },
-          { src: pwaIconUrl, sizes: "512x512", type: "image/png" },
-        ]
-      : [],
-  };
-
-  const blob = new Blob([JSON.stringify(manifest)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-
-  let link = document.querySelector(
-    "link[rel='manifest']"
-  ) as HTMLLinkElement | null;
-  if (!link) {
-    link = document.createElement("link");
-    link.rel = "manifest";
-    document.head.appendChild(link);
-  }
-  link.href = url;
-}
+// NOTA: O manifest do PWA NÃO é mais injetado em runtime.
+// Antes usávamos um blob: URL, mas navegadores não consideram manifests
+// blob/data instaláveis (scope/start_url ficam fora de escopo).
+// Agora o manifest é servido de mesma origem por /manifest.webmanifest
+// (função serverless api/manifest.ts, dinâmica via platform_settings),
+// linkado estaticamente em index.html.
 
 export function applyFavicon(faviconUrl: string | null | undefined) {
   if (!faviconUrl) return;

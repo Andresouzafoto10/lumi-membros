@@ -1,6 +1,7 @@
 {
   "rewrites": [
-    { "source": "/((?!assets|.*\\..*).*)", "destination": "/index.html" }
+    { "source": "/manifest.webmanifest", "destination": "/api/manifest" },
+    { "source": "/((?!api|assets|.*\\..*).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
