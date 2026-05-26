@@ -15,7 +15,7 @@ import { getProxiedImageUrl } from "@/lib/imageProxy";
 type Mode = "login" | "forgot" | "magic";
 
 export default function LoginPage() {
-  const { signIn, resetPassword, sendMagicLink } = useAuth();
+  const { signIn, resetPassword, sendMagicLink, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -31,6 +31,15 @@ export default function LoginPage() {
   const [sent, setSent] = useState(false);
 
   const from = (location.state as { from?: string } | null)?.from ?? "/cursos";
+
+  // Sessão lembrada → entra direto na conta (não mostra o formulário).
+  // Cobre o caso do app instalado (PWA) abrindo em /login com sessão válida.
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [authLoading, isAuthenticated, from, navigate]);
+
   const { settings } = usePlatformSettings();
   const logoSrc = getProxiedImageUrl(settings.logoUploadUrl || settings.logoUrl || null);
   const coverUrl = getProxiedImageUrl(settings.loginCoverUrl || null);
@@ -153,6 +162,16 @@ export default function LoginPage() {
           </div>
         </div>
       </>
+    );
+  }
+
+  // Enquanto a sessão resolve (ou já há sessão e vamos redirecionar), evita
+  // piscar o formulário — mostra um loader.
+  if (authLoading || isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
     );
   }
 
