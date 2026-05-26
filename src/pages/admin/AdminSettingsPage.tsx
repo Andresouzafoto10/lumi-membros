@@ -53,7 +53,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { applyThemeToCss } from "@/lib/applyTheme";
-import { applyFavicon, applyPwaManifest } from "@/lib/generatePwaManifest";
+import { applyFavicon } from "@/lib/generatePwaManifest";
 
 // ---------------------------------------------------------------------------
 // Color field component
@@ -258,15 +258,8 @@ export default function AdminSettingsPage() {
       });
       applyThemeToCss(darkColors, lightColors);
       applyFavicon(faviconUrl || null);
-      applyPwaManifest({
-        ...settings,
-        pwaEnabled,
-        pwaName: pwaName || null,
-        pwaShortName: pwaShortName || null,
-        pwaIconUrl: pwaIconUrl || null,
-        pwaThemeColor: pwaThemeColor || null,
-        pwaBackgroundColor: pwaBackgroundColor || null,
-      });
+      // Manifest PWA é servido por /manifest.webmanifest (api/manifest.ts) e
+      // reflete estas configurações no próximo carregamento.
       toast.success("Aparência salva e aplicada.");
     } catch (err) {
       console.error("[settings] Falha ao salvar aparência:", err);
@@ -668,12 +661,12 @@ export default function AdminSettingsPage() {
                   <Separator />
 
                   {!pwaIconUrl && (
-                    <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-amber-600 dark:text-amber-400">
+                    <div className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/40 p-3 text-muted-foreground">
                       <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                       <p className="text-xs leading-relaxed">
-                        Defina um <strong>ícone do PWA</strong> abaixo. Sem um ícone (mín. 144x144px),
-                        o navegador não oferece a instalação automática no Android/Desktop e o convite
-                        de instalar não aparece. (iPhone funciona pelo guia manual mesmo sem ícone.)
+                        Ícone opcional. Sem um ícone aqui, o app usa o <strong>ícone padrão
+                        embutido</strong> (logo da escola) — a instalação continua funcionando.
+                        Defina um ícone próprio para personalizar.
                       </p>
                     </div>
                   )}
