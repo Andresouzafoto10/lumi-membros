@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, Save, Eye, Award, Star, ShieldCheck, Plus, Pencil, Trash2, Upload, Link as LinkIcon, Globe, Smartphone, Code, Menu as MenuIcon, ChevronUp, ChevronDown, ExternalLink, EyeOff, MessageCircle } from "lucide-react";
+import { Settings, Save, Eye, Award, Star, ShieldCheck, Plus, Pencil, Trash2, Upload, Link as LinkIcon, Globe, Smartphone, Code, Menu as MenuIcon, ChevronUp, ChevronDown, ExternalLink, EyeOff, MessageCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
@@ -666,6 +666,17 @@ export default function AdminSettingsPage() {
               {pwaEnabled && (
                 <div className="space-y-4 pt-2">
                   <Separator />
+
+                  {!pwaIconUrl && (
+                    <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <p className="text-xs leading-relaxed">
+                        Defina um <strong>ícone do PWA</strong> abaixo. Sem um ícone (mín. 144x144px),
+                        o navegador não oferece a instalação automática no Android/Desktop e o convite
+                        de instalar não aparece. (iPhone funciona pelo guia manual mesmo sem ícone.)
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
                     <Label htmlFor="pwa-name">Nome do app</Label>

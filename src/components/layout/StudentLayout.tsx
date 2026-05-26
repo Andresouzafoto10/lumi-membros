@@ -43,6 +43,7 @@ import { useProfiles } from "@/hooks/useProfiles";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Footer } from "@/components/layout/Footer";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { onDailyLogin, onStreak7Days, onStreak30Days } from "@/lib/gamificationEngine";
 import { recordLoginStreak } from "@/lib/streakTracker";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
@@ -655,6 +656,7 @@ export function StudentLayout() {
         </main>
 
         <MobileBottomNav />
+        <InstallPrompt />
       </div>
     </SearchProvider>
   );
