@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   GraduationCap,
@@ -15,7 +15,11 @@ import {
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
-import type { CourseAccess, SessionVisibilityMode } from "@/types/course";
+import type {
+  CourseAccess,
+  CourseCardOrientation,
+  SessionVisibilityMode,
+} from "@/types/course";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -109,6 +113,9 @@ export default function AdminSessionPage() {
   const [visibilityMode, setVisibilityMode] = useState<SessionVisibilityMode>(
     session?.visibilityMode ?? "all"
   );
+  const [cardOrientation, setCardOrientation] = useState<CourseCardOrientation>(
+    session?.cardOrientation ?? "horizontal"
+  );
   const [saving, setSaving] = useState(false);
 
   // Course create dialog
@@ -126,6 +133,15 @@ export default function AdminSessionPage() {
   const [targetSessionId, setTargetSessionId] = useState("");
 
   const otherSessions = sessions.filter((s) => s.id !== sessionId);
+
+  useEffect(() => {
+    if (!session) return;
+    setTitle(session.title);
+    setDescription(session.description ?? "");
+    setIsActive(session.isActive);
+    setVisibilityMode(session.visibilityMode ?? "all");
+    setCardOrientation(session.cardOrientation ?? "horizontal");
+  }, [session]);
 
   if (!session || !sessionId) {
     return (
@@ -154,6 +170,7 @@ export default function AdminSessionPage() {
       description: description.trim() || undefined,
       isActive,
       visibilityMode,
+      cardOrientation,
     });
     toast.success("Sessao salva.");
     setTimeout(() => setSaving(false), 400);
@@ -276,6 +293,38 @@ export default function AdminSessionPage() {
               onCheckedChange={setIsActive}
             />
             <Label htmlFor="sess-active">Ativa</Label>
+          </div>
+          <div className="space-y-3 rounded-lg border border-border/50 p-4">
+            <div>
+              <Label>Formato dos cursos nesta sessao</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Horizontal usa o modelo atual; vertical usa banners 9:16 sem texto abaixo.
+              </p>
+            </div>
+            <RadioGroup
+              value={cardOrientation}
+              onValueChange={(v) => setCardOrientation(v as CourseCardOrientation)}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/50 p-3 transition-colors hover:bg-muted/50 has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5">
+                <RadioGroupItem value="horizontal" id="card-horizontal" className="mt-0.5" />
+                <span>
+                  <span className="block text-sm font-medium">Horizontal (16:9)</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Cards com titulo, descricao e progresso.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/50 p-3 transition-colors hover:bg-muted/50 has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5">
+                <RadioGroupItem value="vertical" id="card-vertical" className="mt-0.5" />
+                <span>
+                  <span className="block text-sm font-medium">Vertical (9:16)</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Poster alto com progresso fino no rodape.
+                  </span>
+                </span>
+              </label>
+            </RadioGroup>
           </div>
         </CardContent>
       </Card>

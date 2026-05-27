@@ -8,12 +8,22 @@ import {
   Pencil,
   Trash2,
   Image as ImageIcon,
+  LayoutGrid,
+  Loader2,
+  Rows3,
+  TimerReset,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
-import type { CourseBanner, CourseBannerMediaType, CourseBannerTargetType } from "@/types/course";
+import type {
+  CourseBanner,
+  CourseBannerMediaType,
+  CourseBannerTargetType,
+  CourseCardOrientation,
+} from "@/types/course";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { FileUpload } from "@/components/ui/FileUpload";
@@ -60,12 +70,14 @@ type SessionFormState = {
   title: string;
   description: string;
   isActive: boolean;
+  cardOrientation: CourseCardOrientation;
 };
 
 const emptySessionForm: SessionFormState = {
   title: "",
   description: "",
   isActive: true,
+  cardOrientation: "horizontal",
 };
 
 // ---------------------------------------------------------------------------
@@ -112,6 +124,7 @@ export default function AdminCoursesPage() {
     deleteBanner,
     moveBanner,
   } = useCourses();
+  const { settings, updateSettings } = usePlatformSettings();
 
   // Session dialog
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
@@ -123,11 +136,44 @@ export default function AdminCoursesPage() {
   const [bannerForm, setBannerForm] =
     useState<BannerFormState>(emptyBannerForm);
   const [editingBannerId, setEditingBannerId] = useState<string | null>(null);
+  const [displaySettingsSaving, setDisplaySettingsSaving] = useState(false);
 
   // ---------- Summary counts ----------
   const totalSessions = sessions.length;
   const totalCourses = allCourses.length;
   const activeCourses = allCourses.filter((c) => c.isActive).length;
+  const isCarouselMode = (settings.coursesDisplayMode ?? "grid") === "carousel";
+  const carouselAutoplay = settings.coursesCarouselAutoplay ?? false;
+
+  async function handleDisplayModeChange(checked: boolean) {
+    setDisplaySettingsSaving(true);
+    try {
+      await updateSettings({
+        coursesDisplayMode: checked ? "carousel" : "grid",
+      });
+      toast.success(checked ? "Modo carrossel ativado." : "Modo padrao ativado.");
+    } catch {
+      toast.error("Nao foi possivel salvar o modo da vitrine.");
+    } finally {
+      setDisplaySettingsSaving(false);
+    }
+  }
+
+  async function handleAutoplayChange(checked: boolean) {
+    setDisplaySettingsSaving(true);
+    try {
+      await updateSettings({ coursesCarouselAutoplay: checked });
+      toast.success(
+        checked
+          ? "Passagem automatica ativada."
+          : "Passagem automatica desativada."
+      );
+    } catch {
+      toast.error("Nao foi possivel salvar a passagem automatica.");
+    } finally {
+      setDisplaySettingsSaving(false);
+    }
+  }
 
   // ---------- Session handlers ----------
   function handleCreateSession() {
@@ -139,6 +185,7 @@ export default function AdminCoursesPage() {
       title: sessionForm.title.trim(),
       description: sessionForm.description.trim() || undefined,
       isActive: sessionForm.isActive,
+      cardOrientation: sessionForm.cardOrientation,
     });
     toast.success("Sessao criada com sucesso.");
     setSessionForm(emptySessionForm);
@@ -295,6 +342,26 @@ export default function AdminCoursesPage() {
                 />
                 <Label htmlFor="session-active">Ativa</Label>
               </div>
+              <div className="space-y-2">
+                <Label>Formato dos cursos nesta sessao</Label>
+                <Select
+                  value={sessionForm.cardOrientation}
+                  onValueChange={(v) =>
+                    setSessionForm({
+                      ...sessionForm,
+                      cardOrientation: v as CourseCardOrientation,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="horizontal">Horizontal (16:9)</SelectItem>
+                    <SelectItem value="vertical">Vertical (9:16)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter>
               <Button onClick={handleCreateSession}>Criar sessao</Button>
@@ -302,6 +369,65 @@ export default function AdminCoursesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* ====== Student courses display mode ====== */}
+      <Card>
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              {isCarouselMode ? <Rows3 className="h-5 w-5" /> : <LayoutGrid className="h-5 w-5" />}
+            </div>
+            <div>
+              <h2 className="font-semibold">Vitrine dos cursos</h2>
+              <p className="text-sm text-muted-foreground">
+                Escolha entre a grade atual ou fileiras em carrossel por sessao.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:min-w-[390px]">
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border/50 px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                {isCarouselMode ? (
+                  <Rows3 className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                )}
+                <Label htmlFor="courses-carousel-mode" className="cursor-pointer text-sm">
+                  Modo carrossel
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                {displaySettingsSaving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                <Switch
+                  id="courses-carousel-mode"
+                  checked={isCarouselMode}
+                  onCheckedChange={handleDisplayModeChange}
+                  disabled={displaySettingsSaving}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border/50 px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <TimerReset className="h-4 w-4 text-muted-foreground" />
+                <Label
+                  htmlFor="courses-carousel-autoplay"
+                  className="cursor-pointer text-sm"
+                >
+                  Passar a cada 5 segundos
+                </Label>
+              </div>
+              <Switch
+                id="courses-carousel-autoplay"
+                checked={carouselAutoplay}
+                onCheckedChange={handleAutoplayChange}
+                disabled={!isCarouselMode || displaySettingsSaving}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ====== Banners Section ====== */}
       <section className="space-y-4">
@@ -624,6 +750,9 @@ export default function AdminCoursesPage() {
                     {courseCount} curso{courseCount !== 1 ? "s" : ""} &middot;{" "}
                     {activeCount} ativo{activeCount !== 1 ? "s" : ""}
                   </p>
+                  <Badge variant="outline">
+                    {session.cardOrientation === "vertical" ? "Vertical" : "Horizontal"}
+                  </Badge>
 
                   <div className="flex flex-wrap items-center gap-1 pt-1">
                     <Button

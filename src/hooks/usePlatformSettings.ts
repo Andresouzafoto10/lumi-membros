@@ -10,6 +10,8 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   ratingsEnabled: true,
   emailNotificationsEnabled: true,
   showMyCourses: true,
+  coursesDisplayMode: "grid",
+  coursesCarouselAutoplay: false,
   certificateBackgroundUrl: "",
   certificateDefaultText:
     "Certificamos que {{nome}} concluiu com êxito o curso {{curso}}, com carga horária de {{horas}} horas.",
@@ -109,6 +111,12 @@ async function fetchSettings(): Promise<PlatformSettings> {
     feedCoverUrl: (data.feed_cover_url as string | null) ?? "",
     feedEnabled: (data.feed_enabled as boolean | null) ?? true,
     showMyCourses: (data.show_my_courses as boolean | null) ?? true,
+    coursesDisplayMode:
+      ((data.courses_display_mode as string | null) ?? "grid") === "carousel"
+        ? "carousel"
+        : "grid",
+    coursesCarouselAutoplay:
+      (data.courses_carousel_autoplay as boolean | null) ?? false,
     whatsappEnabled: (data.whatsapp_enabled as boolean | null) ?? false,
     whatsappNumber: (data.whatsapp_number as string | null) ?? null,
     whatsappMessage: (data.whatsapp_message as string | null) ?? null,
@@ -164,6 +172,8 @@ export function usePlatformSettings() {
       if (patch.feedCoverUrl !== undefined) dbPatch.feed_cover_url = patch.feedCoverUrl;
       if (patch.feedEnabled !== undefined) dbPatch.feed_enabled = patch.feedEnabled;
       if (patch.showMyCourses !== undefined) dbPatch.show_my_courses = patch.showMyCourses;
+      if (patch.coursesDisplayMode !== undefined) dbPatch.courses_display_mode = patch.coursesDisplayMode;
+      if (patch.coursesCarouselAutoplay !== undefined) dbPatch.courses_carousel_autoplay = patch.coursesCarouselAutoplay;
       if (patch.whatsappEnabled !== undefined) dbPatch.whatsapp_enabled = patch.whatsappEnabled;
       if (patch.whatsappNumber !== undefined) dbPatch.whatsapp_number = patch.whatsappNumber;
       if (patch.whatsappMessage !== undefined) dbPatch.whatsapp_message = patch.whatsappMessage;

@@ -29,6 +29,7 @@ export type AdminSessionFormData = {
   title: string;
   description?: string;
   isActive: boolean;
+  cardOrientation: CourseSession["cardOrientation"];
 };
 
 export type AdminBannerFormData = {

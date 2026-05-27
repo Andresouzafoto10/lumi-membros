@@ -108,6 +108,7 @@ create table if not exists public.course_sessions (
   is_active   boolean not null default true,
   "order"     integer not null default 0,
   visibility_mode text NOT NULL DEFAULT 'all' CHECK (visibility_mode IN ('all', 'enrolled_courses')),
+  card_orientation text NOT NULL DEFAULT 'horizontal' CHECK (card_orientation IN ('horizontal', 'vertical')),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -141,6 +142,7 @@ create table if not exists public.courses (
   title               text not null,
   description         text not null default '',
   banner_url          text not null default '',
+  banner_vertical_url text not null default '',
   "order"             integer not null default 0,
   is_active           boolean not null default true,
   access              jsonb not null default '{"mode":"all"}'::jsonb,
@@ -814,6 +816,8 @@ create table if not exists public.platform_settings (
   theme                       jsonb not null default '{}'::jsonb,
   feed_cover_url              text,
   feed_enabled                boolean not null default true,
+  courses_display_mode        text not null default 'grid' check (courses_display_mode in ('grid', 'carousel')),
+  courses_carousel_autoplay   boolean not null default false,
   updated_at                  timestamptz not null default now()
 );
 

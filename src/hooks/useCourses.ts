@@ -83,6 +83,7 @@ async function fetchCourseTree(): Promise<CourseSession[]> {
     title: c.title,
     description: c.description,
     bannerUrl: c.banner_url,
+    bannerVerticalUrl: c.banner_vertical_url ?? "",
     order: c.order,
     isActive: c.is_active,
     access: c.access as CourseAccess,
@@ -108,6 +109,8 @@ async function fetchCourseTree(): Promise<CourseSession[]> {
     isActive: s.is_active,
     order: s.order,
     visibilityMode: (s.visibility_mode ?? "all") as CourseSession["visibilityMode"],
+    cardOrientation:
+      (s.card_orientation ?? "horizontal") as CourseSession["cardOrientation"],
     courses: courses
       .filter((c) => {
         return (coursesRes.data ?? []).find(
@@ -230,6 +233,7 @@ export function useCourses() {
       description?: string;
       isActive: boolean;
       visibilityMode?: CourseSession["visibilityMode"];
+      cardOrientation?: CourseSession["cardOrientation"];
     }) => {
       const maxOrder = sessions.reduce((m, s) => Math.max(m, s.order), 0);
       const { error } = await supabase.from("course_sessions").insert({
@@ -237,6 +241,7 @@ export function useCourses() {
         description: data.description ?? null,
         is_active: data.isActive,
         visibility_mode: data.visibilityMode ?? "all",
+        card_orientation: data.cardOrientation ?? "horizontal",
         order: maxOrder + 1,
       });
       if (error) throw error;
@@ -249,7 +254,10 @@ export function useCourses() {
     async (
       sessionId: string,
       patch: Partial<
-        Pick<CourseSession, "title" | "description" | "isActive" | "visibilityMode">
+        Pick<
+          CourseSession,
+          "title" | "description" | "isActive" | "visibilityMode" | "cardOrientation"
+        >
       >
     ) => {
       const { error } = await supabase
@@ -260,6 +268,9 @@ export function useCourses() {
           ...(patch.isActive !== undefined && { is_active: patch.isActive }),
           ...(patch.visibilityMode !== undefined && {
             visibility_mode: patch.visibilityMode,
+          }),
+          ...(patch.cardOrientation !== undefined && {
+            card_orientation: patch.cardOrientation,
           }),
         })
         .eq("id", sessionId);
@@ -342,6 +353,7 @@ export function useCourses() {
           | "description"
           | "isActive"
           | "bannerUrl"
+          | "bannerVerticalUrl"
           | "access"
           | "certificateConfig"
           | "commentsEnabled"
@@ -357,6 +369,9 @@ export function useCourses() {
           ...(patch.description !== undefined && { description: patch.description }),
           ...(patch.isActive !== undefined && { is_active: patch.isActive }),
           ...(patch.bannerUrl !== undefined && { banner_url: patch.bannerUrl }),
+          ...(patch.bannerVerticalUrl !== undefined && {
+            banner_vertical_url: patch.bannerVerticalUrl,
+          }),
           ...(patch.access !== undefined && { access: patch.access }),
           ...(patch.certificateConfig !== undefined && {
             certificate_config: patch.certificateConfig,
@@ -384,6 +399,7 @@ export function useCourses() {
         .eq("id", courseId);
       if (error) throw error;
       if (course?.bannerUrl) deleteFromR2(course.bannerUrl).catch(() => {});
+      if (course?.bannerVerticalUrl) deleteFromR2(course.bannerVerticalUrl).catch(() => {});
       invalidate();
     },
     [allCourses, invalidate]
@@ -447,6 +463,7 @@ export function useCourses() {
           title: `${sourceCourse.title} (cópia)`,
           description: sourceCourse.description,
           banner_url: sourceCourse.bannerUrl,
+          banner_vertical_url: sourceCourse.bannerVerticalUrl ?? "",
           is_active: false,
           access: sourceCourse.access,
           order: maxOrder + 1,

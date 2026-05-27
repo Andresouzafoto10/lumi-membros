@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, lazy, Suspense } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   GraduationCap,
@@ -17,26 +17,15 @@ import {
   MessageCircle,
   Inbox,
   Info,
-  Upload,
-  ImageIcon,
-  Link as LinkIcon,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCourses } from "@/hooks/useCourses";
 import { useCertificates } from "@/hooks/useCertificates";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
-import { useR2Upload } from "@/hooks/useR2Upload";
 import type { CourseAccess, NoAccessAction } from "@/types/course";
-import { deleteFromR2, isR2Url } from "@/lib/r2Upload";
-import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { CertificateRenderer } from "@/components/certificates/CertificateRenderer";
-
-// Lazy-load ImageCropDialog (pulls in react-easy-crop, only needed when cropping)
-const ImageCropDialog = lazy(() =>
-  import("@/components/ui/ImageCropDialog").then((m) => ({ default: m.ImageCropDialog }))
-);
+import { CourseBannerField } from "@/components/admin/CourseBannerField";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -106,15 +95,10 @@ export default function AdminCourseEditPage() {
   const [title, setTitle] = useState(course?.title ?? "");
   const [isActive, setIsActive] = useState(course?.isActive ?? true);
   const [description, setDescription] = useState(course?.description ?? "");
-  const [bannerPreview, setBannerPreview] = useState(course?.bannerUrl ?? "");
-  const bannerInputRef = useRef<HTMLInputElement>(null);
-  const [bannerCropSrc, setBannerCropSrc] = useState<string>("");
-  const [bannerCropOpen, setBannerCropOpen] = useState(false);
-  const [bannerUploading, setBannerUploading] = useState(false);
-  const [bannerDeleting, setBannerDeleting] = useState(false);
-  const [bannerShowUrl, setBannerShowUrl] = useState(false);
-  const [bannerUrlDraft, setBannerUrlDraft] = useState("");
-  const [bannerConfirmRemove, setBannerConfirmRemove] = useState(false);
+  const [bannerUrl, setBannerUrl] = useState(course?.bannerUrl ?? "");
+  const [bannerVerticalUrl, setBannerVerticalUrl] = useState(
+    course?.bannerVerticalUrl ?? ""
+  );
   const [accessMode, setAccessMode] = useState<"all" | "plans" | "admin">(
     course?.access.mode ?? "all"
   );
@@ -168,85 +152,8 @@ export default function AdminCourseEditPage() {
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [moduleForm, setModuleForm] =
     useState<ModuleFormState>(emptyModuleForm);
-  const { uploadFile: uploadBannerFile } = useR2Upload();
 
-  const bannerUrl = bannerPreview || course?.bannerUrl || "";
-  const bannerPreviewSrc = getProxiedImageUrl(bannerUrl);
-
-  // ---------- Banner handlers ----------
-  const handleBannerFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      e.target.value = "";
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Arquivo muito grande. Maximo: 5MB");
-        return;
-      }
-      const objectUrl = URL.createObjectURL(file);
-      setBannerCropSrc(objectUrl);
-      setBannerCropOpen(true);
-    },
-    []
-  );
-
-  const handleBannerCropConfirm = useCallback(
-    async (croppedFile: File) => {
-      setBannerCropOpen(false);
-      if (bannerCropSrc) URL.revokeObjectURL(bannerCropSrc);
-      setBannerCropSrc("");
-      setBannerUploading(true);
-      try {
-        const url = await uploadBannerFile({
-          file: croppedFile,
-          folder: "courses/banners",
-          previousUrl: bannerUrl,
-          preset: "banner",
-          errorMessage: "Erro no upload. Tente novamente.",
-        });
-        setBannerPreview(url);
-        toast.success("Banner atualizado!");
-      } catch (err) {
-        console.error("[BannerUpload]", err);
-      } finally {
-        setBannerUploading(false);
-      }
-    },
-    [bannerCropSrc, bannerUrl, uploadBannerFile]
-  );
-
-  const handleBannerCropCancel = useCallback(() => {
-    setBannerCropOpen(false);
-    if (bannerCropSrc) URL.revokeObjectURL(bannerCropSrc);
-    setBannerCropSrc("");
-  }, [bannerCropSrc]);
-
-  const handleBannerRemove = useCallback(async () => {
-    setBannerConfirmRemove(false);
-    if (bannerUrl && isR2Url(bannerUrl)) {
-      setBannerDeleting(true);
-      try {
-        await deleteFromR2(bannerUrl);
-      } catch {
-        // silent
-      } finally {
-        setBannerDeleting(false);
-      }
-    }
-    setBannerPreview("");
-    toast.success("Banner removido.");
-  }, [bannerUrl]);
-
-  const handleBannerUrlConfirm = useCallback(() => {
-    const trimmed = bannerUrlDraft.trim();
-    if (!trimmed) return;
-    if (bannerUrl && isR2Url(bannerUrl)) {
-      deleteFromR2(bannerUrl).catch(() => {});
-    }
-    setBannerPreview(trimmed);
-    setBannerUrlDraft("");
-    setBannerShowUrl(false);
-  }, [bannerUrlDraft, bannerUrl]);
+  const sessionVertical = session?.cardOrientation === "vertical";
 
   // Early return AFTER all hooks are declared (preserves Rules of Hooks ordering)
   if (!course || !courseId) {
@@ -287,7 +194,8 @@ export default function AdminCourseEditPage() {
       title: title.trim(),
       description: description.trim(),
       isActive,
-      bannerUrl: bannerUrl,
+      bannerUrl,
+      bannerVerticalUrl,
       access,
       commentsEnabled,
       launchStatus,
@@ -429,177 +337,35 @@ export default function AdminCourseEditPage() {
               <CardHeader className="pb-4">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Image className="h-4 w-4 text-primary" />
-                  Banner
+                  Banners
                 </CardTitle>
                 <CardDescription>
-                  Imagem de capa do curso (16:9)
+                  Envie os dois formatos. A sessao{" "}
+                  <span className="font-medium text-foreground">{session?.title ?? ""}</span>{" "}
+                  exibe os cards em{" "}
+                  <span className="font-medium text-foreground">
+                    {sessionVertical ? "vertical (9:16)" : "horizontal (16:9)"}
+                  </span>
+                  .
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <input
-                  ref={bannerInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleBannerFileSelect}
+              <CardContent className="space-y-5">
+                <CourseBannerField
+                  label="Banner horizontal (16:9)"
+                  description="Usado quando a sessao esta no formato horizontal."
+                  orientation="horizontal"
+                  value={bannerUrl}
+                  onChange={setBannerUrl}
+                  active={!sessionVertical}
                 />
-
-                {/* 16:9 preview — pixel-perfect match with CourseCard */}
-                {bannerUrl ? (
-                  <div className="relative group">
-                    <div className="aspect-video rounded-xl overflow-hidden border border-border/50 bg-muted">
-                      <img
-                        src={bannerPreviewSrc}
-                        alt="Banner preview"
-                        className="h-full w-full object-cover"
-                        crossOrigin="anonymous"
-                        onError={(e) => { e.currentTarget.style.display = "none"; }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                    </div>
-                    {/* Hover overlay with actions */}
-                    <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/40 transition-colors">
-                      <div className="absolute top-2.5 right-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="secondary"
-                          className="h-8 w-8 rounded-full shadow-md"
-                          onClick={() => bannerInputRef.current?.click()}
-                          disabled={bannerUploading || bannerDeleting}
-                        >
-                          {bannerUploading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Upload className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="destructive"
-                          className="h-8 w-8 rounded-full shadow-md"
-                          onClick={() => setBannerConfirmRemove(true)}
-                          disabled={bannerUploading || bannerDeleting}
-                        >
-                          {bannerDeleting ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1.5">
-                      Pre-visualizacao — exatamente como o aluno vera
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => bannerInputRef.current?.click()}
-                    disabled={bannerUploading}
-                    className="w-full aspect-video rounded-xl border-2 border-dashed border-border/60 bg-muted/30 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-muted/50 transition-colors"
-                  >
-                    {bannerUploading ? (
-                      <>
-                        <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
-                        <span className="text-xs text-muted-foreground">Enviando...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Clique para enviar</span>
-                        <span className="text-xs text-muted-foreground/60">Max 5MB</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {/* URL externa toggle */}
-                {!bannerUploading && (
-                  <>
-                    {bannerShowUrl ? (
-                      <div className="flex gap-2">
-                        <Input
-                          value={bannerUrlDraft}
-                          onChange={(e) => setBannerUrlDraft(e.target.value)}
-                          placeholder="https://..."
-                          className="flex-1 text-sm"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleBannerUrlConfirm();
-                            }
-                          }}
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          onClick={handleBannerUrlConfirm}
-                          disabled={!bannerUrlDraft.trim()}
-                        >
-                          OK
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => { setBannerShowUrl(false); setBannerUrlDraft(""); }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={() => setBannerShowUrl(true)}
-                      >
-                        <LinkIcon className="h-3 w-3" />
-                        Usar URL externa
-                      </button>
-                    )}
-                  </>
-                )}
-
-                {/* Crop dialog (lazy) */}
-                <Suspense fallback={null}>
-                  <ImageCropDialog
-                    open={bannerCropOpen}
-                    onClose={handleBannerCropCancel}
-                    onConfirm={handleBannerCropConfirm}
-                    imageSrc={bannerCropSrc}
-                    aspect={16 / 9}
-                    shape="rect"
-                    title="Recortar banner do curso"
-                    cropObjectFit="contain"
-                  />
-                </Suspense>
-
-                {/* Confirm remove dialog */}
-                <AlertDialog open={bannerConfirmRemove} onOpenChange={setBannerConfirmRemove}>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Remover banner</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {isR2Url(bannerUrl)
-                          ? "A imagem sera excluida permanentemente do servidor. Deseja continuar?"
-                          : "A referencia da imagem sera removida. Deseja continuar?"}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleBannerRemove}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Remover
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <CourseBannerField
+                  label="Banner vertical (9:16)"
+                  description="Poster alto, usado quando a sessao esta no formato vertical."
+                  orientation="vertical"
+                  value={bannerVerticalUrl}
+                  onChange={setBannerVerticalUrl}
+                  active={sessionVertical}
+                />
               </CardContent>
             </Card>
           </div>
