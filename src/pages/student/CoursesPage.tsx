@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { CourseBannersCarousel } from "@/components/courses/CourseBannersCarousel";
+import { CourseCarouselSection } from "@/components/courses/CourseCarouselSection";
 import { EmptyState } from "@/components/courses/EmptyState";
 import { ContinueWatching } from "@/components/courses/ContinueWatching";
 import { useCourses } from "@/hooks/useCourses";
@@ -41,6 +42,8 @@ export default function CoursesPage() {
 
   const [selectedSessionId, setSelectedSessionId] = useState("all");
   const showMyCourses = (settings.showMyCourses ?? true) && enrolledCourses.length > 0;
+  const isCarouselMode = (settings.coursesDisplayMode ?? "grid") === "carousel";
+  const carouselAutoplay = settings.coursesCarouselAutoplay ?? false;
 
   // Set of course IDs the current student is enrolled in
   const enrolledCourseIds = useMemo(() => {
@@ -176,25 +179,13 @@ export default function CoursesPage() {
 
       {/* Meus Cursos — exibido no topo para alunos com matricula ativa */}
       {showMyCourses && (
-        <section>
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="h-6 w-1 rounded-full bg-primary" />
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-lg font-bold tracking-tight sm:text-xl">Meus Cursos</h2>
-                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                    {enrolledCourses.length} {enrolledCourses.length === 1 ? "curso" : "cursos"}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Continue de onde parou nos cursos em que voce esta matriculado.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+        isCarouselMode ? (
+          <CourseCarouselSection
+            title="Meus Cursos"
+            description="Continue de onde parou nos cursos em que voce esta matriculado."
+            courseCount={enrolledCourses.length}
+            autoplay={carouselAutoplay}
+          >
             {enrolledCourses.map((course, idx) => (
               <div
                 key={course.id}
@@ -215,8 +206,50 @@ export default function CoursesPage() {
                 />
               </div>
             ))}
-          </div>
-        </section>
+          </CourseCarouselSection>
+        ) : (
+          <section>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="h-6 w-1 rounded-full bg-primary" />
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-lg font-bold tracking-tight sm:text-xl">Meus Cursos</h2>
+                    <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                      {enrolledCourses.length} {enrolledCourses.length === 1 ? "curso" : "cursos"}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Continue de onde parou nos cursos em que voce esta matriculado.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+              {enrolledCourses.map((course, idx) => (
+                <div
+                  key={course.id}
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${idx * 60}ms` }}
+                >
+                  <CourseCard
+                    to={`/cursos/${course.id}`}
+                    title={course.title}
+                    description={course.description}
+                    bannerUrl={course.bannerUrl}
+                    progressPercent={course.progressPercent}
+                    isDisabled={!course.isActive}
+                    access={course.access}
+                    courseId={course.id}
+                    launchAt={course.launchAt}
+                    launchStatus={course.launchStatus}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        )
       )}
 
       {/* No courses at all */}
@@ -254,8 +287,53 @@ export default function CoursesPage() {
         const activeCourses = session.courses
           .filter((c) => c.isActive)
           .sort((a, b) => a.order - b.order);
+        const cardOrientation = session.cardOrientation ?? "horizontal";
+        const bannerFor = (course: (typeof activeCourses)[number]) =>
+          cardOrientation === "vertical"
+            ? course.bannerVerticalUrl || course.bannerUrl
+            : course.bannerUrl;
 
         if (activeCourses.length === 0) return null;
+
+        if (isCarouselMode) {
+          return (
+            <CourseCarouselSection
+              key={session.id}
+              title={session.title}
+              description={session.description}
+              courseCount={activeCourses.length}
+              orientation={cardOrientation}
+              autoplay={carouselAutoplay}
+            >
+              {activeCourses.map((course, idx) => {
+                const hasAccess = isAdmin || enrolledCourseIds.has(course.id);
+
+                return (
+                  <div
+                    key={course.id}
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${idx * 60}ms` }}
+                  >
+                    <CourseCard
+                      to={`/cursos/${course.id}`}
+                      title={course.title}
+                      description={course.description}
+                      bannerUrl={bannerFor(course)}
+                      progressPercent={hasAccess ? courseProgress[course.id] : undefined}
+                      isDisabled={!course.isActive}
+                      locked={!hasAccess}
+                      access={course.access}
+                      courseId={course.id}
+                      launchAt={course.launchAt}
+                      launchStatus={course.launchStatus}
+                      orientation={cardOrientation}
+                    />
+                  </div>
+                );
+              })}
+            </CourseCarouselSection>
+          );
+        }
 
         return (
           <section key={session.id}>
@@ -278,7 +356,11 @@ export default function CoursesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+            <div className={
+              cardOrientation === "vertical"
+                ? "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5"
+                : "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5"
+            }>
               {activeCourses.map((course, idx) => {
                 const hasAccess = isAdmin || enrolledCourseIds.has(course.id);
 
@@ -292,7 +374,7 @@ export default function CoursesPage() {
                       to={`/cursos/${course.id}`}
                       title={course.title}
                       description={course.description}
-                      bannerUrl={course.bannerUrl}
+                      bannerUrl={bannerFor(course)}
                       progressPercent={hasAccess ? courseProgress[course.id] : undefined}
                       isDisabled={!course.isActive}
                       locked={!hasAccess}
@@ -300,6 +382,7 @@ export default function CoursesPage() {
                       courseId={course.id}
                       launchAt={course.launchAt}
                       launchStatus={course.launchStatus}
+                      orientation={cardOrientation}
                     />
                   </div>
                 );

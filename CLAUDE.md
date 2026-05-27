@@ -303,7 +303,7 @@ Brand color is **Lumi teal** (`#00C2CB`, HSL `183 100% 40%`) used as `--primary`
 
 **Course Management:**
 - `course_sessions` — id, title, description, is_active, order
-- `courses` — id, session_id (FK), title, description, banner_url, order, is_active, access (jsonb), certificate_config (jsonb), comments_enabled
+- `courses` — id, session_id (FK), title, description, banner_url (16:9), banner_vertical_url (9:16), order, is_active, access (jsonb), certificate_config (jsonb), comments_enabled. A course stores both banner formats; the parent session's `card_orientation` decides which one students see (vertical falls back to horizontal if empty). Editor: AdminCourseEditPage > Configuracoes > Banners renders two `CourseBannerField` uploaders, marking the active format per session.
 - `course_modules` — id, course_id (FK), title, order, is_active
 - `course_lessons` — id, module_id (FK), title, description, order, is_active, video_type, video_url, materials (jsonb), quiz (jsonb), quiz_passing_score, quiz_required_to_advance, ratings_enabled, comments_enabled
 - `lesson_materials` — id, lesson_id (FK), title, file_path, file_type (pdf/zip/mp3/image/other), file_size_bytes, drm_enabled

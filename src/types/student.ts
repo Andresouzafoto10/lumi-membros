@@ -84,6 +84,8 @@ export type ThemeColors = {
   foreground: string;
 };
 
+export type CoursesDisplayMode = "grid" | "carousel";
+
 export type PlatformSettings = {
   name: string;
   logoUrl: string;
@@ -108,6 +110,8 @@ export type PlatformSettings = {
   feedCoverUrl: string;
   feedEnabled: boolean;
   showMyCourses?: boolean;
+  coursesDisplayMode?: CoursesDisplayMode;
+  coursesCarouselAutoplay?: boolean;
   // Floating WhatsApp CTA on the /cursos page (student-only).
   whatsappEnabled?: boolean;
   whatsappNumber?: string | null;

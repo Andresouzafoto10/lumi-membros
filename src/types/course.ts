@@ -107,6 +107,8 @@ export type Course = {
   title: string;
   description: string;
   bannerUrl: string;
+  /** Vertical (9:16) banner. Shown when the parent session uses vertical cards. */
+  bannerVerticalUrl?: string;
   order: number;
   isActive: boolean;
   access: CourseAccess;
@@ -139,6 +141,7 @@ export interface LessonComment {
 }
 
 export type SessionVisibilityMode = "all" | "enrolled_courses";
+export type CourseCardOrientation = "horizontal" | "vertical";
 
 export type CourseSession = {
   id: string;
@@ -147,6 +150,7 @@ export type CourseSession = {
   isActive: boolean;
   order: number;
   visibilityMode: SessionVisibilityMode;
+  cardOrientation: CourseCardOrientation;
   courses: Course[];
 };
 

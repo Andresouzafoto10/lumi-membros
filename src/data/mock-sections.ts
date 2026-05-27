@@ -9,6 +9,7 @@ export const mockSessions: CourseSession[] = [
     isActive: true,
     order: 1,
     visibilityMode: "all",
+    cardOrientation: "horizontal",
     courses: [mockCourses[0], mockCourses[1]],
   },
   {
@@ -18,6 +19,7 @@ export const mockSessions: CourseSession[] = [
     isActive: true,
     order: 2,
     visibilityMode: "all",
+    cardOrientation: "horizontal",
     courses: [mockCourses[0], mockCourses[2]],
   },
 ];

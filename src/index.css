@@ -108,6 +108,15 @@
 }
 
 @layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   .shimmer-overlay {
     position: relative;
     overflow: hidden;
@@ -125,5 +134,20 @@
       transparent 100%
     );
     animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  .carousel-autoplay-ring {
+    animation: carousel-autoplay-progress 5s linear infinite;
+    transform: rotate(-90deg);
+    transform-origin: center;
+  }
+
+  @keyframes carousel-autoplay-progress {
+    from {
+      stroke-dashoffset: 100;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
   }
 }

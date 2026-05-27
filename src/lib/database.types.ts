@@ -112,6 +112,7 @@ export interface Database {
           is_active: boolean;
           order: number;
           visibility_mode: "all" | "enrolled_courses";
+          card_orientation: "horizontal" | "vertical";
           created_at: string;
           updated_at: string;
         };
@@ -122,6 +123,7 @@ export interface Database {
           is_active?: boolean;
           order?: number;
           visibility_mode?: "all" | "enrolled_courses";
+          card_orientation?: "horizontal" | "vertical";
           created_at?: string;
           updated_at?: string;
         };
@@ -132,6 +134,7 @@ export interface Database {
           is_active?: boolean;
           order?: number;
           visibility_mode?: "all" | "enrolled_courses";
+          card_orientation?: "horizontal" | "vertical";
           updated_at?: string;
         };
       };
@@ -146,6 +149,7 @@ export interface Database {
           title: string;
           description: string;
           banner_url: string;
+          banner_vertical_url: string;
           order: number;
           is_active: boolean;
           access: Json; // { mode: 'all' } | { mode: 'plans', plans: string[] } | { mode: 'admin' }
@@ -160,6 +164,7 @@ export interface Database {
           title: string;
           description?: string;
           banner_url?: string;
+          banner_vertical_url?: string;
           order?: number;
           is_active?: boolean;
           access?: Json;
@@ -174,6 +179,7 @@ export interface Database {
           title?: string;
           description?: string;
           banner_url?: string;
+          banner_vertical_url?: string;
           order?: number;
           is_active?: boolean;
           access?: Json;
@@ -763,6 +769,8 @@ export interface Database {
           pwa_background_color: string | null;
           feed_cover_url: string | null;
           feed_enabled: boolean;
+          courses_display_mode: "grid" | "carousel";
+          courses_carousel_autoplay: boolean;
         };
         Insert: {
           id?: string;
@@ -784,6 +792,8 @@ export interface Database {
           pwa_background_color?: string | null;
           feed_cover_url?: string | null;
           feed_enabled?: boolean;
+          courses_display_mode?: "grid" | "carousel";
+          courses_carousel_autoplay?: boolean;
         };
         Update: {
           id?: string;
@@ -805,6 +815,8 @@ export interface Database {
           pwa_background_color?: string | null;
           feed_cover_url?: string | null;
           feed_enabled?: boolean;
+          courses_display_mode?: "grid" | "carousel";
+          courses_carousel_autoplay?: boolean;
         };
       };
 
