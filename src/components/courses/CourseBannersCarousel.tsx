@@ -130,7 +130,10 @@ export function CourseBannersCarousel({ banners }: CourseBannersCarouselProps) {
           >
             {(banner.mediaType ?? "image") === "video" ? (
               <video
-                src={getProxiedImageUrl(banner.imageUrl)}
+                // Direct R2 URL (not image-proxy): plain <video> playback needs no
+                // CORS, and R2 serves HTTP Range natively. The proxy returns a full
+                // 200 with no Accept-Ranges, which iOS/mobile reject -> black screen.
+                src={banner.imageUrl}
                 autoPlay={
                   idx === currentIndex ||
                   (idx === 0 && currentIndex === totalSlides - 1) ||

@@ -452,7 +452,8 @@ export default function AdminCoursesPage() {
               {banner.imageUrl ? (
                 banner.mediaType === "video" ? (
                   <video
-                    src={getProxiedImageUrl(banner.imageUrl)}
+                    // Direct R2 URL (not proxy) so mobile gets HTTP Range -> plays.
+                    src={banner.imageUrl}
                     muted
                     loop
                     playsInline
