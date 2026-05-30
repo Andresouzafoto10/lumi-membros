@@ -166,8 +166,10 @@ serve(async (req) => {
         return json({ error: `Falha listando usuários: ${listErr.message}` }, 500, corsHeaders);
       }
       const found = list.users.find((u) => (u.email ?? "").toLowerCase() === email);
+      const dupMsg =
+        "E-mail já cadastrado. Para enviar novamente os dados de acesso, use \"Reenviar acesso\" em Admin → Emails.";
       if (!found) {
-        return json({ error: "E-mail já cadastrado" }, 409, corsHeaders);
+        return json({ error: dupMsg }, 409, corsHeaders);
       }
       const { data: existingProfile } = await supabase
         .from("profiles")
@@ -175,7 +177,7 @@ serve(async (req) => {
         .eq("id", found.id)
         .maybeSingle();
       if (existingProfile) {
-        return json({ error: "E-mail já cadastrado" }, 409, corsHeaders);
+        return json({ error: dupMsg }, 409, corsHeaders);
       }
 
       // Orphan auth user — backfill profile and reset password to the new one

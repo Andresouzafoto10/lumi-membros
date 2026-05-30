@@ -102,7 +102,18 @@ export function useStudents() {
           classIds: data.classIds ?? [],
         },
       });
-      if (error) throw error;
+      if (error) {
+        // FunctionsHttpError carrega Response em error.context; extrai JSON p/ surfaces a mensagem real (409 duplicado etc.) em vez do genérico "non-2xx".
+        const ctx = (error as { context?: Response }).context;
+        let serverMsg: string | null = null;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = (await ctx.clone().json()) as { error?: string } | null;
+            if (body?.error) serverMsg = body.error;
+          } catch { /* body não é JSON — segue erro original */ }
+        }
+        throw serverMsg ? new Error(serverMsg) : error;
+      }
       if (!result?.userId) throw new Error("Falha ao cadastrar aluno");
       invalidate();
       return { userId: result.userId, emailSent: result.emailSent, emailError: result.emailError ?? null };
